@@ -3,15 +3,15 @@
   "id": "biblioteca",
   "version": "${version}",
   "name": "Biblioteca",
-  "description": "Adds per-dimension Y-axis looping: y=-64 wraps to y=319, entities and block access fold seamlessly, and the renderer shows the wrapped terrain across the seam.",
+  "description": "Adds per-dimension period to Y-axis",
   "authors": [
-    "Me!"
+    "FrogBishop"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "homepage": "https://github.com/FrogBishop/Biblioteca",
+    "sources": "https://github.com/FrogBishop/Biblioteca"
   },
-  "license": "CC0-1.0",
+  "license": "GPLv3",
   "icon": "assets/biblioteca/icon.png",
   "environment": "*",
   "entrypoints": {
