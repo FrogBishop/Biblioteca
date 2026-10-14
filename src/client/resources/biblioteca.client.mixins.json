@@ -1,0 +1,22 @@
+{
+  "required": true,
+  "package": "babel.biblioteca.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "ChunkDrawGroupAccessor",
+    "ClientLevelDirtyMixin",
+    "ClientPacketListenerMixin",
+    "CloudRendererLoopMixin",
+    "FrustumYLoopMixin",
+    "LevelRendererYLoopMixin",
+    "MultiPlayerGameModeMixin",
+    "SectionOcclusionGraphLoopMixin",
+    "VoidFogMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
