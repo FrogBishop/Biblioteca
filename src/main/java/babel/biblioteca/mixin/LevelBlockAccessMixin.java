@@ -9,11 +9,31 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
- * Wraps BlockPos Y coordinates in Level.getBlockState, Level.setBlock, and
- * Level.removeBlock so that positions outside [minY, minY+height) fold back
- * into the valid build range on both read and write.
+ * Makes the whole Level accessor family treat the Y axis as periodic.
  *
- * Works on both ServerLevel and ClientLevel since both extend Level.
+ * Every out-of-range lookup in Level funnels through one guard, isInValidBounds(),
+ * which answers "outside the world" for rows above minY + height and below minY.
+ * Folding the BlockPos before that guard is what lets the seam behave like the ring
+ * it is supposed to be, and it has to be done per accessor: a block that asks for
+ * something other than a BlockState would still see the void.
+ *
+ * Blocks with bespoke rules reach for these accessors directly, which is why a
+ * partially covered family shows up as unrelated sounding bugs:
+ *
+ *   getBlockState / setBlock / removeBlock   pistons, redstone, chests, rails, ...
+ *   getFluidState                            waterlogged blocks, fluid mixing, swimming
+ *   getBlockEntity / removeBlockEntity       pistons moving block entities, hoppers,
+ *                                            anything that must not orphan a block entity
+ *   isLoaded                                 neighbour updates (an update addressed at a
+ *                                            row that reads as unloaded is dropped)
+ *   loadedAndEntityCanStandOnFace            entity support checks
+ *
+ * setBlockEntity(BlockEntity) is deliberately absent: it derives its position from the
+ * block entity, so there is no argument to fold. Block entities created through
+ * setBlock are placed at the folded position by the chunk itself.
+ *
+ * require = 1 on the newer hooks: a silently unmatched injection is exactly how this
+ * family ended up half covered in the first place.
  */
 @Mixin(Level.class)
 public abstract class LevelBlockAccessMixin {
@@ -48,6 +68,41 @@ public abstract class LevelBlockAccessMixin {
             method = "removeBlock(Lnet/minecraft/core/BlockPos;Z)Z",
             at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
     private BlockPos biblioteca$wrapRemoveBlock(BlockPos pos) {
+        Level self = (Level) (Object) this;
+        if (!LoopingRegistry.isLooping(self)) return pos;
+        return biblioteca$wrap(pos, self);
+    }
+
+    @ModifyVariable(method = "getFluidState", at = @At("HEAD"), argsOnly = true, require = 1)
+    private BlockPos biblioteca$wrapGetFluidState(BlockPos pos) {
+        Level self = (Level) (Object) this;
+        if (!LoopingRegistry.isLooping(self)) return pos;
+        return biblioteca$wrap(pos, self);
+    }
+
+    @ModifyVariable(method = "getBlockEntity", at = @At("HEAD"), argsOnly = true, require = 1)
+    private BlockPos biblioteca$wrapGetBlockEntity(BlockPos pos) {
+        Level self = (Level) (Object) this;
+        if (!LoopingRegistry.isLooping(self)) return pos;
+        return biblioteca$wrap(pos, self);
+    }
+
+    @ModifyVariable(method = "removeBlockEntity", at = @At("HEAD"), argsOnly = true, require = 1)
+    private BlockPos biblioteca$wrapRemoveBlockEntity(BlockPos pos) {
+        Level self = (Level) (Object) this;
+        if (!LoopingRegistry.isLooping(self)) return pos;
+        return biblioteca$wrap(pos, self);
+    }
+
+    @ModifyVariable(method = "isLoaded", at = @At("HEAD"), argsOnly = true, require = 1)
+    private BlockPos biblioteca$wrapIsLoaded(BlockPos pos) {
+        Level self = (Level) (Object) this;
+        if (!LoopingRegistry.isLooping(self)) return pos;
+        return biblioteca$wrap(pos, self);
+    }
+
+    @ModifyVariable(method = "loadedAndEntityCanStandOnFace", at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 1)
+    private BlockPos biblioteca$wrapLoadedAndEntityCanStandOnFace(BlockPos pos) {
         Level self = (Level) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return pos;
         return biblioteca$wrap(pos, self);

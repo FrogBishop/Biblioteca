@@ -2,6 +2,7 @@ package babel.biblioteca;
 
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 
 import java.util.function.Predicate;
 
@@ -31,6 +32,14 @@ public final class LoopingRegistry {
         return level.isClientSide()
                 ? clientCheck.test(level.dimension())
                 : serverCheck.test(level.dimension());
+    }
+
+    /**
+     * For code that only has a LevelAccessor (block behaviour, features, level helpers).
+     * Anything that is not a Level cannot be a looping dimension.
+     */
+    public static boolean isLooping(LevelAccessor accessor) {
+        return accessor instanceof Level level && isLooping(level);
     }
 
     public static boolean isLoopingClient(ResourceKey<Level> dim) {

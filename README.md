@@ -10,6 +10,4 @@ Thanks to stupid Claude, render system is totally broken. Besides, there are mil
 Because I'm literally broke now (Claude it's you that hurts me), I would fix remaining codes by my hands only.
 
 Known issues:
-1. Redstone Block cannot pass the signal across the border.
-1. Slime Block cannot be pushed/pulled across the border.
-1. Top layer chest can open even there is a block at bottom layer.
+1. Entity collisions do not wrap across the border yet: in the ring an entity on the top layer stands right next to one on the bottom layer, but the two do not collide.
