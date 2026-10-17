@@ -1,6 +1,6 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingDimensionCache;
+import babel.biblioteca.LoopingRegistry;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -21,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *    and the placed block is rolled back visually.
  *
  * 2. After setBlocksDirty notifies LevelRenderer about the real block change,
- *    also mark the mirror chunk sections (±height) dirty so the looping
+ *    also mark the mirror chunk sections (one world height away) dirty so the looping
  *    renderer can rebuild them too.
  */
 @Mixin(ClientLevel.class)
@@ -32,7 +32,7 @@ public abstract class ClientLevelDirtyMixin {
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$foldSetBlockPos(BlockPos pos) {
         ClientLevel self = (ClientLevel) (Object) this;
-        if (!LoopingDimensionCache.isLooping(self.dimension())) return pos;
+        if (!LoopingRegistry.isLooping(self)) return pos;
         int y = pos.getY();
         int minY = self.getMinY();
         int height = self.getHeight();
@@ -45,7 +45,7 @@ public abstract class ClientLevelDirtyMixin {
             BlockPos pos, BlockState oldState, BlockState newState, CallbackInfo ci) {
 
         ClientLevel self = (ClientLevel) (Object) this;
-        if (!LoopingDimensionCache.isLooping(self.dimension())) return;
+        if (!LoopingRegistry.isLooping(self)) return;
 
         int height   = self.getHeight();
         int y        = pos.getY();

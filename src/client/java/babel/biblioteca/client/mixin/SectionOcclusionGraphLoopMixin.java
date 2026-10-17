@@ -1,6 +1,8 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingDimensionCache;
+import babel.biblioteca.client.LoopingClientSettings;
+import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.client.SeamCull;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -13,6 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -66,7 +69,7 @@ public abstract class SectionOcclusionGraphLoopMixin {
 
     private static boolean biblioteca$looping() {
         Minecraft minecraft = Minecraft.getInstance();
-        return minecraft.level != null && LoopingDimensionCache.isLooping(minecraft.level.dimension());
+        return minecraft.level != null && LoopingRegistry.isLooping(minecraft.level);
     }
 
     @Inject(
@@ -170,6 +173,11 @@ public abstract class SectionOcclusionGraphLoopMixin {
             List<SectionRenderDispatcher.RenderSection> visibleSections,
             List<SectionRenderDispatcher.RenderSection> nearbyVisibleSections,
             CallbackInfo ci) {
+        biblioteca$addFarSeamSources(frustum, visibleSections);
+    }
+
+    private void biblioteca$addFarSeamSources(
+            Frustum frustum, List<SectionRenderDispatcher.RenderSection> visibleSections) {
 
         if (this.viewArea == null) return;
         if (!biblioteca$looping()) return;
@@ -177,6 +185,12 @@ public abstract class SectionOcclusionGraphLoopMixin {
         int period = this.viewArea.maxY() - this.viewArea.minY() + 1;
         int reach  = this.viewArea.getViewDistance() * 16;
         double camY = frustum.getCamY();
+
+        // Preload: widen the test by the configured number of sections. Sections in that shell are
+        // compiled now instead of the moment they come into view, which is what keeps the crossing
+        // from triggering a burst of mesh builds. Zero means "only what is actually in view".
+        double slack  = LoopingClientSettings.preloadBlocks();
+        double search = reach + slack;
 
         LongOpenHashSet present = new LongOpenHashSet(visibleSections.size() * 2);
         for (SectionRenderDispatcher.RenderSection section : visibleSections) {
@@ -191,9 +205,9 @@ public abstract class SectionOcclusionGraphLoopMixin {
 
         for (int direction = -1; direction <= 1; direction += 2) {
             int lowestSectionY = Math.max(
-                    Mth.floor(camY - reach - (double) direction * period) >> 4, minSectionY);
+                    Mth.floor(camY - search - (double) direction * period) >> 4, minSectionY);
             int highestSectionY = Math.min(
-                    Mth.floor(camY + reach - (double) direction * period) >> 4, maxSectionY);
+                    Mth.floor(camY + search - (double) direction * period) >> 4, maxSectionY);
 
             for (int sectionY = lowestSectionY; sectionY <= highestSectionY; sectionY++) {
                 for (int offsetX = -radius; offsetX <= radius; offsetX++) {
@@ -205,7 +219,17 @@ public abstract class SectionOcclusionGraphLoopMixin {
                         SectionRenderDispatcher.RenderSection section =
                                 accessor.biblioteca$getRenderSection(node);
                         if (section == null) continue;
-                        if (!frustum.isVisible(section.getBoundingBox())) continue;
+
+                        // Ask about the copy, not about the section, and ask plainly: a section
+                        // earns a place here when the row the ring puts it at is in view.
+                        AABB box = section.getBoundingBox();
+                        AABB copyBounds = new AABB(
+                                box.minX, box.minY + (double) direction * period, box.minZ,
+                                box.maxX, box.maxY + (double) direction * period, box.maxZ);
+                        if (slack > 0.0) {
+                            copyBounds = copyBounds.inflate(slack);
+                        }
+                        if (!SeamCull.plainlyVisible(frustum, copyBounds)) continue;
 
                         visibleSections.add(section);
                         present.add(node);

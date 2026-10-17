@@ -1,6 +1,6 @@
 package babel.biblioteca.mixin;
 
-import babel.biblioteca.world.LoopingDimensionManager;
+import babel.biblioteca.LoopingRegistry;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.PrimedTnt;
@@ -27,7 +27,7 @@ public abstract class PrimedTntYLoopMixin {
         if (self.isRemoved()) return;
         Level level = self.level();
         if (!(level instanceof ServerLevel)) return;
-        if (!LoopingDimensionManager.isLooping(level.dimension())) return;
+        if (!LoopingRegistry.isLooping(level)) return;
 
         double y      = self.getY();
         int    minY   = level.getMinY();

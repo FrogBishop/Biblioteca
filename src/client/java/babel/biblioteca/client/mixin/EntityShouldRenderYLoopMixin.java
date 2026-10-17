@@ -1,6 +1,6 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingDimensionCache;
+import babel.biblioteca.LoopingRegistry;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,7 +32,7 @@ public abstract class EntityShouldRenderYLoopMixin {
         Entity self = (Entity) (Object) this;
         Level level = self.level();
         if (level == null) return;
-        if (!LoopingDimensionCache.isLooping(level.dimension())) return;
+        if (!LoopingRegistry.isLooping(level)) return;
 
         int period = level.getHeight();
         if (period <= 0) return;

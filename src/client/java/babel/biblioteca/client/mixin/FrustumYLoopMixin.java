@@ -1,6 +1,7 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingDimensionCache;
+import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.client.SeamCull;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.culling.Frustum;
 import org.spongepowered.asm.mixin.Mixin;
@@ -35,26 +36,23 @@ public abstract class FrustumYLoopMixin {
 
     @Shadow private double camY;
 
-    private static final ThreadLocal<Boolean> BIBLIOTECA_IN_MIRROR_TEST =
-            ThreadLocal.withInitial(() -> false);
-
     @Inject(method = "cubeInFrustum(DDDDDD)I", at = @At("RETURN"), cancellable = true)
     private void biblioteca$visibleAtRingPosition(
             double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
             CallbackInfoReturnable<Integer> cir) {
 
         if (cir.getReturnValue() < 0) return;
-        if (BIBLIOTECA_IN_MIRROR_TEST.get()) return;
+        if (SeamCull.inTwinTest()) return;
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return;
-        if (!LoopingDimensionCache.isLooping(minecraft.level.dimension())) return;
+        if (!LoopingRegistry.isLooping(minecraft.level)) return;
 
         double period  = minecraft.level.getHeight();
         double centreY = (minY + maxY) * 0.5;
         long   nearest = Math.round((camY - centreY) / period);
 
-        BIBLIOTECA_IN_MIRROR_TEST.set(true);
+        SeamCull.enterTwinTest();
         try {
             for (long step = -1; step <= 1; step++) {
                 long offset = nearest + step;
@@ -69,7 +67,7 @@ public abstract class FrustumYLoopMixin {
                 }
             }
         } finally {
-            BIBLIOTECA_IN_MIRROR_TEST.set(false);
+            SeamCull.exitTwinTest();
         }
     }
 }

@@ -35,20 +35,22 @@ public abstract class ServerPlayerGameModeMixin {
     private boolean biblioteca$wrapReachCheck(
             ServerPlayer player, BlockPos pos, double delta, Operation<Boolean> original) {
 
-        // Standard check first — if it passes, no need to fold.
-        if (original.call(player, pos, delta)) return true;
+        // Fold first, then ask once. The previous shape asked about the raw coordinate, and only
+        // when that failed asked again about the folded one - which spent the whole check on a
+        // coordinate that cannot be in reach by construction.
+        BlockPos target = pos;
 
         ServerLevel level = this.level;
-        if (level == null || !LoopingRegistry.isLooping(level)) return false;
+        if (level != null && LoopingRegistry.isLooping(level)) {
+            int minY   = level.getMinY();
+            int height = level.getHeight();
+            int y      = pos.getY();
 
-        int y      = pos.getY();
-        int minY   = level.getMinY();
-        int height = level.getHeight();
+            if (y < minY || y >= minY + height) {
+                target = new BlockPos(pos.getX(), Math.floorMod(y - minY, height) + minY, pos.getZ());
+            }
+        }
 
-        // In range already, so the original check failed for some other reason.
-        if (y >= minY && y < minY + height) return false;
-
-        BlockPos folded = new BlockPos(pos.getX(), Math.floorMod(y - minY, height) + minY, pos.getZ());
-        return original.call(player, folded, delta);
+        return original.call(player, target, delta);
     }
 }

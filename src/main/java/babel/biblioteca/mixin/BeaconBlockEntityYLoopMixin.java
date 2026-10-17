@@ -74,6 +74,12 @@ public abstract class BeaconBlockEntityYLoopMixin {
             return;
         }
 
+        // The scan walks a whole world height, so it runs a few times a second rather than every
+        // tick: it is a few hundred block lookups per beacon, and nothing it observes changes
+        // faster than this. Vanilla needs 38 ticks to cover the same distance, so reacting within
+        // ten is still quicker than vanilla.
+        if (level.getGameTime() % 10L != 0L) return;
+
         accessor.biblioteca$setBeamSections(biblioteca$scanAroundTheRing(level, pos));
     }
 

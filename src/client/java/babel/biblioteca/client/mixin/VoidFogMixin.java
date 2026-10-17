@@ -2,7 +2,6 @@ package babel.biblioteca.client.mixin;
 
 import babel.biblioteca.client.LoopingDimensionCache;
 import net.minecraft.client.Camera;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogRenderer;
@@ -20,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * that setupFog then stores in FogData.color. Cancelling it leaves FogData.color
  * at its constructed default (0, 0, 0, 0), but setupFog always writes a valid
  * color because computeFogColor is called solely to populate the color parameter
- * passed in — which is FogData.color. When we cancel, setupFog simply leaves
+ * passed in, which is FogData.color. When we cancel, setupFog simply leaves
  * FogData.color as-is (the default white 1,1,1,1 set by FogData's constructor).
  */
 @Mixin(FogRenderer.class)

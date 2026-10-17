@@ -1,6 +1,6 @@
 package babel.biblioteca.mixin;
 
-import babel.biblioteca.world.LoopingDimensionManager;
+import babel.biblioteca.LoopingRegistry;
 import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -21,7 +21,7 @@ public abstract class ServerPlayerBuildLimitMixin {
     @Overwrite
     public void sendBuildLimitMessage(boolean tooHigh, int limit) {
         ServerPlayer self = (ServerPlayer) (Object) this;
-        if (LoopingDimensionManager.isLooping(self.level().dimension())) return;
+        if (LoopingRegistry.isLooping(self.level())) return;
         // Vanilla: send the translatable "build.tooHigh" / "build.tooLow" message.
         net.minecraft.network.chat.Component msg = tooHigh
                 ? net.minecraft.network.chat.Component.translatable("build.tooHigh", limit)

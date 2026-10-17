@@ -27,6 +27,19 @@ public final class LoopingDimensionCache {
         LoopingRegistry.bumpRevision();
     }
 
+    /**
+     * Drops what the last server said.
+     *
+     * The client keeps one cache for whichever server it is connected to, so leaving a looping
+     * world and joining a plain one would otherwise run on the previous server's attributes until
+     * the new payload arrives.
+     */
+    public static void clear() {
+        loopingDimensions.clear();
+        beaconIgnoresSky.clear();
+        LoopingRegistry.bumpRevision();
+    }
+
     private static void fill(Set<ResourceKey<Level>> target, Set<String> keys) {
         target.clear();
         for (String key : keys) {

@@ -13,9 +13,11 @@
     "FrustumInvoker",
     "FrustumYLoopMixin",
     "LevelRendererYLoopMixin",
-    "MultiPlayerGameModeMixin",
+    "OptionsSubScreenAccessor",
+    "RenderRegionCacheYLoopMixin",
     "SectionOcclusionGraphLoopMixin",
     "ViewAreaAccessor",
+    "VideoSettingsScreenMixin",
     "VoidFogMixin"
   ],
   "injectors": {

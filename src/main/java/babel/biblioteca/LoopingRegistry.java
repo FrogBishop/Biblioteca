@@ -52,6 +52,15 @@ public final class LoopingRegistry {
 
     /** Picks the right delegate based on which side the level is on. */
     public static boolean isLooping(Level level) {
+        if (level instanceof LoopingLevel cached) {
+            return cached.biblioteca$isLooping();
+        }
+
+        return isLoopingUncached(level);
+    }
+
+    /** The uncached answer. Only the Level-side cache should call this. */
+    public static boolean isLoopingUncached(Level level) {
         return level.isClientSide()
                 ? clientCheck.test(level.dimension())
                 : serverCheck.test(level.dimension());

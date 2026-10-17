@@ -1,6 +1,7 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingDimensionCache;
+import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.client.SeamCull;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.DynamicGpuData;
@@ -52,6 +53,7 @@ public abstract class LevelRendererYLoopMixin {
     @Shadow private LevelRenderState levelRenderState;
     @Shadow @Final private BlockEntityRenderDispatcher blockEntityRenderDispatcher;
 
+
     /**
      * Draws block entities at the ring layer nearest the camera, the same way
      * EntityRenderYLoopMixin handles entities.
@@ -72,7 +74,7 @@ public abstract class LevelRendererYLoopMixin {
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return;
-        if (!LoopingDimensionCache.isLooping(minecraft.level.dimension())) return;
+        if (!LoopingRegistry.isLooping(minecraft.level)) return;
 
         int period = minecraft.level.getHeight();
         if (period <= 0) return;
@@ -121,7 +123,7 @@ public abstract class LevelRendererYLoopMixin {
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return;
-        if (!LoopingDimensionCache.isLooping(minecraft.level.dimension())) return;
+        if (!LoopingRegistry.isLooping(minecraft.level)) return;
 
         int sourceCount = sectionInfos.size();
         if (sourceCount == 0) return;
@@ -155,6 +157,23 @@ public abstract class LevelRendererYLoopMixin {
         for (int i = 0; i < sourceCount; i++) {
             DynamicGpuData.ChunkSectionInfo info =
                     (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(i);
+
+            AABB ownBounds = new AABB(
+                    info.x(), info.y(), info.z(),
+                    info.x() + 16.0, info.y() + 16.0, info.z() + 16.0);
+
+            // A section only reaches this list because something in view needs it. If its own row
+            // is not in view it is here for its periodic twin, so it is drawn once, at that twin,
+            // and no copies are added: a row nobody can see must not be submitted at all.
+            if (!SeamCull.plainlyVisible(frustum, ownBounds)) {
+                int shift = biblioteca$visibleCopyShift(frustum, ownBounds, period);
+                if (shift != 0) {
+                    sectionInfos.set(i, new DynamicGpuData.ChunkSectionInfo(
+                            info.x(), info.y() + shift, info.z(), info.visibility()));
+                    continue;
+                }
+            }
+
             List<Object[]> entries = drawsBySection.get(i);
             if (entries == null || entries.isEmpty()) continue;
 
@@ -164,16 +183,19 @@ public abstract class LevelRendererYLoopMixin {
                 AABB copyBounds = new AABB(
                         info.x(), copyY, info.z(),
                         info.x() + 16.0, copyY + 16.0, info.z() + 16.0);
-                if (!frustum.isVisible(copyBounds)) continue;
 
-                // A copy further away than the render distance cannot be seen; dropping it
-                // here keeps the frustum's ring test from duplicating the whole view area.
+                // This has to be the plain test. The ring-aware one answers yes whenever the
+                // copy's twin is in view, and its twin is the section being copied - visible by
+                // construction - so every section would get a copy in both directions.
+                if (!SeamCull.plainlyVisible(frustum, copyBounds)) continue;
+
+                // A copy further away than the render distance cannot be seen.
                 double copyCentreY = copyY + 8.0;
                 if (Math.abs(copyCentreY - cameraY) > viewDistanceBlocks) continue;
 
                 int copyIndex = sectionInfos.size();
                 sectionInfos.add(new DynamicGpuData.ChunkSectionInfo(
-                        info.x(), copyY, info.z(), 1.0f));
+                        info.x(), copyY, info.z(), info.visibility()));
 
                 for (Object[] entry : entries) {
                     ChunkDrawGroupAccessor group         = (ChunkDrawGroupAccessor) entry[0];
@@ -188,5 +210,12 @@ public abstract class LevelRendererYLoopMixin {
             }
         }
 
+    }
+
+    /** Which one-period shift puts this box in view, or 0 when neither does. */
+    private static int biblioteca$visibleCopyShift(Frustum frustum, AABB own, int period) {
+        if (SeamCull.plainlyVisible(frustum, own.move(0.0, period, 0.0))) return period;
+        if (SeamCull.plainlyVisible(frustum, own.move(0.0, -(double) period, 0.0))) return -period;
+        return 0;
     }
 }

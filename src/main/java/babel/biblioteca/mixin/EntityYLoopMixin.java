@@ -1,66 +1,64 @@
 package babel.biblioteca.mixin;
 
-import babel.biblioteca.world.LoopingDimensionManager;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import babel.biblioteca.LoopingRegistry;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
- * After every entity tick, if the entity has moved outside the dimension's
- * Y bounds, wrap it to the other end using floor-modulo arithmetic.
- * Only runs on ServerLevel; the client receives the corrected position
- * via normal entity-tracking packets.
+ * Keeps entity positions inside the world by folding Y at the moment a position is committed.
  *
- * For ServerPlayer specifically we also call connection.teleport() after
- * folding to send a ClientboundPlayerPositionPacket immediately.  Without
- * this the client keeps predicting the out-of-bounds position and continues
- * sending out-of-bounds movement packets every tick, since it never received
- * a server correction to snap it back.
+ * setPosRaw is the single funnel every position write goes through: setPos delegates to it,
+ * absMoveTo writes it directly, moveTo goes through setPos, and the position field itself is
+ * private to Entity while setPosRaw is final. Folding there means the next coordinate is produced
+ * in range rather than produced normally and then corrected afterwards.
+ *
+ * That difference is the whole point. A correction after the fact leaves the entity genuinely
+ * outside the world for a tick: its movement, the packets and tracking updates built from that
+ * position, and a player's client-side prediction all carry an out-of-range row, and the server
+ * then has to send a teleport to drag the client back. With the fold at the commit point there is
+ * no out-of-range position to describe, so none of that happens.
  */
 @Mixin(Entity.class)
 public abstract class EntityYLoopMixin {
 
     @Shadow public abstract Level level();
-    @Shadow public abstract double getX();
-    @Shadow public abstract double getY();
-    @Shadow public abstract double getZ();
-    @Shadow public abstract float getYRot();
-    @Shadow public abstract float getXRot();
-    @Shadow public abstract void setPos(double x, double y, double z);
-    @Shadow public abstract boolean isRemoved();
 
-    @Inject(at = @At("TAIL"), method = "tick")
-    private void biblioteca$wrapYOnTick(CallbackInfo ci) {
-        if (isRemoved()) return;
-        Level level = level();
-        if (!(level instanceof ServerLevel)) return;
-        if (!LoopingDimensionManager.isLooping(level.dimension())) return;
+    /** Previous-tick position, which the camera and entity renderers interpolate from. */
+    @Shadow public double yo;
+    @Shadow public double yOld;
 
-        double y      = getY();
-        int    minY   = level.getMinY();
-        int    height = level.getHeight();
+    @ModifyVariable(method = "setPosRaw(DDD)V", at = @At("HEAD"), argsOnly = true, ordinal = 1)
+    private double biblioteca$foldCommittedY(double y) {
+        Level level = this.level();
+        if (level == null) return y;
+        if (!LoopingRegistry.isLooping(level)) return y;
 
-        if (y >= minY && y < minY + height) return;
+        int minY   = level.getMinY();
+        int height = level.getHeight();
 
-        double floorY        = Math.floor(y);
-        double frac          = y - floorY;
-        int    wrappedBlockY = Math.floorMod((int) floorY - minY, height) + minY;
-        double newY          = wrappedBlockY + frac;
+        // Fast path: almost every position is already inside the world.
+        if (y >= minY && y < minY + height) return y;
 
-        setPos(getX(), newY, getZ());
+        double floored  = Math.floor(y);
+        double fraction = y - floored;
+        double folded   = Math.floorMod((int) floored - minY, height) + minY + fraction;
 
-        // For players: send an immediate position correction packet so the
-        // client snaps to the folded Y without waiting for the next tracker
-        // update.  Without this the client stays at the out-of-bounds Y and
-        // keeps sending out-of-bounds movement packets every tick.
-        if ((Object) this instanceof ServerPlayer player) {
-            player.connection.teleport(getX(), newY, getZ(), getYRot(), getXRot());
-        }
+        // A fold moves the position by a whole world height in a single step, and the renderer
+        // interpolates from the previous tick's row. Moving that row by the same multiple of the
+        // world height keeps the motion continuous: an entity that went from 319.9 to 320.0 now
+        // reads as going from -64.1 to -64.0, the same movement at the same ring position.
+        //
+        // Collapsing the previous row to the new one instead - what a teleport does - would hold
+        // the camera still for one tick and then jump, which is the twitch this replaced. Only
+        // the interpolated position matters here; nothing else reads these two fields.
+        double shift = y - folded;
+        this.yo -= shift;
+        this.yOld -= shift;
+
+        return folded;
     }
 }
