@@ -7,6 +7,5 @@
   "biblioteca.gui.looping_config.header_looping": "Y 轴循环",
   "biblioteca.gui.looping_config.header_beacon": "信标忽略天空判定",
   "biblioteca.gui.looping_config.beacon_prefix": "信标",
-  "biblioteca.gui.looping_config.note": "游戏内：/biblioteca looping set <维度> <bool>；/biblioteca beacon <bool> 作用于当前维度",
-  "options.biblioteca.loopingRenderRange": "循环渲染范围: %s"
+  "biblioteca.gui.looping_config.note": "游戏内：/biblioteca looping set <维度> <bool>；/biblioteca beacon <bool> 作用于当前维度"
 }

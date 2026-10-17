@@ -7,6 +7,5 @@
   "biblioteca.gui.looping_config.header_looping": "Y-axis loops",
   "biblioteca.gui.looping_config.header_beacon": "Beacon ignores sky",
   "biblioteca.gui.looping_config.beacon_prefix": "Beacon",
-  "biblioteca.gui.looping_config.note": "In game: /biblioteca looping set <dimension> <bool>, /biblioteca beacon <bool> for the current dimension",
-  "options.biblioteca.loopingRenderRange": "Loop Render Range: %s"
+  "biblioteca.gui.looping_config.note": "In game: /biblioteca looping set <dimension> <bool>, /biblioteca beacon <bool> for the current dimension"
 }

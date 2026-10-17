@@ -1,120 +1,126 @@
 package babel.biblioteca.client.mixin;
 
 import babel.biblioteca.client.LoopingDimensionCache;
-import babel.biblioteca.client.LoopingRenderSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.DynamicGpuData;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Implements Y-loop terrain rendering for looping dimensions.
+ * Draws the terrain that a Y-looping dimension repeats above and below itself.
  *
- * TAIL of extractSectionDrawGroups:
- *   For each section already in sectionInfos (placed there by vanilla from
- *   visibleSections, which SectionOcclusionGraphLoopMixin populates), create
- *   mirrored ChunkSectionInfo entries at y ± n*height and duplicate the
- *   corresponding IndexedDraw entries so the GPU renders each copy.
+ * extractSectionDrawGroups turns the visible sections into one ChunkSectionInfo plus a
+ * set of draw commands per layer, with the section index carried in the draw's instance
+ * base. A copy of a section is therefore just one more ChunkSectionInfo at the periodic
+ * height plus duplicated draws pointing at it, which is what this adds.
  *
- *   Mirror-source injection (getting the y=-64 sections into visibleSections
- *   when the player is at y=300) is handled by SectionOcclusionGraphLoopMixin,
- *   which fires earlier in the frame.
+ * One copy in each direction is enough: the next copy is a whole world height further
+ * away and can never be in front of the camera. Whether a copy is drawn is decided by the
+ * camera frustum, so no arbitrary "render range" setting is involved any more — a copy is
+ * emitted exactly when it would be seen.
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
 @Mixin(value = LevelRenderer.class, priority = 900)
 public abstract class LevelRendererYLoopMixin {
 
     @Shadow private LevelRenderState levelRenderState;
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Inject(
             method = "extractSectionDrawGroups(ZLjava/util/List;Ljava/util/Map;)I",
             at = @At("TAIL"),
-            require = 0)
-    private void biblioteca$addYLoopMirrors(
-            boolean sortTranslucent,
+            require = 1)
+    private void biblioteca$addSeamCopies(
+            boolean respectTranslucentOrder,
             List sectionInfos,
             Map drawGroups,
             CallbackInfoReturnable<Integer> cir) {
 
-        LevelRenderState lrs = this.levelRenderState;
-        if (lrs == null || lrs.cameraRenderState == null) return;
+        LevelRenderState renderState = this.levelRenderState;
+        if (renderState == null || renderState.cameraRenderState == null) return;
+        Frustum frustum = renderState.cameraRenderState.cullFrustum;
+        if (frustum == null) return;
 
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
-        if (!LoopingDimensionCache.isLooping(mc.level.dimension())) return;
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null) return;
+        if (!LoopingDimensionCache.isLooping(minecraft.level.dimension())) return;
 
-        int originalCount = sectionInfos.size();
-        if (originalCount == 0) return;
+        int sourceCount = sectionInfos.size();
+        if (sourceCount == 0) return;
 
-        int    height = mc.level.getHeight();
-        double camY   = lrs.cameraRenderState.pos.y;
-        int    range  = LoopingRenderSettings.get();
+        int period = minecraft.level.getHeight();
+        double cameraY = renderState.cameraRenderState.pos.y;
+        double viewDistanceBlocks = minecraft.options.getEffectiveRenderDistance() * 16.0;
 
-        // Build index → draw entries map from the draw groups snapshot.
-        Map<Integer, List<Object[]>> indexToEntries = new HashMap<>();
-        for (Object layerObj : ChunkSectionLayer.values()) {
-            ChunkSectionLayer layer = (ChunkSectionLayer) layerObj;
+        // Which draw commands belong to which section index.
+        Map<Integer, List<Object[]>> drawsBySection = new HashMap<>();
+        for (ChunkSectionLayer layer : ChunkSectionLayer.values()) {
             List<?> groups = (List<?>) drawGroups.get(layer);
             if (groups == null) continue;
-            for (int g = 0, gc = groups.size(); g < gc; g++) {
-                ChunkDrawGroupAccessor acc = (ChunkDrawGroupAccessor) groups.get(g);
-                List<DynamicGpuData.IndexedDraw> draws = acc.biblioteca$getDraws();
-                for (int d = 0, dc = draws.size(); d < dc; d++) {
+
+            for (int g = 0; g < groups.size(); g++) {
+                ChunkDrawGroupAccessor group = (ChunkDrawGroupAccessor) groups.get(g);
+                List<DynamicGpuData.IndexedDraw> draws = group.biblioteca$getDraws();
+
+                for (int d = 0; d < draws.size(); d++) {
                     DynamicGpuData.IndexedDraw draw = draws.get(d);
-                    int idx = draw.baseInstance();
-                    if (idx >= 0 && idx < originalCount) {
-                        indexToEntries
-                                .computeIfAbsent(idx, k -> new ArrayList<>())
-                                .add(new Object[]{acc, draw});
+                    int sectionIndex = draw.baseInstance();
+                    if (sectionIndex >= 0 && sectionIndex < sourceCount) {
+                        drawsBySection
+                                .computeIfAbsent(sectionIndex, key -> new ArrayList<>())
+                                .add(new Object[]{group, draw});
                     }
                 }
             }
         }
 
-        for (int i = 0; i < originalCount; i++) {
+        for (int i = 0; i < sourceCount; i++) {
             DynamicGpuData.ChunkSectionInfo info =
                     (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(i);
-            List<Object[]> entries = indexToEntries.get(i);
+            List<Object[]> entries = drawsBySection.get(i);
             if (entries == null || entries.isEmpty()) continue;
 
-            for (int dir = -1; dir <= 1; dir += 2) {
-                for (int n = 1; n <= 64; n++) {
-                    int    mirrorY   = info.y() + dir * n * height;
+            for (int direction = -1; direction <= 1; direction += 2) {
+                int copyY = info.y() + direction * period;
 
-                    // Range is measured as absolute distance from camera to mirror.
-                    // Always render the nearest mirror (n==1 in the direction that
-                    // puts the mirror closest to the camera), and render further
-                    // mirrors only while they still fall within range.
-                    double nearEdge = Math.min(
-                            Math.abs(camY - mirrorY),
-                            Math.abs(camY - (mirrorY + 16)));
-                    if (n > 1 && nearEdge > range) break;
-                    // For n==1 we always render (nearest mirror in this direction).
+                AABB copyBounds = new AABB(
+                        info.x(), copyY, info.z(),
+                        info.x() + 16.0, copyY + 16.0, info.z() + 16.0);
+                if (!frustum.isVisible(copyBounds)) continue;
 
-                    int newIndex = sectionInfos.size();
-                    sectionInfos.add(new DynamicGpuData.ChunkSectionInfo(
-                            info.x(), mirrorY, info.z(), 1.0f));
+                // A copy further away than the render distance cannot be seen; dropping it
+                // here keeps the frustum's ring test from duplicating the whole view area.
+                double copyCentreY = copyY + 8.0;
+                if (Math.abs(copyCentreY - cameraY) > viewDistanceBlocks) continue;
 
-                    for (Object[] entry : entries) {
-                        ChunkDrawGroupAccessor acc      = (ChunkDrawGroupAccessor) entry[0];
-                        DynamicGpuData.IndexedDraw orig = (DynamicGpuData.IndexedDraw) entry[1];
-                        acc.biblioteca$getDraws().add(new DynamicGpuData.IndexedDraw(
-                                orig.indexCount(),
-                                orig.instanceCount(),
-                                orig.firstIndex(),
-                                orig.baseVertex(),
-                                newIndex));
-                    }
+                int copyIndex = sectionInfos.size();
+                sectionInfos.add(new DynamicGpuData.ChunkSectionInfo(
+                        info.x(), copyY, info.z(), 1.0f));
+
+                for (Object[] entry : entries) {
+                    ChunkDrawGroupAccessor group         = (ChunkDrawGroupAccessor) entry[0];
+                    DynamicGpuData.IndexedDraw original  = (DynamicGpuData.IndexedDraw) entry[1];
+                    group.biblioteca$getDraws().add(new DynamicGpuData.IndexedDraw(
+                            original.indexCount(),
+                            original.instanceCount(),
+                            original.firstIndex(),
+                            original.baseVertex(),
+                            copyIndex));
                 }
             }
         }
+
     }
 }

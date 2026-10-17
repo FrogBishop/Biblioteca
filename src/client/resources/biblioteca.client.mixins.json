@@ -6,6 +6,7 @@
     "ChunkDrawGroupAccessor",
     "ClientLevelDirtyMixin",
     "CloudRendererLoopMixin",
+    "FrustumInvoker",
     "FrustumYLoopMixin",
     "LevelRendererYLoopMixin",
     "MultiPlayerGameModeMixin",
