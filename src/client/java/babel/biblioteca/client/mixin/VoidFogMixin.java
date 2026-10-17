@@ -29,8 +29,7 @@ public abstract class VoidFogMixin {
     @Inject(
             method = "computeFogColor(Lnet/minecraft/client/Camera;FLnet/minecraft/client/multiplayer/ClientLevel;IFLorg/joml/Vector4f;)V",
             at = @At("HEAD"),
-            cancellable = true,
-            require = 0)
+            cancellable = true)
     private void biblioteca$cancelVoidFogColor(
             Camera camera, float partialTick, ClientLevel level,
             int renderDistance, float darkenWorldAmount, Vector4f colorOutput,

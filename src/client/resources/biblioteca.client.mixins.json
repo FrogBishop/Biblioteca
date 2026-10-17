@@ -6,15 +6,18 @@
     "ChunkDrawGroupAccessor",
     "ClientLevelDirtyMixin",
     "CloudRendererLoopMixin",
+    "EntityRenderYLoopMixin",
+    "EntityShouldRenderYLoopMixin",
     "FrustumInvoker",
     "FrustumYLoopMixin",
     "LevelRendererYLoopMixin",
     "MultiPlayerGameModeMixin",
     "SectionOcclusionGraphLoopMixin",
+    "ViewAreaAccessor",
     "VoidFogMixin"
   ],
   "injectors": {
-    "defaultRequire": 0
+    "defaultRequire": 1
   },
   "overwrites": {
     "requireAnnotations": true

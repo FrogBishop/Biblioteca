@@ -22,8 +22,7 @@ public abstract class DoorBlockYLoopMixin {
 
     @WrapOperation(
             method = "getStateForPlacement",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMaxY()I"),
-            require = 1)
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMaxY()I"))
     private int biblioteca$noCeiling(Level level, Operation<Integer> original) {
         return LoopingRegistry.isLooping(level) ? Integer.MAX_VALUE : original.call(level);
     }

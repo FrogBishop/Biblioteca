@@ -28,9 +28,14 @@ import java.util.Map;
  * height plus duplicated draws pointing at it, which is what this adds.
  *
  * One copy in each direction is enough: the next copy is a whole world height further
- * away and can never be in front of the camera. Whether a copy is drawn is decided by the
- * camera frustum, so no arbitrary "render range" setting is involved any more — a copy is
- * emitted exactly when it would be seen.
+ * away and can never be in front of the camera. A copy is emitted when its box is inside the
+ * camera frustum and its centre is within the render distance. The frustum test alone is
+ * not enough, because FrustumYLoopMixin answers for a box's periodic twin as well, which
+ * would let copies far beyond anything that is loaded through.
+ *
+ * The source sections are the ones SectionOcclusionGraphLoopMixin put in
+ * LevelRenderer.visibleSections; on the far side of the seam those are sections the vanilla
+ * section graph never walks to.
  */
 @Mixin(value = LevelRenderer.class, priority = 900)
 public abstract class LevelRendererYLoopMixin {
@@ -40,8 +45,7 @@ public abstract class LevelRendererYLoopMixin {
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Inject(
             method = "extractSectionDrawGroups(ZLjava/util/List;Ljava/util/Map;)I",
-            at = @At("TAIL"),
-            require = 1)
+            at = @At("TAIL"))
     private void biblioteca$addSeamCopies(
             boolean respectTranslucentOrder,
             List sectionInfos,

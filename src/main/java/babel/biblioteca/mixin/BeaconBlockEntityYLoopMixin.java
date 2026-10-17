@@ -46,16 +46,14 @@ public abstract class BeaconBlockEntityYLoopMixin {
 
     @WrapOperation(
             method = "updateBase",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinY()I"),
-            require = 1)
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinY()I"))
     private static int biblioteca$noFloor(Level level, Operation<Integer> original) {
         return LoopingRegistry.isLooping(level) ? Integer.MIN_VALUE : original.call(level);
     }
 
     @WrapOperation(
             method = "tick",
-            at = @At(value = "INVOKE", target = "Ljava/util/List;clear()V"),
-            require = 1)
+            at = @At(value = "INVOKE", target = "Ljava/util/List;clear()V"))
     private static void biblioteca$keepBeamSections(
             List<?> sections, Operation<Void> original,
             @Local(argsOnly = true) Level level) {

@@ -20,8 +20,7 @@ public abstract class SpeleothemBlockYLoopMixin {
     @WrapOperation(
             method = "findBlockVertical",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/world/level/LevelAccessor;isOutsideBuildHeight(I)Z"),
-            require = 1)
+                    target = "Lnet/minecraft/world/level/LevelAccessor;isOutsideBuildHeight(I)Z"))
     private static boolean biblioteca$searchThroughTheSeam(
             LevelAccessor level, int y, Operation<Boolean> original) {
         return LoopingRegistry.isLooping(level) ? false : original.call(level, y);

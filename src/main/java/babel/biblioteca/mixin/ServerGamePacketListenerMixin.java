@@ -96,7 +96,7 @@ public abstract class ServerGamePacketListenerMixin {
     // vehicle.  We fold the root vehicle's Y immediately after handleMoveVehicle
     // completes and send ClientboundMoveVehiclePacket so the client snaps back.
 
-    @Inject(method = "handleMoveVehicle", at = @At("TAIL"), require = 0)
+    @Inject(method = "handleMoveVehicle", at = @At("TAIL"))
     private void biblioteca$foldVehicleY(
             net.minecraft.network.protocol.game.ServerboundMoveVehiclePacket packet,
             CallbackInfo ci) {

@@ -98,15 +98,16 @@ publishing {
 //                          prediction working across the Y seam. The extra
 //                          mirror-section dirty marks it emits cost nothing once
 //                          no renderer is listening for them.
-//   LoopingRenderSettings  BibliotecaClient still builds the video-settings
-//                          slider from it, so removing the class would crash
-//                          the options screen.
 def noRenderMixins = [
 		'ChunkDrawGroupAccessor',
 		'CloudRendererLoopMixin',
+		'EntityRenderYLoopMixin',
+		'EntityShouldRenderYLoopMixin',
+		'FrustumInvoker',
 		'FrustumYLoopMixin',
 		'LevelRendererYLoopMixin',
 		'SectionOcclusionGraphLoopMixin',
+		'ViewAreaAccessor',
 		'VoidFogMixin',
 ]
 

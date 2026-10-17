@@ -36,7 +36,7 @@ import java.util.List;
 @Mixin(EntityGetter.class)
 public interface EntityGetterYLoopMixin {
 
-    @Inject(method = "getEntityCollisions", at = @At("RETURN"), cancellable = true, require = 1)
+    @Inject(method = "getEntityCollisions", at = @At("RETURN"), cancellable = true)
     private void biblioteca$addSeamCollisions(
             Entity source, AABB testArea, CallbackInfoReturnable<List<VoxelShape>> cir) {
 

@@ -22,11 +22,12 @@
     "PrimedTntYLoopMixin",
     "ServerGamePacketListenerMixin",
     "ServerPlayerBuildLimitMixin",
+    "ServerPlayerGameModeMixin",
     "SpeleothemBlockYLoopMixin",
     "VineBlockYLoopMixin"
   ],
   "injectors": {
-    "defaultRequire": 0
+    "defaultRequire": 1
   },
   "overwrites": {
     "requireAnnotations": true

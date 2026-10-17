@@ -22,6 +22,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * in front of the camera, so a single offset is enough. The answer is reported as
  * "partially visible" rather than "fully visible" so the octree keeps descending instead of
  * trusting a box it never actually tested.
+ *
+ * The test runs whenever the plain test rejected the box, which is what the return value has
+ * to be read for. JOML's FrustumIntersection.intersectAab returns -2 for a box fully inside,
+ * -1 for one that intersects, and an outside box reports 0 when the first plane culled it and
+ * 1 when any later plane did. So "rejected" is result >= 0, not result == 0: reading only 0
+ * would silently drop every box culled by anything but the left plane, which is most of them
+ * at most angles.
  */
 @Mixin(value = Frustum.class, priority = 900)
 public abstract class FrustumYLoopMixin {
@@ -31,12 +38,12 @@ public abstract class FrustumYLoopMixin {
     private static final ThreadLocal<Boolean> BIBLIOTECA_IN_MIRROR_TEST =
             ThreadLocal.withInitial(() -> false);
 
-    @Inject(method = "cubeInFrustum(DDDDDD)I", at = @At("RETURN"), cancellable = true, require = 1)
+    @Inject(method = "cubeInFrustum(DDDDDD)I", at = @At("RETURN"), cancellable = true)
     private void biblioteca$visibleAtRingPosition(
             double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
             CallbackInfoReturnable<Integer> cir) {
 
-        if (cir.getReturnValue() != 0) return;
+        if (cir.getReturnValue() < 0) return;
         if (BIBLIOTECA_IN_MIRROR_TEST.get()) return;
 
         Minecraft minecraft = Minecraft.getInstance();

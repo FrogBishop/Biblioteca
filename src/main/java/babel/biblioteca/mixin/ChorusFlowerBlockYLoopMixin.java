@@ -18,8 +18,7 @@ public abstract class ChorusFlowerBlockYLoopMixin {
 
     @WrapOperation(
             method = "randomTick",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getMaxY()I"),
-            require = 1)
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getMaxY()I"))
     private int biblioteca$noCeiling(ServerLevel level, Operation<Integer> original) {
         return LoopingRegistry.isLooping(level) ? Integer.MAX_VALUE : original.call(level);
     }

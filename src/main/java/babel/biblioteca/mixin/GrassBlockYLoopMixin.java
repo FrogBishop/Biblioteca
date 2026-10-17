@@ -20,8 +20,7 @@ public abstract class GrassBlockYLoopMixin {
     @WrapOperation(
             method = "placeBonemealEffect",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/server/level/ServerLevel;isOutsideBuildHeight(Lnet/minecraft/core/BlockPos;)Z"),
-            require = 1)
+                    target = "Lnet/minecraft/server/level/ServerLevel;isOutsideBuildHeight(Lnet/minecraft/core/BlockPos;)Z"))
     private static boolean biblioteca$growPastTheTop(ServerLevel level, BlockPos pos, Operation<Boolean> original) {
         return LoopingRegistry.isLooping(level) ? false : original.call(level, pos);
     }

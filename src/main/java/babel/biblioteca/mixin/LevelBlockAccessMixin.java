@@ -32,8 +32,9 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  * block entity, so there is no argument to fold. Block entities created through
  * setBlock are placed at the folded position by the chunk itself.
  *
- * require = 1 on the newer hooks: a silently unmatched injection is exactly how this
- * family ended up half covered in the first place.
+ * Every hook below is mandatory: the mixin config sets defaultRequire to 1, so a silently
+ * unmatched injection is impossible. That is deliberate - a silently unmatched injection is
+ * exactly how this family ended up half covered in the first place.
  */
 @Mixin(Level.class)
 public abstract class LevelBlockAccessMixin {
@@ -56,7 +57,7 @@ public abstract class LevelBlockAccessMixin {
     // MC 26.3: Level.setBlock has only the 4-argument form (BlockPos, BlockState, int, int)
     @ModifyVariable(
             method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
-            at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
+            at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$wrapSetBlock(BlockPos pos) {
         Level self = (Level) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return pos;
@@ -66,42 +67,42 @@ public abstract class LevelBlockAccessMixin {
     // MC 26.3: Level.removeBlock(BlockPos, boolean)
     @ModifyVariable(
             method = "removeBlock(Lnet/minecraft/core/BlockPos;Z)Z",
-            at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
+            at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$wrapRemoveBlock(BlockPos pos) {
         Level self = (Level) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return pos;
         return biblioteca$wrap(pos, self);
     }
 
-    @ModifyVariable(method = "getFluidState", at = @At("HEAD"), argsOnly = true, require = 1)
+    @ModifyVariable(method = "getFluidState", at = @At("HEAD"), argsOnly = true)
     private BlockPos biblioteca$wrapGetFluidState(BlockPos pos) {
         Level self = (Level) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return pos;
         return biblioteca$wrap(pos, self);
     }
 
-    @ModifyVariable(method = "getBlockEntity", at = @At("HEAD"), argsOnly = true, require = 1)
+    @ModifyVariable(method = "getBlockEntity", at = @At("HEAD"), argsOnly = true)
     private BlockPos biblioteca$wrapGetBlockEntity(BlockPos pos) {
         Level self = (Level) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return pos;
         return biblioteca$wrap(pos, self);
     }
 
-    @ModifyVariable(method = "removeBlockEntity", at = @At("HEAD"), argsOnly = true, require = 1)
+    @ModifyVariable(method = "removeBlockEntity", at = @At("HEAD"), argsOnly = true)
     private BlockPos biblioteca$wrapRemoveBlockEntity(BlockPos pos) {
         Level self = (Level) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return pos;
         return biblioteca$wrap(pos, self);
     }
 
-    @ModifyVariable(method = "isLoaded", at = @At("HEAD"), argsOnly = true, require = 1)
+    @ModifyVariable(method = "isLoaded", at = @At("HEAD"), argsOnly = true)
     private BlockPos biblioteca$wrapIsLoaded(BlockPos pos) {
         Level self = (Level) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return pos;
         return biblioteca$wrap(pos, self);
     }
 
-    @ModifyVariable(method = "loadedAndEntityCanStandOnFace", at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 1)
+    @ModifyVariable(method = "loadedAndEntityCanStandOnFace", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$wrapLoadedAndEntityCanStandOnFace(BlockPos pos) {
         Level self = (Level) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return pos;

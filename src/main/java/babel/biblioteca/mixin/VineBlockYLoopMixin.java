@@ -19,16 +19,14 @@ public abstract class VineBlockYLoopMixin {
 
     @WrapOperation(
             method = "randomTick",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getMaxY()I"),
-            require = 1)
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getMaxY()I"))
     private int biblioteca$noCeiling(ServerLevel level, Operation<Integer> original) {
         return LoopingRegistry.isLooping(level) ? Integer.MAX_VALUE : original.call(level);
     }
 
     @WrapOperation(
             method = "randomTick",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getMinY()I"),
-            require = 1)
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getMinY()I"))
     private int biblioteca$noFloor(ServerLevel level, Operation<Integer> original) {
         return LoopingRegistry.isLooping(level) ? Integer.MIN_VALUE : original.call(level);
     }

@@ -29,8 +29,7 @@ public abstract class CloudRendererLoopMixin {
             method = "prepare(ILnet/minecraft/client/CloudStatus;FILnet/minecraft/world/phys/Vec3;JF)V",
             at = @At("HEAD"),
             argsOnly = true,
-            ordinal = 0,
-            require = 0)
+            ordinal = 0)
     private float biblioteca$foldCloudHeight(float cloudHeight) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return cloudHeight;
