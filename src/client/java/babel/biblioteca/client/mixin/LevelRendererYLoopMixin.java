@@ -52,9 +52,6 @@ public abstract class LevelRendererYLoopMixin {
         if (!LoopingDimensionCache.isLooping(mc.level.dimension())) return;
 
         int originalCount = sectionInfos.size();
-        babel.biblioteca.Biblioteca.LOGGER.info(
-                "[Biblioteca] TAIL entry: camY={} originalCount={} sortTranslucent={}",
-                String.format("%.1f", lrs.cameraRenderState.pos.y), originalCount, sortTranslucent);
         if (originalCount == 0) return;
 
         int    height = mc.level.getHeight();
@@ -82,16 +79,6 @@ public abstract class LevelRendererYLoopMixin {
             }
         }
 
-        int mirrorCount = 0;
-        // Log Y distribution of source sections once per second (first call only)
-        if (originalCount > 0) {
-            java.util.TreeSet<Integer> ys = new java.util.TreeSet<>();
-            for (int i = 0; i < originalCount; i++) {
-                DynamicGpuData.ChunkSectionInfo inf = (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(i);
-                ys.add(inf.y());
-            }
-            babel.biblioteca.Biblioteca.LOGGER.info("[Biblioteca] TAIL sectionY range: {} to {}", ys.first(), ys.last());
-        }
         for (int i = 0; i < originalCount; i++) {
             DynamicGpuData.ChunkSectionInfo info =
                     (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(i);
@@ -126,21 +113,8 @@ public abstract class LevelRendererYLoopMixin {
                                 orig.baseVertex(),
                                 newIndex));
                     }
-                    mirrorCount++;
                 }
             }
-        }
-
-        if (mirrorCount > 0) {
-            babel.biblioteca.Biblioteca.LOGGER.info(
-                    "[Biblioteca] TAIL: camY={} original={} mirrors={} mapped={}",
-                    String.format("%.1f", camY), originalCount, mirrorCount,
-                    indexToEntries.size());
-        } else if (originalCount > 0) {
-            babel.biblioteca.Biblioteca.LOGGER.info(
-                    "[Biblioteca] TAIL: camY={} original={} NO mirrors mapped={} drawGroupLayers={}",
-                    String.format("%.1f", camY), originalCount, indexToEntries.size(),
-                    drawGroups.size());
         }
     }
 }

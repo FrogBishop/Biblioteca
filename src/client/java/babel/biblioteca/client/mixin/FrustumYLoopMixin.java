@@ -42,7 +42,6 @@ public abstract class FrustumYLoopMixin {
         biblioteca$inMirrorCheck.set(true);
         try {
             Frustum self = (Frustum) (Object) this;
-            int triggered = 0;
             for (int dir = -1; dir <= 1; dir += 2) {
                 for (int n = 1; n <= 64; n++) {
                     double dy = (double) dir * n * height;
@@ -58,13 +57,6 @@ public abstract class FrustumYLoopMixin {
                     if (self.isVisible(new AABB(
                             aabb.minX, shiftedMinY, aabb.minZ,
                             aabb.maxX, shiftedMaxY, aabb.maxZ))) {
-                        triggered++;
-                        if (triggered == 1) {
-                            babel.biblioteca.Biblioteca.LOGGER.info(
-                                "[Biblioteca] FrustumLoop triggered: aabb.y=[{},{}] shift={} camY={}",
-                                String.format("%.1f", aabb.minY), String.format("%.1f", aabb.maxY),
-                                dy, String.format("%.1f", camY));
-                        }
                         cir.setReturnValue(true);
                         return;
                     }

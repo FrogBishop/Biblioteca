@@ -90,8 +90,5 @@ public abstract class SectionOcclusionGraphLoopMixin {
         if (wrapped == null) return;
 
         cir.setReturnValue(wrapped);
-        babel.biblioteca.Biblioteca.LOGGER.info(
-                "[Biblioteca] BFS Y-wrap: secY={} dir={} → wrappedSecY={}",
-                secY, direction, wrappedSecY);
     }
 }
