@@ -8,3 +8,7 @@ Void fog and sky light is deleted in those dimension with this attribute.
 Thanks to stupid Claude, render system is totally broken. Besides, there are millions of block-associated bugs. But it's pretty cool.
 
 Because I'm literally broke now (Claude it's you that hurts me), I would fix remaining codes by my hands only.
+
+Known issues:
+1. Pistons near the border have weird behaviours.
+1. There's a huge lag when you go across the border, because there's a bunch of things rendering at the same time.
