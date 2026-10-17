@@ -1,5 +1,6 @@
 package babel.biblioteca.client;
 
+import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.network.LoopingStatePayload;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -23,6 +24,7 @@ public final class LoopingDimensionCache {
     public static void applyPayload(LoopingStatePayload payload) {
         fill(loopingDimensions, payload.loopingDimensions());
         fill(beaconIgnoresSky, payload.beaconIgnoresSky());
+        LoopingRegistry.bumpRevision();
     }
 
     private static void fill(Set<ResourceKey<Level>> target, Set<String> keys) {

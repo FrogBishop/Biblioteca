@@ -100,6 +100,7 @@ publishing {
 //                          no renderer is listening for them.
 def noRenderMixins = [
 		'BeaconBeamRenderYLoopMixin',
+		'BlockEntityRenderRangeYLoopMixin',
 		'ChunkDrawGroupAccessor',
 		'CloudRendererLoopMixin',
 		'EntityRenderYLoopMixin',

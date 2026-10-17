@@ -13,29 +13,75 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Draws a beacon beam only as far as its sections reach, in looping dimensions.
+ * Draws a beacon beam as the ring-wide column it is.
  *
- * Vanilla draws every beam section at its recorded height except the last one, which is drawn
- * with a hardcoded 2048 so the beam appears to run off into the sky. That extension is the
- * reason a beam goes straight through the first opaque block above it: the sections stop at the
- * obstruction, but the last one is stretched past it anyway.
+ * Vanilla draws every beam section at its recorded height except the last one, which it stretches
+ * to a hardcoded 2048 so the beam seems to run off into the sky. A ring has no sky to run into:
+ * the column above a beacon wraps around and arrives under itself, so the beam that leaves the
+ * top of the world comes back up under the player, crosses them, and ends once per world height
+ * where it meets its own base. A beam blocked a few blocks up must also stop there instead of
+ * being stretched past the obstruction.
  *
- * A ring has no sky to stretch into, so the whole beam is drawn at its scanned length instead,
- * and BeaconBlockEntityYLoopMixin makes that length run around the ring. A beam therefore ends
- * exactly where its column is blocked, and a beam that wraps across the seam ends one world
- * height up, which is the row below the beacon.
+ * Both follow from drawing the scanned beam once per period rather than once. The scanned length
+ * already ends where the column is blocked, so each copy ends on the base, and successive copies
+ * cover the whole vertical span that is in view. Only copies that can be seen are emitted.
+ *
+ * LevelRendererYLoopMixin deliberately leaves beacon render states unfolded so that these copies
+ * are counted from the real block position: no other code has to agree on a fold offset.
  */
 @Mixin(BeaconRenderer.class)
 public abstract class BeaconBeamRenderYLoopMixin {
 
+    /** Upper bound on copies drawn in one direction, so a degenerate world height cannot flood it. */
+    private static final int MAX_COPIES = 8;
+
     @Inject(method = "submit", at = @At("HEAD"), cancellable = true)
-    private void biblioteca$drawFiniteBeam(
+    private void biblioteca$drawPeriodicBeam(
             BeaconRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
             CameraRenderState camera, CallbackInfo ci) {
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return;
         if (!LoopingDimensionCache.isLooping(minecraft.level.dimension())) return;
+
+        int period = minecraft.level.getHeight();
+        if (period <= 0) return;
+
+        int beamHeight = 0;
+        for (BeaconRenderState.Section section : state.sections) {
+            beamHeight += section.height();
+        }
+
+        if (beamHeight <= 0) {
+            // Nothing to draw, and the 2048 stretch must not happen either.
+            ci.cancel();
+            return;
+        }
+
+        double camY    = camera.pos.y;
+        double reach   = minecraft.options.getEffectiveRenderDistance() * 16.0;
+        int    originY = state.blockPos.getY();
+        double beamTop = (double) originY + beamHeight;
+
+        // The copy n covers [originY + n*period, beamTop + n*period]; keep the ones in reach.
+        int lowest  = (int) Math.floor((camY - reach - beamTop) / period);
+        int highest = (int) Math.ceil((camY + reach - originY) / period);
+
+        lowest  = Math.max(lowest, highest - MAX_COPIES);
+        highest = Math.min(highest, lowest + MAX_COPIES);
+
+        for (int copy = lowest; copy <= highest; copy++) {
+            poseStack.pushPose();
+            poseStack.translate(0.0, (double) copy * period, 0.0);
+            biblioteca$submitSections(state, poseStack, collector);
+            poseStack.popPose();
+        }
+
+        ci.cancel();
+    }
+
+    private static void biblioteca$submitSections(
+            BeaconRenderState state, PoseStack poseStack, SubmitNodeCollector collector) {
 
         int beamStart = 0;
 
@@ -55,7 +101,5 @@ public abstract class BeaconBeamRenderYLoopMixin {
             );
             beamStart += section.height();
         }
-
-        ci.cancel();
     }
 }

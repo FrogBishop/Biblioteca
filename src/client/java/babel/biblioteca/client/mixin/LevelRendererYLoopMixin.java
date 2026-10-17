@@ -1,17 +1,26 @@
 package babel.biblioteca.client.mixin;
 
 import babel.biblioteca.client.LoopingDimensionCache;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.DynamicGpuData;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.state.BeaconRenderState;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
@@ -41,6 +50,59 @@ import java.util.Map;
 public abstract class LevelRendererYLoopMixin {
 
     @Shadow private LevelRenderState levelRenderState;
+    @Shadow @Final private BlockEntityRenderDispatcher blockEntityRenderDispatcher;
+
+    /**
+     * Draws block entities at the ring layer nearest the camera, the same way
+     * EntityRenderYLoopMixin handles entities.
+     *
+     * A block entity render state carries the absolute block position, and submitBlockEntities
+     * translates by exactly that position. A beacon on the far side of the seam therefore draws
+     * its beam a whole world height away: the beacon's block overhead is the mirrored terrain, so
+     * the block is there, but the beam is drawn relative to the block entity and the block entity
+     * itself is never mirrored. That is why the beacon shows up and its beam does not.
+     *
+     * Folding the translation by whole world heights puts the beam back on top of its block, and
+     * only the nearest layer is drawn - one copy, matching the entities, because a second copy of
+     * a vertical beam is the same beam again.
+     */
+    @Inject(method = "submitBlockEntities", at = @At("HEAD"), cancellable = true)
+    private void biblioteca$submitBlockEntitiesAtNearestLayer(
+            PoseStack poseStack, LevelRenderState renderState, SubmitNodeCollector collector, CallbackInfo ci) {
+
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null) return;
+        if (!LoopingDimensionCache.isLooping(minecraft.level.dimension())) return;
+
+        int period = minecraft.level.getHeight();
+        if (period <= 0) return;
+
+        Vec3 cameraPos = renderState.cameraRenderState.pos;
+        double camX = cameraPos.x();
+        double camY = cameraPos.y();
+        double camZ = cameraPos.z();
+
+        for (BlockEntityRenderState blockEntityState : renderState.blockEntityRenderStates) {
+            BlockPos blockPos = blockEntityState.blockPos;
+
+            double offsetY = blockPos.getY() - camY;
+
+            // A beacon beam spans the whole ring, so it cannot be drawn as one folded copy: it
+            // has to be repeated once per period and stop at its own base in each copy. Its
+            // renderer does that itself, from the real block position, so it is left where it is.
+            if (!(blockEntityState instanceof BeaconRenderState)) {
+                offsetY -= (double) Math.round(offsetY / period) * period;
+            }
+
+            poseStack.pushPose();
+            poseStack.translate(blockPos.getX() - camX, offsetY, blockPos.getZ() - camZ);
+            this.blockEntityRenderDispatcher.submit(
+                    blockEntityState, poseStack, collector, renderState.cameraRenderState);
+            poseStack.popPose();
+        }
+
+        ci.cancel();
+    }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Inject(

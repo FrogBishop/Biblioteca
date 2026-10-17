@@ -20,7 +20,19 @@ public final class LoopingRegistry {
     private static Predicate<ResourceKey<Level>> serverBeaconCheck = dim -> false;
     private static Predicate<ResourceKey<Level>> clientBeaconCheck = dim -> false;
 
+    /** Bumped whenever a dimension attribute changes. Lets hot paths cache the answer. */
+    private static volatile int revision;
+
     private LoopingRegistry() {}
+
+    /** The current attribute revision. A cached answer is valid while this does not change. */
+    public static int revision() {
+        return revision;
+    }
+
+    public static void bumpRevision() {
+        revision++;
+    }
 
     public static void setServerChecker(Predicate<ResourceKey<Level>> check) {
         serverCheck = check;

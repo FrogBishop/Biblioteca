@@ -1,6 +1,7 @@
 package babel.biblioteca.world;
 
 import babel.biblioteca.Biblioteca;
+import babel.biblioteca.LoopingRegistry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -42,6 +43,7 @@ public final class LoopingDimensionManager {
     public static void setLooping(ResourceKey<Level> dimension, boolean enabled) {
         if (serverData != null) {
             serverData.setLooping(dimension, enabled);
+            LoopingRegistry.bumpRevision();
         }
     }
 
@@ -56,6 +58,7 @@ public final class LoopingDimensionManager {
     public static void setBeaconIgnoresSky(ResourceKey<Level> dimension, boolean ignored) {
         if (serverData != null) {
             serverData.setBeaconIgnoresSky(dimension, ignored);
+            LoopingRegistry.bumpRevision();
         }
     }
 
