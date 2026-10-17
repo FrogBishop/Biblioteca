@@ -1,9 +1,12 @@
 {
-  "biblioteca.gui.looping_button": "维度循环…",
-  "biblioteca.gui.looping_config.title": "各维度 Y 轴循环设置",
+  "biblioteca.gui.looping_button": "维度属性…",
+  "biblioteca.gui.looping_config.title": "各维度属性",
   "biblioteca.gui.looping_config.overworld": "主世界",
   "biblioteca.gui.looping_config.nether": "下界",
   "biblioteca.gui.looping_config.end": "末地",
-  "biblioteca.gui.looping_config.note": "自定义维度可在游戏中用 /biblioteca looping set 命令切换",
+  "biblioteca.gui.looping_config.header_looping": "Y 轴循环",
+  "biblioteca.gui.looping_config.header_beacon": "信标忽略天空判定",
+  "biblioteca.gui.looping_config.beacon_prefix": "信标",
+  "biblioteca.gui.looping_config.note": "游戏内：/biblioteca looping set <维度> <bool>；/biblioteca beacon <bool> 作用于当前维度",
   "options.biblioteca.loopingRenderRange": "循环渲染范围: %s"
 }

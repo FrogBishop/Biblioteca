@@ -1,9 +1,8 @@
 package babel.biblioteca.mixin;
 
-import babel.biblioteca.network.LoopingStatePayload;
-import babel.biblioteca.world.LoopingDimensionManager;
+import babel.biblioteca.Biblioteca;
 import babel.biblioteca.PendingLoopingConfig;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import babel.biblioteca.world.LoopingDimensionManager;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
@@ -13,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Mixin(MinecraftServer.class)
 public class MinecraftServerMixin {
@@ -25,23 +23,27 @@ public class MinecraftServerMixin {
 
         // Apply world-creation GUI choices on first load of a brand-new world (singleplayer).
         if (PendingLoopingConfig.hasPending()) {
-            Set<ResourceKey<Level>> enabled = PendingLoopingConfig.getPendingEnabled();
+            Set<ResourceKey<Level>> pendingLooping = PendingLoopingConfig.getPendingLooping();
             for (ResourceKey<Level> dim : LoopingDimensionManager.getLoopingDimensions()) {
-                if (!enabled.contains(dim)) LoopingDimensionManager.setLooping(dim, false);
+                if (!pendingLooping.contains(dim)) LoopingDimensionManager.setLooping(dim, false);
             }
-            for (ResourceKey<Level> dim : enabled) {
+            for (ResourceKey<Level> dim : pendingLooping) {
                 LoopingDimensionManager.setLooping(dim, true);
             }
+
+            Set<ResourceKey<Level>> pendingBeacon = PendingLoopingConfig.getPendingBeaconIgnoresSky();
+            for (ResourceKey<Level> dim : LoopingDimensionManager.getBeaconIgnoresSkyDimensions()) {
+                if (!pendingBeacon.contains(dim)) LoopingDimensionManager.setBeaconIgnoresSky(dim, false);
+            }
+            for (ResourceKey<Level> dim : pendingBeacon) {
+                LoopingDimensionManager.setBeaconIgnoresSky(dim, true);
+            }
+
             PendingLoopingConfig.consume();
         }
 
-        // Broadcast to any players already connected (e.g. after /reload).
-        Set<String> keys = LoopingDimensionManager.getLoopingDimensions().stream()
-                .map(k -> k.identifier().toString())
-                .collect(Collectors.toSet());
-        LoopingStatePayload payload = new LoopingStatePayload(keys);
-        server.getPlayerList().getPlayers()
-                .forEach(p -> ServerPlayNetworking.send(p, payload));
+        // Push the snapshot to any players already connected (e.g. after /reload).
+        Biblioteca.broadcastState(server);
     }
 
     @Inject(at = @At("HEAD"), method = "stopServer")

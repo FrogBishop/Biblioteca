@@ -12,7 +12,7 @@ import net.minecraft.world.level.Level;
 import java.util.Set;
 
 /**
- * Inserts a "Dimension Looping…" button into the CreateWorldScreen footer area.
+ * Inserts a "Dimension Attributes…" button into the CreateWorldScreen footer area.
  */
 public final class CreateWorldScreenInjector {
 
@@ -26,16 +26,19 @@ public final class CreateWorldScreenInjector {
 
         Button btn = Button.builder(
                 Component.translatable("biblioteca.gui.looping_button"),
-                b -> openLoopingConfig(screen)
+                b -> openConfig(screen)
         ).bounds(btnX, btnY, btnWidth, btnHeight).build();
 
         Screens.getWidgets(screen).add(btn);
     }
 
-    private static void openLoopingConfig(CreateWorldScreen parent) {
-        Set<ResourceKey<Level>> current = PendingLoopingConfig.hasPending()
-                ? PendingLoopingConfig.getPendingEnabled()
-                : Set.of(Level.OVERWORLD);
-        Minecraft.getInstance().setScreenAndShow(new LoopingConfigScreen(parent, current));
+    private static void openConfig(CreateWorldScreen parent) {
+        Set<ResourceKey<Level>> looping = PendingLoopingConfig.hasPending()
+                ? PendingLoopingConfig.getPendingLooping()
+                : Set.of();
+        Set<ResourceKey<Level>> beaconIgnoresSky = PendingLoopingConfig.hasPending()
+                ? PendingLoopingConfig.getPendingBeaconIgnoresSky()
+                : Set.of();
+        Minecraft.getInstance().setScreenAndShow(new LoopingConfigScreen(parent, looping, beaconIgnoresSky));
     }
 }

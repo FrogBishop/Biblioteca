@@ -7,15 +7,18 @@ import net.minecraft.world.level.LevelAccessor;
 import java.util.function.Predicate;
 
 /**
- * Unified runtime check for "is this dimension Y-looping?".
+ * Unified runtime check for the per-dimension attributes of this mod.
  * Server side: delegates to LoopingDimensionManager.
  * Client side: delegates to LoopingDimensionCache.
- * Both register their delegate at their respective initializers.
+ * Both register their delegates at their respective initializers.
  */
 public final class LoopingRegistry {
 
     private static Predicate<ResourceKey<Level>> serverCheck = dim -> false;
     private static Predicate<ResourceKey<Level>> clientCheck = dim -> false;
+
+    private static Predicate<ResourceKey<Level>> serverBeaconCheck = dim -> false;
+    private static Predicate<ResourceKey<Level>> clientBeaconCheck = dim -> false;
 
     private LoopingRegistry() {}
 
@@ -25,6 +28,14 @@ public final class LoopingRegistry {
 
     public static void setClientChecker(Predicate<ResourceKey<Level>> check) {
         clientCheck = check;
+    }
+
+    public static void setServerBeaconChecker(Predicate<ResourceKey<Level>> check) {
+        serverBeaconCheck = check;
+    }
+
+    public static void setClientBeaconChecker(Predicate<ResourceKey<Level>> check) {
+        clientBeaconCheck = check;
     }
 
     /** Picks the right delegate based on which side the level is on. */
@@ -42,7 +53,18 @@ public final class LoopingRegistry {
         return accessor instanceof Level level && isLooping(level);
     }
 
+    /** Does a beacon beam in this dimension skip the vanilla "must see the sky" rule? */
+    public static boolean beaconsIgnoreSky(Level level) {
+        return level.isClientSide()
+                ? clientBeaconCheck.test(level.dimension())
+                : serverBeaconCheck.test(level.dimension());
+    }
+
     public static boolean isLoopingClient(ResourceKey<Level> dim) {
         return clientCheck.test(dim);
+    }
+
+    public static boolean beaconsIgnoreSkyClient(ResourceKey<Level> dim) {
+        return clientBeaconCheck.test(dim);
     }
 }

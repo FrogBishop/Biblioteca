@@ -9,10 +9,15 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * S2C packet: tells the client which dimension keys have Y-looping enabled.
- * Sent on login and whenever an operator changes a dimension's looping flag.
+ * S2C packet: the per-dimension attributes of this mod, as dimension key strings.
+ *
+ *   loopingDimensions   dimensions whose Y axis wraps around
+ *   beaconIgnoresSky    dimensions whose beacon beams skip the sky check
+ *
+ * Sent on login and whenever an operator changes a dimension's attributes.
  */
-public record LoopingStatePayload(Set<String> loopingDimensions) implements CustomPacketPayload {
+public record LoopingStatePayload(Set<String> loopingDimensions, Set<String> beaconIgnoresSky)
+        implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<LoopingStatePayload> TYPE =
             new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("biblioteca", "looping_state"));
@@ -20,20 +25,27 @@ public record LoopingStatePayload(Set<String> loopingDimensions) implements Cust
     public static final StreamCodec<RegistryFriendlyByteBuf, LoopingStatePayload> STREAM_CODEC =
             StreamCodec.of(
                     (buf, payload) -> {
-                        buf.writeVarInt(payload.loopingDimensions().size());
-                        for (String dim : payload.loopingDimensions()) {
-                            buf.writeUtf(dim);
-                        }
+                        writeSet(buf, payload.loopingDimensions());
+                        writeSet(buf, payload.beaconIgnoresSky());
                     },
-                    buf -> {
-                        int count = buf.readVarInt();
-                        Set<String> dims = new HashSet<>(count);
-                        for (int i = 0; i < count; i++) {
-                            dims.add(buf.readUtf());
-                        }
-                        return new LoopingStatePayload(dims);
-                    }
+                    buf -> new LoopingStatePayload(readSet(buf), readSet(buf))
             );
+
+    private static void writeSet(RegistryFriendlyByteBuf buf, Set<String> values) {
+        buf.writeVarInt(values.size());
+        for (String value : values) {
+            buf.writeUtf(value);
+        }
+    }
+
+    private static Set<String> readSet(RegistryFriendlyByteBuf buf) {
+        int count = buf.readVarInt();
+        Set<String> values = new HashSet<>(count);
+        for (int i = 0; i < count; i++) {
+            values.add(buf.readUtf());
+        }
+        return values;
+    }
 
     @Override
     public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {

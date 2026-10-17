@@ -24,10 +24,11 @@ public class BibliotecaClient implements ClientModInitializer {
                 )
         );
 
-        // Wire the client checker into the shared LoopingRegistry.
+        // Wire the client checkers into the shared LoopingRegistry.
         LoopingRegistry.setClientChecker(LoopingDimensionCache::isLooping);
+        LoopingRegistry.setClientBeaconChecker(LoopingDimensionCache::beaconsIgnoreSky);
 
-        // Inject the "Dimension Looping…" button into the world-creation screen.
+        // Inject the "Dimension Attributes…" button into the world-creation screen.
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (screen instanceof CreateWorldScreen cws) {
                 CreateWorldScreenInjector.inject(cws, scaledWidth, scaledHeight);

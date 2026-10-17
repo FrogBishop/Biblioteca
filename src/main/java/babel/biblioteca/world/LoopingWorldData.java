@@ -1,6 +1,8 @@
 package babel.biblioteca.world;
 
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -13,31 +15,46 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Per-world persistent record of which dimensions have Y-looping enabled.
+ * Per-world record of the per-dimension attributes this mod adds:
+ *
+ *   looping              the Y axis wraps around, minY touching maxY
+ *   beacon_ignores_sky   beacon beams skip the vanilla "must see the sky" rule
+ *
  * Stored in the overworld's data storage (saves/<world>/data/biblioteca/looping.dat).
- * Uses Codec-based serialisation (MC 26.x SavedData API).
  */
 public class LoopingWorldData extends SavedData {
 
     private final Set<ResourceKey<Level>> loopingDimensions;
+    private final Set<ResourceKey<Level>> beaconIgnoresSky;
 
-    public LoopingWorldData(Set<ResourceKey<Level>> dims) {
-        this.loopingDimensions = new HashSet<>(dims);
+    public LoopingWorldData(Set<ResourceKey<Level>> loopingDimensions, Set<ResourceKey<Level>> beaconIgnoresSky) {
+        this.loopingDimensions = new HashSet<>(loopingDimensions);
+        this.beaconIgnoresSky = new HashSet<>(beaconIgnoresSky);
     }
 
-    /** Serialises as a JSON array of dimension resource-key strings. */
-    public static final Codec<LoopingWorldData> CODEC =
-            ResourceKey.codec(Registries.DIMENSION)
-                    .listOf()
-                    .xmap(
-                            list -> new LoopingWorldData(new HashSet<>(list)),
-                            data -> List.copyOf(data.loopingDimensions)
-                    );
+    private static final Codec<LoopingWorldData> RECORD = RecordCodecBuilder.create(instance -> instance.group(
+            ResourceKey.codec(Registries.DIMENSION).listOf()
+                    .optionalFieldOf("looping", List.of())
+                    .forGetter(data -> List.copyOf(data.loopingDimensions)),
+            ResourceKey.codec(Registries.DIMENSION).listOf()
+                    .optionalFieldOf("beacon_ignores_sky", List.of())
+                    .forGetter(data -> List.copyOf(data.beaconIgnoresSky))
+    ).apply(instance, (looping, beacon) -> new LoopingWorldData(new HashSet<>(looping), new HashSet<>(beacon))));
 
-    /** Default: only the overworld loops. */
+    /** Worlds written before the second attribute existed hold a bare list of dimensions. */
+    private static final Codec<LoopingWorldData> LEGACY = ResourceKey.codec(Registries.DIMENSION)
+            .listOf()
+            .xmap(looping -> new LoopingWorldData(new HashSet<>(looping), Set.of()),
+                    data -> List.copyOf(data.loopingDimensions));
+
+    public static final Codec<LoopingWorldData> CODEC = Codec.either(RECORD, LEGACY)
+            .xmap(either -> either.map(record -> record, legacy -> legacy),
+                    data -> Either.<LoopingWorldData, LoopingWorldData>left(data));
+
+    /** A new world starts with every attribute off; both are opt-in per dimension. */
     public static final SavedDataType<LoopingWorldData> TYPE = new SavedDataType<>(
             Identifier.fromNamespaceAndPath("biblioteca", "looping"),
-            () -> new LoopingWorldData(new HashSet<>(Set.of(Level.OVERWORLD))),
+            () -> new LoopingWorldData(Set.of(), Set.of()),
             CODEC,
             null
     );
@@ -54,5 +71,19 @@ public class LoopingWorldData extends SavedData {
 
     public Set<ResourceKey<Level>> getLoopingDimensions() {
         return Set.copyOf(loopingDimensions);
+    }
+
+    public boolean beaconIgnoresSky(ResourceKey<Level> dimension) {
+        return beaconIgnoresSky.contains(dimension);
+    }
+
+    public void setBeaconIgnoresSky(ResourceKey<Level> dimension, boolean ignored) {
+        if (ignored) beaconIgnoresSky.add(dimension);
+        else beaconIgnoresSky.remove(dimension);
+        setDirty();
+    }
+
+    public Set<ResourceKey<Level>> getBeaconIgnoresSky() {
+        return Set.copyOf(beaconIgnoresSky);
     }
 }

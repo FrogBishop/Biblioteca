@@ -10,8 +10,8 @@ import net.minecraft.world.level.storage.SavedDataStorage;
 import java.util.Set;
 
 /**
- * Server-side singleton that owns the LoopingWorldData and exposes
- * simple isLooping / setLooping helpers for the rest of the mod.
+ * Server-side singleton that owns the LoopingWorldData and exposes the per-dimension
+ * attributes to the rest of the mod.
  */
 public final class LoopingDimensionManager {
 
@@ -28,6 +28,7 @@ public final class LoopingDimensionManager {
         SavedDataStorage storage = overworld.getDataStorage();
         serverData = storage.computeIfAbsent(LoopingWorldData.TYPE);
         Biblioteca.LOGGER.info("[Biblioteca] Looping dimensions: {}", serverData.getLoopingDimensions());
+        Biblioteca.LOGGER.info("[Biblioteca] Beacon ignores sky: {}", serverData.getBeaconIgnoresSky());
     }
 
     public static void onServerStopped() {
@@ -46,5 +47,19 @@ public final class LoopingDimensionManager {
 
     public static Set<ResourceKey<Level>> getLoopingDimensions() {
         return serverData == null ? Set.of() : serverData.getLoopingDimensions();
+    }
+
+    public static boolean beaconIgnoresSky(ResourceKey<Level> dimension) {
+        return serverData != null && serverData.beaconIgnoresSky(dimension);
+    }
+
+    public static void setBeaconIgnoresSky(ResourceKey<Level> dimension, boolean ignored) {
+        if (serverData != null) {
+            serverData.setBeaconIgnoresSky(dimension, ignored);
+        }
+    }
+
+    public static Set<ResourceKey<Level>> getBeaconIgnoresSkyDimensions() {
+        return serverData == null ? Set.of() : serverData.getBeaconIgnoresSky();
     }
 }

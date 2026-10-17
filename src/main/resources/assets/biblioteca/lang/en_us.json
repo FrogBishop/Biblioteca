@@ -1,9 +1,12 @@
 {
-  "biblioteca.gui.looping_button": "Dimension Looping…",
-  "biblioteca.gui.looping_config.title": "Y-Looping by Dimension",
+  "biblioteca.gui.looping_button": "Dimension Attributes…",
+  "biblioteca.gui.looping_config.title": "Per-Dimension Attributes",
   "biblioteca.gui.looping_config.overworld": "Overworld",
   "biblioteca.gui.looping_config.nether": "The Nether",
   "biblioteca.gui.looping_config.end": "The End",
-  "biblioteca.gui.looping_config.note": "Custom dimensions can be toggled in-game with /biblioteca looping set",
+  "biblioteca.gui.looping_config.header_looping": "Y-axis loops",
+  "biblioteca.gui.looping_config.header_beacon": "Beacon ignores sky",
+  "biblioteca.gui.looping_config.beacon_prefix": "Beacon",
+  "biblioteca.gui.looping_config.note": "In game: /biblioteca looping set <dimension> <bool>, /biblioteca beacon <bool> for the current dimension",
   "options.biblioteca.loopingRenderRange": "Loop Render Range: %s"
 }

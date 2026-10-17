@@ -13,6 +13,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.permissions.Permission;
 import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.world.level.Level;
@@ -32,22 +33,38 @@ public class Biblioteca implements ModInitializer {
     @Override
     public void onInitialize() {
         LoopingRegistry.setServerChecker(LoopingDimensionManager::isLooping);
+        LoopingRegistry.setServerBeaconChecker(LoopingDimensionManager::beaconIgnoresSky);
 
         PayloadTypeRegistry.clientboundPlay().register(LoopingStatePayload.TYPE, LoopingStatePayload.STREAM_CODEC);
 
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            Set<String> keys = LoopingDimensionManager.getLoopingDimensions().stream()
-                    .map(k -> k.identifier().toString())
-                    .collect(Collectors.toSet());
-            ServerPlayNetworking.send(handler.getPlayer(), new LoopingStatePayload(keys));
-        });
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                ServerPlayNetworking.send(handler.getPlayer(), currentPayload()));
 
         registerCommands();
         LOGGER.info("[Biblioteca] Y-looping mod initialized.");
     }
 
+    /** The full attribute snapshot, as sent to clients. */
+    public static LoopingStatePayload currentPayload() {
+        return new LoopingStatePayload(
+                keysOf(LoopingDimensionManager.getLoopingDimensions()),
+                keysOf(LoopingDimensionManager.getBeaconIgnoresSkyDimensions()));
+    }
+
+    private static Set<String> keysOf(Set<ResourceKey<Level>> dimensions) {
+        return dimensions.stream()
+                .map(key -> key.identifier().toString())
+                .collect(Collectors.toSet());
+    }
+
+    public static void broadcastState(MinecraftServer server) {
+        LoopingStatePayload payload = currentPayload();
+        server.getPlayerList().getPlayers()
+                .forEach(player -> ServerPlayNetworking.send(player, payload));
+    }
+
     private static void registerCommands() {
-        // Operators at level 2 (GAMEMASTERS) can toggle looping.
+        // Operators at level 2 (GAMEMASTERS) can toggle the attributes.
         Permission opPermission = new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
@@ -79,20 +96,36 @@ public class Biblioteca implements ModInitializer {
                                                 ResourceKey.create(Registries.DIMENSION, loc);
                                         boolean enabled = BoolArgumentType.getBool(ctx, "enabled");
                                         LoopingDimensionManager.setLooping(dim, enabled);
-                                        Set<String> keys =
-                                                LoopingDimensionManager.getLoopingDimensions()
-                                                .stream()
-                                                .map(k -> k.identifier().toString())
-                                                .collect(Collectors.toSet());
-                                        LoopingStatePayload payload = new LoopingStatePayload(keys);
-                                        ctx.getSource().getServer().getPlayerList().getPlayers()
-                                                .forEach(p -> ServerPlayNetworking.send(p, payload));
+                                        broadcastState(ctx.getSource().getServer());
                                         ctx.getSource().sendSuccess(() -> Component.literal(
                                                 "Set looping for " + loc + " = " + enabled), true);
                                         return 1;
                                     })
                                 )
                             )
+                        )
+                    )
+                    // Applies to the dimension the command was run in.
+                    .then(Commands.literal("beacon")
+                        .executes(ctx -> {
+                            ResourceKey<Level> dim = ctx.getSource().getLevel().dimension();
+                            boolean ignoresSky = LoopingDimensionManager.beaconIgnoresSky(dim);
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "Beacon ignores sky in " + dim.identifier() + " = " + ignoresSky),
+                                    false);
+                            return ignoresSky ? 1 : 0;
+                        })
+                        .then(Commands.argument("ignoresSky", BoolArgumentType.bool())
+                            .executes(ctx -> {
+                                ResourceKey<Level> dim = ctx.getSource().getLevel().dimension();
+                                boolean ignoresSky = BoolArgumentType.getBool(ctx, "ignoresSky");
+                                LoopingDimensionManager.setBeaconIgnoresSky(dim, ignoresSky);
+                                broadcastState(ctx.getSource().getServer());
+                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                        "Beacon ignores sky in " + dim.identifier() + " = " + ignoresSky),
+                                        true);
+                                return 1;
+                            })
                         )
                     )
             )

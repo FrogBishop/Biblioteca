@@ -16,14 +16,19 @@ import java.util.Set;
 public final class LoopingDimensionCache {
 
     private static final Set<ResourceKey<Level>> loopingDimensions = new HashSet<>();
+    private static final Set<ResourceKey<Level>> beaconIgnoresSky = new HashSet<>();
 
     private LoopingDimensionCache() {}
 
     public static void applyPayload(LoopingStatePayload payload) {
-        loopingDimensions.clear();
-        for (String key : payload.loopingDimensions()) {
-            Identifier loc = Identifier.parse(key);
-            loopingDimensions.add(ResourceKey.create(Registries.DIMENSION, loc));
+        fill(loopingDimensions, payload.loopingDimensions());
+        fill(beaconIgnoresSky, payload.beaconIgnoresSky());
+    }
+
+    private static void fill(Set<ResourceKey<Level>> target, Set<String> keys) {
+        target.clear();
+        for (String key : keys) {
+            target.add(ResourceKey.create(Registries.DIMENSION, Identifier.parse(key)));
         }
     }
 
@@ -33,5 +38,13 @@ public final class LoopingDimensionCache {
 
     public static Set<ResourceKey<Level>> getLoopingDimensions() {
         return Set.copyOf(loopingDimensions);
+    }
+
+    public static boolean beaconsIgnoreSky(ResourceKey<Level> dimension) {
+        return beaconIgnoresSky.contains(dimension);
+    }
+
+    public static Set<ResourceKey<Level>> getBeaconIgnoresSky() {
+        return Set.copyOf(beaconIgnoresSky);
     }
 }
