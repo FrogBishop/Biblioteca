@@ -5,12 +5,11 @@ This mod rewrites the y-axis to make it act like a ring. No lowest, no highest, 
 
 Void fog is deleted in those dimension with this attribute.
 
-Thanks to stupid Opus5.5, render system is totally broken. Besides, there are millions of block-associated bugs. But it's pretty cool.
+Thanks to stupid Claude, render system is totally broken. Besides, there are millions of block-associated bugs. But it's pretty cool.
 
-Because I'm literally broke now (opus5.5 it's you that hurts me), I would fix remaining codes by my hands only.
+Because I'm literally broke now (Claude it's you that hurts me), I would fix remaining codes by my hands only.
 
 Known issues:
-1. Hitbox of the top and bottom layer are missing.
 1. Redstone Block cannot pass the signal across the border.
 1. Slime Block cannot be pushed/pulled across the border.
 1. Top layer chest can open even there is a block at bottom layer.
