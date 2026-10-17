@@ -3,6 +3,7 @@
   "package": "babel.biblioteca.client.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "BeaconBeamRenderYLoopMixin",
     "ChunkDrawGroupAccessor",
     "ClientLevelDirtyMixin",
     "CloudRendererLoopMixin",

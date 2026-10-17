@@ -5,6 +5,7 @@
   "mixins": [
     "AbstractMinecartYLoopMixin",
     "BambooStalkBlockYLoopMixin",
+    "BeaconBlockEntityAccessor",
     "BeaconBlockEntityYLoopMixin",
     "BlockCollisionsYLoopMixin",
     "ChorusFlowerBlockYLoopMixin",

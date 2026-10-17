@@ -99,6 +99,7 @@ publishing {
 //                          mirror-section dirty marks it emits cost nothing once
 //                          no renderer is listening for them.
 def noRenderMixins = [
+		'BeaconBeamRenderYLoopMixin',
 		'ChunkDrawGroupAccessor',
 		'CloudRendererLoopMixin',
 		'EntityRenderYLoopMixin',
