@@ -79,3 +79,147 @@ publishing {
 		// retrieving dependencies.
 	}
 }
+
+// ---------------------------------------------------------------------------
+// No-render variant jar
+// ---------------------------------------------------------------------------
+// Every build emits a second jar next to the normal one: the same mod with the
+// client renderer hooks stripped out (no mirrored chunk sections, no frustum or
+// BFS workarounds, no cloud or fog tweaks). Server logic, networking, coordinate
+// folding and block prediction are untouched.
+//
+// The variant is cut from the finished jar instead of a second source set, so the
+// two jars cannot drift apart. Only the mixin config and the mod metadata inside
+// the variant are rewritten; everything named in noRenderMixins is dropped from
+// both the jar and the config.
+//
+// Deliberately kept in the variant:
+//   ClientLevelDirtyMixin  the setBlock fold it carries is what keeps block
+//                          prediction working across the Y seam. The extra
+//                          mirror-section dirty marks it emits cost nothing once
+//                          no renderer is listening for them.
+//   LoopingRenderSettings  BibliotecaClient still builds the video-settings
+//                          slider from it, so removing the class would crash
+//                          the options screen.
+def noRenderMixins = [
+		'ChunkDrawGroupAccessor',
+		'CloudRendererLoopMixin',
+		'FrustumYLoopMixin',
+		'LevelRendererYLoopMixin',
+		'SectionOcclusionGraphLoopMixin',
+		'VoidFogMixin',
+]
+
+def noRenderGeneratedDir = layout.buildDirectory.dir('generated/noRender')
+
+def prepareNoRenderResources = tasks.register('prepareNoRenderResources') {
+	group = 'build'
+	description = 'Rewrites the client mixin config and mod metadata for the no-render jar.'
+
+	def mixinConfigFile = file('src/client/resources/biblioteca.client.mixins.json')
+	def metadataFile = file('src/main/resources/fabric.mod.json')
+	def modVersion = project.version.toString()
+	def outputDir = noRenderGeneratedDir.get().asFile
+
+	inputs.files(mixinConfigFile, metadataFile).withPropertyName('manifestSources')
+	outputs.dir(noRenderGeneratedDir).withPropertyName('rewrittenResources')
+
+	doLast {
+		outputDir.mkdirs()
+
+		// Keep every non-renderer entry, in the original order.
+		def mixinConfig = new groovy.json.JsonSlurper().parse(mixinConfigFile)
+		def removed = mixinConfig.client.findAll { noRenderMixins.contains(it) }
+		if (removed.size() != noRenderMixins.size()) {
+			logger.warn("[no-render] mixin config listed ${removed.size()} of the " +
+					"${noRenderMixins.size()} renderer mixins: ${removed}")
+		}
+		mixinConfig.client = mixinConfig.client.findAll { !noRenderMixins.contains(it) }
+		new File(outputDir, mixinConfigFile.name).setText(
+				groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mixinConfig)) + '\n', 'UTF-8')
+
+		// Mark the variant in the mod list and in crash reports, so a log tells you
+		// which of the two jars is actually running.
+		def metadata = new groovy.json.JsonSlurper().parseText(
+				metadataFile.getText('UTF-8').replace('${version}', modVersion))
+		metadata.version = modVersion + '-norender'
+		metadata.name = metadata.name + ' (No Render)'
+		new File(outputDir, metadataFile.name).setText(
+				groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + '\n', 'UTF-8')
+	}
+}
+
+def noRenderJar = tasks.register('noRenderJar') {
+	group = 'build'
+	description = 'Assembles the no-render variant jar from the remapped jar.'
+
+	// Loom 1.18 has no remapJar task: `jar` emits the deliverable mod jar directly
+	// (verified with `gradle tasks`). If a future loom reintroduces a remap step,
+	// this is the line that has to point at it instead.
+	def primaryJar = tasks.named('jar').flatMap { it.archiveFile }.map { it.asFile }
+	// Lands next to the primary jar, whichever directory that task writes to.
+	def variantJar = primaryJar.map { primary ->
+		new File(primary.parentFile, primary.name.replaceAll(/\.jar$/, '') + '-norender.jar')
+	}
+
+	dependsOn tasks.named('jar'), prepareNoRenderResources
+	inputs.file(primaryJar).withPropertyName('primaryJar')
+	inputs.dir(noRenderGeneratedDir).withPropertyName('rewrittenResources')
+	outputs.file(variantJar).withPropertyName('noRenderJar')
+
+	doLast {
+		def packagePath = 'babel/biblioteca/client/mixin/'
+		def droppedClasses = noRenderMixins.collect { packagePath + it + '.class' } as Set
+		def droppedNested = noRenderMixins.collect { packagePath + it + '$' }
+		def rewrittenEntries = ['fabric.mod.json', 'biblioteca.client.mixins.json'] as Set
+
+		def source = primaryJar.get()
+		def target = variantJar.get()
+		def droppedSeen = [] as Set
+
+		target.parentFile.mkdirs()
+		new java.util.zip.ZipFile(source).withCloseable { zip ->
+			new java.util.zip.ZipOutputStream(
+					new BufferedOutputStream(new FileOutputStream(target))).withCloseable { out ->
+				for (def entry : java.util.Collections.list(zip.entries())) {
+					def name = entry.name
+					if (rewrittenEntries.contains(name)) continue
+					if (droppedClasses.contains(name) || droppedNested.any { name.startsWith(it) }) {
+						droppedSeen.add(name)
+						continue
+					}
+					def copy = new java.util.zip.ZipEntry(name)
+					copy.time = entry.time
+					out.putNextEntry(copy)
+					if (!entry.directory) {
+						zip.getInputStream(entry).withCloseable { input -> input.transferTo(out) }
+					}
+					out.closeEntry()
+				}
+				// The rewritten config and metadata replace the originals skipped above.
+				noRenderGeneratedDir.get().asFile.listFiles()
+						.findAll { it.isFile() }
+						.sort { it.name }
+						.each { f ->
+							def copy = new java.util.zip.ZipEntry(f.name)
+							copy.time = f.lastModified()
+							out.putNextEntry(copy)
+							out.write(f.bytes)
+							out.closeEntry()
+						}
+			}
+		}
+
+		def missing = droppedClasses.findAll { !droppedSeen.contains(it) }
+		if (missing) {
+			logger.warn("[no-render] not present in the primary jar: ${missing}")
+		}
+		logger.lifecycle("[no-render] wrote ${target.name} " +
+				"(${droppedSeen.size()} renderer mixin classes removed)")
+	}
+}
+
+// `build` and `assemble` now emit both jars into build/libs.
+tasks.named('assemble') {
+	dependsOn noRenderJar
+}

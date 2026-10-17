@@ -22,9 +22,79 @@ jobs:
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
       - name: build
+        shell: bash
         run: ./gradlew build
+      # `build` emits two jars: the normal one and the no-render variant. Fail loudly
+      # rather than shipping a silently wrong artifact if the variant step breaks.
+      - name: verify both jars were produced
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          root=$(pwd)
+
+          main_jars=()
+          variant_jars=()
+          for jar in build/libs/*.jar; do
+            case "$jar" in
+              *-sources.jar|*-javadoc.jar) ;;
+              *-norender.jar) variant_jars+=("$jar") ;;
+              *) main_jars+=("$jar") ;;
+            esac
+          done
+
+          if [ "${#main_jars[@]}" -ne 1 ]; then
+            echo "::error::expected one main jar in build/libs, found ${#main_jars[@]}"
+            exit 1
+          fi
+          if [ "${#variant_jars[@]}" -ne 1 ]; then
+            echo "::error::expected one no-render jar in build/libs, found ${#variant_jars[@]}"
+            exit 1
+          fi
+          main_jar="${main_jars[0]}"
+          variant_jar="${variant_jars[0]}"
+          render_mixin='babel/biblioteca/client/mixin/LevelRendererYLoopMixin.class'
+
+          if grep -qxF "$render_mixin" <<< "$(jar tf "$variant_jar")"; then
+            echo "::error::$variant_jar still contains $render_mixin"
+            exit 1
+          fi
+          if ! grep -qxF "$render_mixin" <<< "$(jar tf "$main_jar")"; then
+            echo "::error::$main_jar lost $render_mixin"
+            exit 1
+          fi
+
+          verify_dir=$(mktemp -d)
+          trap 'rm -rf "$verify_dir"' EXIT
+          ( cd "$verify_dir" && jar xf "$root/${variant_jar}" fabric.mod.json biblioteca.client.mixins.json )
+          if grep -q 'LevelRendererYLoopMixin' "$verify_dir/biblioteca.client.mixins.json"; then
+            echo "::error::the no-render mixin config still lists renderer mixins"
+            exit 1
+          fi
+          for kept in ClientLevelDirtyMixin MultiPlayerGameModeMixin; do
+            if ! grep -q "$kept" "$verify_dir/biblioteca.client.mixins.json"; then
+              echo "::error::the no-render mixin config lost $kept"
+              exit 1
+            fi
+          done
+          if ! grep -q '"version": "[^"]*-norender"' "$verify_dir/fabric.mod.json"; then
+            echo "::error::the no-render jar is not marked as such in fabric.mod.json"
+            exit 1
+          fi
+
+          echo "main jar:    $main_jar"
+          echo "variant jar: $variant_jar"
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: Artifacts
-          path: build/libs/
+          path: |
+            build/libs/*.jar
+            !build/libs/*-norender.jar
+          if-no-files-found: error
+      - name: capture no-render artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Artifacts-no-render
+          path: build/libs/*-norender.jar
+          if-no-files-found: error
