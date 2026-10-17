@@ -55,35 +55,86 @@ jobs:
           variant_jar="${variant_jars[0]}"
           render_mixin='babel/biblioteca/client/mixin/LevelRendererYLoopMixin.class'
 
-          if grep -qxF "$render_mixin" <<< "$(jar tf "$variant_jar")"; then
+          main_listing=$(jar tf "$main_jar")
+          variant_listing=$(jar tf "$variant_jar")
+
+          if grep -qxF "$render_mixin" <<< "$variant_listing"; then
             echo "::error::$variant_jar still contains $render_mixin"
             exit 1
           fi
-          if ! grep -qxF "$render_mixin" <<< "$(jar tf "$main_jar")"; then
+          if ! grep -qxF "$render_mixin" <<< "$main_listing"; then
             echo "::error::$main_jar lost $render_mixin"
             exit 1
           fi
 
+          # Extract both mixin configs and check the relationship between them, rather than a
+          # hardcoded list of names: the variant must list exactly what the main jar lists minus
+          # the renderer mixins, and each listed name must match a class in that same jar. A
+          # hardcoded name goes stale the moment a mixin is renamed or removed, which is exactly
+          # the failure this step is meant to catch, not cause.
           verify_dir=$(mktemp -d)
           trap 'rm -rf "$verify_dir"' EXIT
-          ( cd "$verify_dir" && jar xf "$root/${variant_jar}" fabric.mod.json biblioteca.client.mixins.json )
-          if grep -q 'LevelRendererYLoopMixin' "$verify_dir/biblioteca.client.mixins.json"; then
+          mkdir -p "$verify_dir/main" "$verify_dir/variant"
+          ( cd "$verify_dir/main" && jar xf "$root/${main_jar}" fabric.mod.json biblioteca.client.mixins.json )
+          ( cd "$verify_dir/variant" && jar xf "$root/${variant_jar}" fabric.mod.json biblioteca.client.mixins.json )
+
+          main_config="$verify_dir/main/biblioteca.client.mixins.json"
+          variant_config="$verify_dir/variant/biblioteca.client.mixins.json"
+
+          # One mixin name per line, from the "client" array of a config.
+          client_mixins() {
+            sed -n '/"client"[[:space:]]*:[[:space:]]*\[/,/]/p' "$1" \
+              | grep -o '"[A-Za-z0-9_$]*"' | tr -d '"' | grep -vx 'client' | sort -u
+          }
+
+          client_mixins "$main_config"    > "$verify_dir/main.names"
+          client_mixins "$variant_config" > "$verify_dir/variant.names"
+
+          if [ ! -s "$verify_dir/main.names" ]; then
+            echo "::error::could not read any client mixins from $main_jar"
+            exit 1
+          fi
+
+          comm -23 "$verify_dir/main.names" "$verify_dir/variant.names" > "$verify_dir/removed.names"
+          comm -13 "$verify_dir/main.names" "$verify_dir/variant.names" > "$verify_dir/added.names"
+
+          if [ -s "$verify_dir/added.names" ]; then
+            echo "::error::the no-render mixin config lists mixins the main config does not: $(tr '\n' ' ' < "$verify_dir/added.names")"
+            exit 1
+          fi
+          if [ ! -s "$verify_dir/removed.names" ]; then
+            echo "::error::the no-render mixin config stripped nothing"
+            exit 1
+          fi
+
+          # Every stripped name must have no class left, and every kept name must still have one.
+          while read -r name; do
+            if grep -qxF "babel/biblioteca/client/mixin/$name.class" <<< "$variant_listing"; then
+              echo "::error::the no-render jar still contains the class for stripped mixin $name"
+              exit 1
+            fi
+          done < "$verify_dir/removed.names"
+
+          while read -r name; do
+            if ! grep -qxF "babel/biblioteca/client/mixin/$name.class" <<< "$variant_listing"; then
+              echo "::error::the no-render jar is missing the class for kept mixin $name"
+              exit 1
+            fi
+          done < "$verify_dir/variant.names"
+
+          if grep -q 'LevelRendererYLoopMixin' "$variant_config"; then
             echo "::error::the no-render mixin config still lists renderer mixins"
             exit 1
           fi
-          for kept in ClientLevelDirtyMixin MultiPlayerGameModeMixin; do
-            if ! grep -q "$kept" "$verify_dir/biblioteca.client.mixins.json"; then
-              echo "::error::the no-render mixin config lost $kept"
-              exit 1
-            fi
-          done
-          if ! grep -q '"version": "[^"]*-norender"' "$verify_dir/fabric.mod.json"; then
+          if ! grep -q '"version": "[^"]*-norender"' "$verify_dir/variant/fabric.mod.json"; then
             echo "::error::the no-render jar is not marked as such in fabric.mod.json"
             exit 1
           fi
 
           echo "main jar:    $main_jar"
           echo "variant jar: $variant_jar"
+          echo "stripped:    $(tr '\n' ' ' < "$verify_dir/removed.names")"
+          echo "kept:        $(tr '\n' ' ' < "$verify_dir/variant.names")"
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:

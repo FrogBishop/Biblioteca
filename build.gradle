@@ -108,6 +108,7 @@ def noRenderMixins = [
 		'FrustumInvoker',
 		'FrustumYLoopMixin',
 		'LevelRendererYLoopMixin',
+		'RenderRegionCacheYLoopMixin',
 		'SectionOcclusionGraphLoopMixin',
 		'ViewAreaAccessor',
 		'VoidFogMixin',
