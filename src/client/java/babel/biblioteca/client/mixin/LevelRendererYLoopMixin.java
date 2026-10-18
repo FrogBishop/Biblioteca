@@ -2,6 +2,7 @@ package babel.biblioteca.client.mixin;
 
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.SeamCull;
+import babel.biblioteca.client.SeamSortOrder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.DynamicGpuData;
@@ -14,6 +15,7 @@ import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Final;
@@ -32,27 +34,43 @@ import java.util.Map;
 /**
  * Draws the terrain that a Y-looping dimension repeats above and below itself.
  *
- * extractSectionDrawGroups turns the visible sections into one ChunkSectionInfo plus a
- * set of draw commands per layer, with the section index carried in the draw's instance
- * base. A copy of a section is therefore just one more ChunkSectionInfo at the periodic
- * height plus duplicated draws pointing at it, which is what this adds.
+ * extractSectionDrawGroups turns the visible sections into one ChunkSectionInfo plus a set of draw
+ * commands per layer, with the section index carried in the draw's instance base. A copy of a
+ * section is therefore just one more ChunkSectionInfo at a periodic height plus duplicated draws
+ * pointing at it, so showing many stacked layers costs draw commands and nothing else - the compiled
+ * mesh is shared.
  *
- * One copy in each direction is enough: the next copy is a whole world height further
- * away and can never be in front of the camera. A copy is emitted when its box is inside the
- * camera frustum and its centre is within the render distance. The frustum test alone is
- * not enough, because FrustumYLoopMixin answers for a box's periodic twin as well, which
- * would let copies far beyond anything that is loaded through.
+ * Every periodic row within the render distance is submitted, not only the nearest one: with enough
+ * render distance the player should see the world repeating, the way an endless vertical ring would
+ * look. The two gates are that the row's box is inside the camera frustum and that its centre is
+ * within the render distance; the frustum test alone is not enough, because FrustumYLoopMixin
+ * answers for a box's periodic twin as well, which would let copies far beyond anything loaded
+ * through.
+ *
+ * Translucent geometry has one extra problem: a section's quads are sorted for a single viewpoint,
+ * and a section drawn at a periodic height is no longer at its own coordinates. SectionResortYLoopMixin
+ * therefore re-sorts the section for the row nearest the camera. Rows further away reuse that
+ * ordering, which is acceptable because fog hides them - see SeamSortOrder.
+ *
+ * Entities, block entities and clouds stay single-layer (they are far more expensive per copy, and
+ * a mirrored mob is indistinguishable from a mob standing on the mirrored terrain); the entity side
+ * lives in EntityRenderYLoopMixin and friends.
  *
  * The source sections are the ones SectionOcclusionGraphLoopMixin put in
- * LevelRenderer.visibleSections; on the far side of the seam those are sections the vanilla
- * section graph never walks to.
+ * LevelRenderer.visibleSections; on the far side of the seam those are sections the vanilla section
+ * graph never walks to.
+ *
+ * Known limitation: mirrored rows reuse the source section's translucent geometry, and one mesh holds
+ * one sorting state, so only the row nearest the camera is sorted exactly (see SeamSortOrder and
+ * SectionResortYLoopMixin). Water in the further rows can blend imperfectly. This was measured -
+ * the draws are correct, single and in the right order - but the appearance of mirrored water has not
+ * been fully solved; see the notes in the mixins above before changing the copy path.
  */
 @Mixin(value = LevelRenderer.class, priority = 900)
 public abstract class LevelRendererYLoopMixin {
 
     @Shadow private LevelRenderState levelRenderState;
     @Shadow @Final private BlockEntityRenderDispatcher blockEntityRenderDispatcher;
-
 
     /**
      * Draws block entities at the ring layer nearest the camera, the same way
@@ -132,6 +150,11 @@ public abstract class LevelRendererYLoopMixin {
         double cameraY = renderState.cameraRenderState.pos.y;
         double viewDistanceBlocks = minecraft.options.getEffectiveRenderDistance() * 16.0;
 
+        // How many periodic copies can possibly fall inside the render distance. With a long
+        // render distance this grows, and that is the point: the world is a ring, so a player with
+        // enough range should see the world repeating above and below instead of one layer.
+        int maxSteps = (int) Math.ceil(viewDistanceBlocks / period) + 1;
+
         // Which draw commands belong to which section index.
         Map<Integer, List<Object[]>> drawsBySection = new HashMap<>();
         for (ChunkSectionLayer layer : ChunkSectionLayer.values()) {
@@ -148,50 +171,44 @@ public abstract class LevelRendererYLoopMixin {
                     if (sectionIndex >= 0 && sectionIndex < sourceCount) {
                         drawsBySection
                                 .computeIfAbsent(sectionIndex, key -> new ArrayList<>())
-                                .add(new Object[]{group, draw});
+                                .add(new Object[]{group, draw, layer});
                     }
                 }
             }
         }
 
+        SeamSortOrder.beginFrame();
+
         for (int i = 0; i < sourceCount; i++) {
             DynamicGpuData.ChunkSectionInfo info =
                     (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(i);
 
-            AABB ownBounds = new AABB(
-                    info.x(), info.y(), info.z(),
-                    info.x() + 16.0, info.y() + 16.0, info.z() + 16.0);
-
-            // A section only reaches this list because something in view needs it. If its own row
-            // is not in view it is here for its periodic twin, so it is drawn once, at that twin,
-            // and no copies are added: a row nobody can see must not be submitted at all.
-            if (!SeamCull.plainlyVisible(frustum, ownBounds)) {
-                int shift = biblioteca$visibleCopyShift(frustum, ownBounds, period);
-                if (shift != 0) {
-                    sectionInfos.set(i, new DynamicGpuData.ChunkSectionInfo(
-                            info.x(), info.y() + shift, info.z(), info.visibility()));
-                    continue;
-                }
-            }
+            AABB ownBounds = biblioteca$bounds(info, info.y());
+            boolean ownVisible = biblioteca$worthDrawing(frustum, ownBounds, cameraY, viewDistanceBlocks);
 
             List<Object[]> entries = drawsBySection.get(i);
             if (entries == null || entries.isEmpty()) continue;
 
-            for (int direction = -1; direction <= 1; direction += 2) {
-                int copyY = info.y() + direction * period;
+            // The drawn row closest to the camera. Its origin is what the translucent re-sort uses;
+            // see SectionResortYLoopMixin for why that matters.
+            int sortStep = ownVisible ? 0 : NO_STEP;
+            double sortDistance = ownVisible ? Math.abs(info.y() + 8.0 - cameraY) : Double.MAX_VALUE;
 
-                AABB copyBounds = new AABB(
-                        info.x(), copyY, info.z(),
-                        info.x() + 16.0, copyY + 16.0, info.z() + 16.0);
+            // Mirror into every periodic row that is worth drawing. No extra memory: each copy is one
+            // more draw command pointing at the same compiled mesh.
+            for (int step = -maxSteps; step <= maxSteps; step++) {
+                if (step == 0) continue;   // already submitted by the vanilla pass
 
-                // This has to be the plain test. The ring-aware one answers yes whenever the
-                // copy's twin is in view, and its twin is the section being copied - visible by
-                // construction - so every section would get a copy in both directions.
-                if (!SeamCull.plainlyVisible(frustum, copyBounds)) continue;
+                int copyY = info.y() + step * period;
 
-                // A copy further away than the render distance cannot be seen.
-                double copyCentreY = copyY + 8.0;
-                if (Math.abs(copyCentreY - cameraY) > viewDistanceBlocks) continue;
+                AABB copyBounds = biblioteca$bounds(info, copyY);
+                if (!biblioteca$worthDrawing(frustum, copyBounds, cameraY, viewDistanceBlocks)) continue;
+
+                double distance = Math.abs(copyY + 8.0 - cameraY);
+                if (distance < sortDistance) {
+                    sortDistance = distance;
+                    sortStep = step;
+                }
 
                 int copyIndex = sectionInfos.size();
                 sectionInfos.add(new DynamicGpuData.ChunkSectionInfo(
@@ -208,14 +225,82 @@ public abstract class LevelRendererYLoopMixin {
                             copyIndex));
                 }
             }
+
+            if (sortStep != NO_STEP && sortStep != 0) {
+                SeamSortOrder.putNext(
+                        SectionPos.asLong(info.x() >> 4, info.y() >> 4, info.z() >> 4),
+                        sortStep * (period >> 4));
+            }
         }
 
+        // Copies were appended to the end of the section list, so far water would be drawn after
+        // near water. Translucent geometry has to be drawn back to front or it blends as if surfaces
+        // were stacked wrongly, which reads as an extra face on every block. Vanilla relies on the
+        // section order for this, so appending broke it; restore it by sorting the translucent draws
+        // by distance from the camera, farthest first.
+        List<?> translucentGroups = (List<?>) drawGroups.get(ChunkSectionLayer.TRANSLUCENT);
+        if (translucentGroups != null && !translucentGroups.isEmpty()) {
+            Vec3 cameraPos = renderState.cameraRenderState.pos;
+
+            for (int groupIndex = 0; groupIndex < translucentGroups.size(); groupIndex++) {
+                ChunkDrawGroupAccessor group = (ChunkDrawGroupAccessor) translucentGroups.get(groupIndex);
+                group.biblioteca$getDraws().sort((first, second) -> Double.compare(
+                        biblioteca$distanceSq(second, sectionInfos, cameraPos),
+                        biblioteca$distanceSq(first, sectionInfos, cameraPos)));
+            }
+        }
+        // Publishing the mapping can change which origin a section's translucent sort should use.
+        // The meshes were compiled before this mapping existed, so ask for a re-sort whenever it
+        // moves; otherwise the water stays wrongly ordered until something else happens to move the
+        // camera, which is why it used to only look right after walking across the seam.
+        if (SeamSortOrder.commit()) {
+            ((LevelRendererInvoker) this).biblioteca$scheduleTranslucentSectionResort(
+                    renderState.cameraRenderState.pos);
+        }
     }
 
-    /** Which one-period shift puts this box in view, or 0 when neither does. */
-    private static int biblioteca$visibleCopyShift(Frustum frustum, AABB own, int period) {
-        if (SeamCull.plainlyVisible(frustum, own.move(0.0, period, 0.0))) return period;
-        if (SeamCull.plainlyVisible(frustum, own.move(0.0, -(double) period, 0.0))) return -period;
-        return 0;
+    /** Returned by the step search when no periodic row of a section is worth drawing. */
+    private static final int NO_STEP = Integer.MIN_VALUE;
+
+    /** Squared distance from the camera to the centre of the row this draw refers to. */
+    private static double biblioteca$distanceSq(
+            DynamicGpuData.IndexedDraw draw, List sectionInfos, Vec3 camera) {
+
+        int index = draw.baseInstance();
+        if (index < 0 || index >= sectionInfos.size()) return 0.0;
+
+        DynamicGpuData.ChunkSectionInfo info = (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(index);
+        double dx = info.x() + 8.0 - camera.x;
+        double dy = info.y() + 8.0 - camera.y;
+        double dz = info.z() + 8.0 - camera.z;
+
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private static AABB biblioteca$bounds(DynamicGpuData.ChunkSectionInfo info, int y) {
+        return new AABB(info.x(), y, info.z(), info.x() + 16.0, y + 16.0, info.z() + 16.0);
+    }
+
+    /**
+     * True when this row is inside the frustum and close enough to be seen at all.
+     *
+     * Both halves matter, and the second is easy to forget: the cull frustum's far plane reaches
+     * several times the render distance, so geometry well past the point where fog closes in still
+     * tests as inside the frustum. Drawing a periodic copy there puts rows on screen that vanilla
+     * would never show - standing at y=70 and looking up, a cave from below reappears forty chunks
+     * overhead while the boundary layer that ought to be in front of it is too far away to be drawn
+     * at all. The copy path already had this clamp; the path that relocates a section onto its twin
+     * did not, and that is what produced the floating caves.
+     *
+     * The plain frustum test is deliberate: the ring-aware one answers yes whenever the box's twin
+     * is in view, and a copy's twin is the section being copied, visible by construction.
+     */
+    private static boolean biblioteca$worthDrawing(
+            Frustum frustum, AABB box, double cameraY, double viewDistanceBlocks) {
+
+        double centreY = (box.minY + box.maxY) * 0.5;
+        if (Math.abs(centreY - cameraY) > viewDistanceBlocks) return false;
+
+        return SeamCull.plainlyVisible(frustum, box);
     }
 }

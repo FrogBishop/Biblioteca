@@ -19,10 +19,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * octree culling whole branches at the world's bottom and top, which is why nothing on the
  * far side of the seam was ever considered visible.
  *
- * A box counts as visible when its periodic twin is in view. Only the nearest twin can be
- * in front of the camera, so a single offset is enough. The answer is reported as
- * "partially visible" rather than "fully visible" so the octree keeps descending instead of
- * trusting a box it never actually tested.
+ * A box counts as visible when a periodic twin of it is in view. Which twin that would be depends on
+ * where the box sits relative to the camera's own row, so the three offsets around the nearest one
+ * are tested; testing only the nearest would miss boxes that straddle the boundary between two rows.
+ * The answer is reported as "partially visible" rather than "fully visible" so the octree keeps
+ * descending instead of trusting a box it never actually tested.
  *
  * The test runs whenever the plain test rejected the box, which is what the return value has
  * to be read for. JOML's FrustumIntersection.intersectAab returns -2 for a box fully inside,

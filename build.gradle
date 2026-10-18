@@ -107,9 +107,13 @@ def noRenderMixins = [
 		'EntityShouldRenderYLoopMixin',
 		'FrustumInvoker',
 		'FrustumYLoopMixin',
+		'LevelRendererInvoker',
 		'LevelRendererYLoopMixin',
 		'RenderRegionCacheYLoopMixin',
+		'SectionCompileSortYLoopMixin',
 		'SectionOcclusionGraphLoopMixin',
+		'SectionResortYLoopMixin',
+		'SkyRendererYLoopMixin',
 		'ViewAreaAccessor',
 		'VoidFogMixin',
 ]

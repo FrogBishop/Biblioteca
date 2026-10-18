@@ -163,9 +163,10 @@ public abstract class SectionOcclusionGraphLoopMixin {
      * row near the camera therefore also keeps the row on the other end of the ring, which is
      * exactly the source set the mirror needs.
      *
-     * Only rows whose copy could reach the frustum are scanned: a copy is drawn at
-     * y +/- one world height, so a row more than the render distance away from that position
-     * after the shift cannot produce anything visible.
+     * Only rows whose copy could reach the frustum are scanned: a copy is drawn at some whole
+     * multiple of the world height away, and the scan band is limited to the render distance
+     * (plus the preload slack) around the camera, so a row outside that band cannot produce
+     * anything visible however many periods it is shifted by.
      */
     @Inject(method = "addSectionsInFrustum", at = @At("TAIL"))
     private void biblioteca$includeFarSeamSources(
@@ -187,8 +188,8 @@ public abstract class SectionOcclusionGraphLoopMixin {
         double camY = frustum.getCamY();
 
         // Preload: widen the test by the configured number of sections. Sections in that shell are
-        // compiled now instead of the moment they come into view, which is what keeps the crossing
-        // from triggering a burst of mesh builds. Zero means "only what is actually in view".
+        // compiled ahead of time instead of the moment they come into view. Zero means "only what is
+        // actually in view".
         double slack  = LoopingClientSettings.preloadBlocks();
         double search = reach + slack;
 

@@ -5,4 +5,9 @@ This mod rewrites the y-axis to make it act like a ring. No lowest, no highest, 
 
 Void fog and sky light is deleted in those dimension with this attribute.
 
+The 'norender' variant is for server since server don't care about render.
+
 Very much thanks to DeepSeek-v4.1-flash. She fixed all the bugs I found.
+
+Known issues:
+1. Water's render is wrong.

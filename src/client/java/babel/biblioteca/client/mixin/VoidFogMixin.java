@@ -1,43 +1,37 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingDimensionCache;
-import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
+import babel.biblioteca.LoopingRegistry;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogRenderer;
-import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Disables void fog (the black-dark overlay near the world bottom) in looping
- * dimensions by cancelling computeFogColor entirely for those dimensions.
+ * Suppresses the void-darkening term of the fog colour, and nothing else.
  *
- * computeFogColor is called by setupFog and writes the fog color to a Vector4f
- * that setupFog then stores in FogData.color. Cancelling it leaves FogData.color
- * at its constructed default (0, 0, 0, 0), but setupFog always writes a valid
- * color because computeFogColor is called solely to populate the color parameter
- * passed in, which is FogData.color. When we cancel, setupFog simply leaves
- * FogData.color as-is (the default white 1,1,1,1 set by FogData's constructor).
+ * The previous version cancelled computeFogColor at HEAD. That method is the only writer of
+ * FogData.color, and FogData.color starts as a bare new Vector4f() - (0,0,0,0), not the white
+ * the old comment claimed. With the method cancelled the colour stayed black, and that colour is
+ * the clear colour LevelRenderer paints the frame with: the sky's upper disc is still drawn in
+ * SKY_COLOR, so the sky read as blue above the horizon and black below it. It also zeroed the
+ * alpha that apply_fog multiplies its blend factor by, which switched off every atmospheric fog
+ * in the dimension, not just the void darkening.
+ *
+ * The darkness term is the only part of the calculation that cares about the world floor:
+ * darkness = clamp((voidDarknessOnsetRange + minY - cameraY) / voidDarknessOnsetRange, 0, 1).
+ * Forcing that one clamp to zero keeps the fog colour, the cloud colour and the fog ranges, and
+ * leaves the Darkness/Blindness effects untouched because they merge with Math.max afterwards.
  */
 @Mixin(FogRenderer.class)
 public abstract class VoidFogMixin {
 
-    @Inject(
-            method = "computeFogColor(Lnet/minecraft/client/Camera;FLnet/minecraft/client/multiplayer/ClientLevel;IFLorg/joml/Vector4f;)V",
-            at = @At("HEAD"),
-            cancellable = true)
-    private void biblioteca$cancelVoidFogColor(
-            Camera camera, float partialTick, ClientLevel level,
-            int renderDistance, float darkenWorldAmount, Vector4f colorOutput,
-            CallbackInfo ci) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
-        if (!LoopingDimensionCache.isLooping(mc.level.dimension())) return;
-        // Cancel the void-darkness computation. setupFog will keep FogData.color
-        // at its default sky colour set before this call.
-        ci.cancel();
+    @ModifyExpressionValue(
+            method = "computeFogColor",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Mth;clamp(FFF)F"))
+    private float biblioteca$noVoidDarkness(
+            float original, @Local(argsOnly = true) ClientLevel level) {
+        return LoopingRegistry.isLooping(level) ? 0.0F : original;
     }
 }
