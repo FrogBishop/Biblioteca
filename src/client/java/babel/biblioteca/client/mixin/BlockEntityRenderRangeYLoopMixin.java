@@ -1,6 +1,6 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingDimensionCache;
+import babel.biblioteca.LoopingRegistry;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.Minecraft;
@@ -47,7 +47,7 @@ public abstract class BlockEntityRenderRangeYLoopMixin {
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return false;
-        if (!LoopingDimensionCache.isLooping(minecraft.level.dimension())) return false;
+        if (!LoopingRegistry.isLooping(minecraft.level)) return false;
 
         int period = minecraft.level.getHeight();
         if (period <= 0) return false;

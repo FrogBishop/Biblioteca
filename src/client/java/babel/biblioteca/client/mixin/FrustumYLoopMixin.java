@@ -25,6 +25,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * The answer is reported as "partially visible" rather than "fully visible" so the octree keeps
  * descending instead of trusting a box it never actually tested.
  *
+ * These three offsets are the source-section gate, not the number of renderable layers. The source
+ * sections all live in one world-height period and the camera lives in that same period, so the
+ * nearest image is at -1, 0 or +1; the extra neighbours cover a box straddling a row boundary.
+ * Copies further away are enumerated by LevelRendererYLoopMixin, and the far-side source rows are
+ * discovered by SectionOcclusionGraphLoopMixin. Do not turn this test into a loop over every
+ * period: cubeInFrustum runs for entities, block entities and every octree node, and a short world
+ * can have dozens of periods inside the render distance.
+ *
  * The test runs whenever the plain test rejected the box, which is what the return value has
  * to be read for. JOML's FrustumIntersection.intersectAab returns -2 for a box fully inside,
  * -1 for one that intersects, and an outside box reports 0 when the first plane culled it and

@@ -1,6 +1,6 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingDimensionCache;
+import babel.biblioteca.LoopingRegistry;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -42,7 +42,7 @@ public abstract class BeaconBeamRenderYLoopMixin {
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return;
-        if (!LoopingDimensionCache.isLooping(minecraft.level.dimension())) return;
+        if (!LoopingRegistry.isLooping(minecraft.level)) return;
 
         int period = minecraft.level.getHeight();
         if (period <= 0) return;

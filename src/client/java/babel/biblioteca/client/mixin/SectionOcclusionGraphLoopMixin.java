@@ -14,10 +14,9 @@ import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -59,13 +58,20 @@ import java.util.List;
  * is *not* occluded at its own position. addSectionsInFrustum therefore appends the far-side
  * sections the walk missed, which is what biblioteca$includeFarSeamSources does.
  *
- * Whether a section then counts as visible is decided by FrustumYLoopMixin, which culls by
- * ring position instead of by absolute one.
+ * That append is exact, not a nearest-row heuristic: for every source section it tests all the
+ * period offsets that can fall inside the render distance. A height-16 world therefore gets all
+ * the copies that fit, not just the two nearest ones. The section graph's own FrustumYLoopMixin
+ * still answers for the nearest ring image; that is enough for the octree and for entities, but
+ * not for enumerating a short world's many visible layers.
  */
 @Mixin(value = SectionOcclusionGraph.class, priority = 900)
 public abstract class SectionOcclusionGraphLoopMixin {
 
     @Shadow private ViewArea viewArea;
+
+    // Reused between frustum updates: the far-seam scan sees every section of every candidate
+    // row, so a fresh set per call was avoidable churn.
+    @Unique private LongOpenHashSet biblioteca$presentScratch;
 
     private static boolean biblioteca$looping() {
         Minecraft minecraft = Minecraft.getInstance();
@@ -177,63 +183,96 @@ public abstract class SectionOcclusionGraphLoopMixin {
         biblioteca$addFarSeamSources(frustum, visibleSections);
     }
 
+    /**
+     * Adds the source sections whose periodic copies are visible.
+     *
+     * There is exactly one source section per world row; every row above or below it is a copy.
+     * For each source section, the copies that can be within reach are a contiguous range of
+     * period offsets. Testing that range directly is exact for any world height and render
+     * distance: a height-16 world gets every copy that fits, not just the two nearest ones.
+     *
+     * Source sections that are already visible are skipped entirely. That matters most for short
+     * worlds: once the one source row is in the set, the draw path will repeat it everywhere,
+     * and there is no reason to scan its copy rows again.
+     *
+     * The XZ loop is bounded by the view area's radius: a copy outside the loaded columns cannot
+     * be rendered even if its Y row is in view. The frustum test is allocation-free because this
+     * runs for every loaded section whenever the section graph updates.
+     */
     private void biblioteca$addFarSeamSources(
             Frustum frustum, List<SectionRenderDispatcher.RenderSection> visibleSections) {
 
         if (this.viewArea == null) return;
         if (!biblioteca$looping()) return;
 
-        int period = this.viewArea.maxY() - this.viewArea.minY() + 1;
-        int reach  = this.viewArea.getViewDistance() * 16;
-        double camY = frustum.getCamY();
+        int sectionCount = this.viewArea.sectionCount();
+        if (sectionCount <= 0) return;
 
-        // Preload: widen the test by the configured number of sections. Sections in that shell are
-        // compiled ahead of time instead of the moment they come into view. Zero means "only what is
-        // actually in view".
+        int radius        = this.viewArea.getViewDistance();
+        int minSectionY   = this.viewArea.minSectionY();
+        double period     = (double) sectionCount * 16.0;
+        double reach      = (double) radius * 16.0;
+        double camY       = frustum.getCamY();
+
+        // Preload: widen the test by the configured number of blocks. Sections in that shell are
+        // compiled ahead of time instead of the moment they come into view. Zero means "only what
+        // is actually in view".
         double slack  = LoopingClientSettings.preloadBlocks();
         double search = reach + slack;
 
-        LongOpenHashSet present = new LongOpenHashSet(visibleSections.size() * 2);
+        LongOpenHashSet present = this.biblioteca$presentScratch;
+        if (present == null) {
+            present = new LongOpenHashSet();
+            this.biblioteca$presentScratch = present;
+        } else {
+            present.clear();
+        }
         for (SectionRenderDispatcher.RenderSection section : visibleSections) {
             present.add(section.getSectionNode());
         }
 
         SectionPos camera = this.viewArea.getCameraSectionPos();
-        int radius        = this.viewArea.getViewDistance();
-        int minSectionY   = this.viewArea.minSectionY();
-        int maxSectionY   = this.viewArea.maxSectionY();
         ViewAreaAccessor accessor = (ViewAreaAccessor) this.viewArea;
 
-        for (int direction = -1; direction <= 1; direction += 2) {
-            int lowestSectionY = Math.max(
-                    Mth.floor(camY - search - (double) direction * period) >> 4, minSectionY);
-            int highestSectionY = Math.min(
-                    Mth.floor(camY + search - (double) direction * period) >> 4, maxSectionY);
+        for (int sourceSectionY = minSectionY;
+             sourceSectionY < minSectionY + sectionCount;
+             sourceSectionY++) {
 
-            for (int sectionY = lowestSectionY; sectionY <= highestSectionY; sectionY++) {
-                for (int offsetX = -radius; offsetX <= radius; offsetX++) {
-                    for (int offsetZ = -radius; offsetZ <= radius; offsetZ++) {
-                        long node = SectionPos.asLong(
-                                camera.x() + offsetX, sectionY, camera.z() + offsetZ);
-                        if (present.contains(node)) continue;
+            double sourceBaseY = (double) sourceSectionY * 16.0;
+            double sourceCentreY = sourceBaseY + 8.0;
 
-                        SectionRenderDispatcher.RenderSection section =
-                                accessor.biblioteca$getRenderSection(node);
-                        if (section == null) continue;
+            // copyCentreY = sourceCentreY + step * period must stay within search of the camera.
+            int lowestStep  = (int) Math.ceil((camY - search - sourceCentreY) / period);
+            int highestStep = (int) Math.floor((camY + search - sourceCentreY) / period);
 
-                        // Ask about the copy, not about the section, and ask plainly: a section
-                        // earns a place here when the row the ring puts it at is in view.
-                        AABB box = section.getBoundingBox();
-                        AABB copyBounds = new AABB(
-                                box.minX, box.minY + (double) direction * period, box.minZ,
-                                box.maxX, box.maxY + (double) direction * period, box.maxZ);
-                        if (slack > 0.0) {
-                            copyBounds = copyBounds.inflate(slack);
-                        }
-                        if (!SeamCull.plainlyVisible(frustum, copyBounds)) continue;
+            for (int offsetX = -radius; offsetX <= radius; offsetX++) {
+                int sectionX = camera.x() + offsetX;
+                double minX = (double) sectionX * 16.0;
+                double maxX = minX + 16.0;
+
+                for (int offsetZ = -radius; offsetZ <= radius; offsetZ++) {
+                    int sectionZ = camera.z() + offsetZ;
+                    long node = SectionPos.asLong(sectionX, sourceSectionY, sectionZ);
+                    if (present.contains(node)) continue;
+
+                    SectionRenderDispatcher.RenderSection section =
+                            accessor.biblioteca$getRenderSection(node);
+                    if (section == null) continue;
+
+                    double minZ = (double) sectionZ * 16.0;
+                    double maxZ = minZ + 16.0;
+
+                    for (int step = lowestStep; step <= highestStep; step++) {
+                        double minY = sourceBaseY + (double) step * period;
+                        double maxY = minY + 16.0;
+
+                        if (!SeamCull.plainlyVisible(frustum,
+                                minX - slack, minY - slack, minZ - slack,
+                                maxX + slack, maxY + slack, maxZ + slack)) continue;
 
                         visibleSections.add(section);
                         present.add(node);
+                        break;
                     }
                 }
             }

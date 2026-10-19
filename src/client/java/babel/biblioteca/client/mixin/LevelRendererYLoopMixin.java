@@ -14,18 +14,17 @@ import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -67,6 +66,11 @@ import java.util.Map;
  */
 @Mixin(value = LevelRenderer.class, priority = 900)
 public abstract class LevelRendererYLoopMixin {
+
+    // Reused across frames: the copy scan used to build a HashMap and an Object[] per draw, which
+    // was pure allocation pressure once a short world produced dozens of periodic rows.
+    @Unique private int[] biblioteca$copyIndices = new int[0];
+    @Unique private boolean[] biblioteca$copyVisible = new boolean[0];
 
     @Shadow private LevelRenderState levelRenderState;
     @Shadow @Final private BlockEntityRenderDispatcher blockEntityRenderDispatcher;
@@ -155,70 +159,93 @@ public abstract class LevelRendererYLoopMixin {
         // render distance this grows, and that is the point: the world is a ring, so a player with
         // enough range should see the world repeating above and below instead of one layer.
         int maxSteps = (int) Math.ceil(viewDistanceBlocks / period) + 1;
+        int stride   = maxSteps * 2 + 1;
+        long slotCount = (long) sourceCount * (long) stride;
+        if (slotCount > Integer.MAX_VALUE) return;
+        int slots = (int) slotCount;
 
-        // Which draw commands belong to which section index.
-        Map<Integer, List<Object[]>> drawsBySection = new HashMap<>();
-        for (ChunkSectionLayer layer : ChunkSectionLayer.values()) {
+        // Reuse the scan buffers. A height-16 world at 32 chunks creates 67 candidate rows per
+        // section; allocating an Object[] per draw and a HashMap per frame was the dominant CPU
+        // cost of the copy path before this pass.
+        if (this.biblioteca$copyIndices.length < slots) {
+            this.biblioteca$copyIndices = new int[slots];
+        }
+        if (this.biblioteca$copyVisible.length < slots) {
+            this.biblioteca$copyVisible = new boolean[slots];
+        }
+        Arrays.fill(this.biblioteca$copyIndices, 0, slots, -1);
+        Arrays.fill(this.biblioteca$copyVisible, 0, slots, false);
+
+        // Pass 1: decide which copies are in view. No section info and no draw is created yet, so
+        // the second pass only pays for copies that actually produce geometry.
+        for (int i = 0; i < sourceCount; i++) {
+            DynamicGpuData.ChunkSectionInfo info =
+                    (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(i);
+            int base = i * stride;
+
+            for (int step = -maxSteps; step <= maxSteps; step++) {
+                if (step == 0) continue; // already submitted by the vanilla pass
+
+                int copyY = info.y() + step * period;
+                if (biblioteca$worthDrawing(frustum, info.x(), copyY, info.z(),
+                        cameraY, viewDistanceBlocks)) {
+                    this.biblioteca$copyVisible[base + step + maxSteps] = true;
+                }
+            }
+        }
+
+        // Pass 2: duplicate each original draw once per visible copy. The original draw count is
+        // captured before the append loop: adding copies to the same list must not make this walk
+        // the copies again. The first draw of a (section, step) pair creates its ChunkSectionInfo;
+        // later layers reuse it through biblioteca$copyIndices.
+        ChunkSectionLayer[] layers = ChunkSectionLayer.values();
+        for (ChunkSectionLayer layer : layers) {
             List<?> groups = (List<?>) drawGroups.get(layer);
             if (groups == null) continue;
 
             for (int g = 0; g < groups.size(); g++) {
                 ChunkDrawGroupAccessor group = (ChunkDrawGroupAccessor) groups.get(g);
                 List<DynamicGpuData.IndexedDraw> draws = group.biblioteca$getDraws();
+                int originalDrawCount = draws.size();
 
-                for (int d = 0; d < draws.size(); d++) {
-                    DynamicGpuData.IndexedDraw draw = draws.get(d);
-                    int sectionIndex = draw.baseInstance();
-                    if (sectionIndex >= 0 && sectionIndex < sourceCount) {
-                        drawsBySection
-                                .computeIfAbsent(sectionIndex, key -> new ArrayList<>())
-                                .add(new Object[]{group, draw, layer});
+                for (int d = 0; d < originalDrawCount; d++) {
+                    DynamicGpuData.IndexedDraw original = draws.get(d);
+                    int sourceIndex = original.baseInstance();
+                    if (sourceIndex < 0 || sourceIndex >= sourceCount) continue;
+
+                    DynamicGpuData.ChunkSectionInfo info =
+                            (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(sourceIndex);
+                    int base = sourceIndex * stride;
+
+                    for (int step = -maxSteps; step <= maxSteps; step++) {
+                        if (step == 0) continue;
+
+                        int slot = base + step + maxSteps;
+                        if (!this.biblioteca$copyVisible[slot]) continue;
+
+                        int copyIndex = this.biblioteca$copyIndices[slot];
+                        if (copyIndex < 0) {
+                            // ChunkSectionInfo.visibility feeds terrain.fsh's mix toward FogColor.
+                            // It is the source section's chunk fade-in; a copy has no fade history
+                            // of its own, so reusing it tinted the copy for the fade duration and
+                            // produced one fog-coloured patch per 16-block section. Copies are
+                            // fully present from their first frame.
+                            copyIndex = sectionInfos.size();
+                            sectionInfos.add(new DynamicGpuData.ChunkSectionInfo(
+                                    info.x(), info.y() + step * period, info.z(), 1.0F));
+                            this.biblioteca$copyIndices[slot] = copyIndex;
+                        }
+
+                        draws.add(new DynamicGpuData.IndexedDraw(
+                                original.indexCount(),
+                                original.instanceCount(),
+                                original.firstIndex(),
+                                original.baseVertex(),
+                                copyIndex));
                     }
                 }
             }
         }
-
-        for (int i = 0; i < sourceCount; i++) {
-            DynamicGpuData.ChunkSectionInfo info =
-                    (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(i);
-
-            List<Object[]> entries = drawsBySection.get(i);
-            if (entries == null || entries.isEmpty()) continue;
-
-            // Mirror into every periodic row that is worth drawing. No extra memory: each copy is one
-            // more draw command pointing at the same compiled mesh.
-            for (int step = -maxSteps; step <= maxSteps; step++) {
-                if (step == 0) continue;   // already submitted by the vanilla pass
-
-                int copyY = info.y() + step * period;
-
-                AABB copyBounds = biblioteca$bounds(info, copyY);
-                if (!biblioteca$worthDrawing(frustum, copyBounds, cameraY, viewDistanceBlocks)) continue;
-
-                // ChunkSectionInfo.visibility feeds terrain.fsh's mix toward FogColor. It is the
-                // source section's chunk fade-in; a copy has no fade history of its own, so reusing
-                // it tinted the copy for the fade duration and produced one fog-coloured patch per
-                // 16-block section. Copies are fully present from their first frame.
-                int copyIndex = sectionInfos.size();
-                sectionInfos.add(new DynamicGpuData.ChunkSectionInfo(
-                        info.x(), copyY, info.z(), 1.0F));
-
-                for (Object[] entry : entries) {
-                    ChunkDrawGroupAccessor group         = (ChunkDrawGroupAccessor) entry[0];
-                    DynamicGpuData.IndexedDraw original  = (DynamicGpuData.IndexedDraw) entry[1];
-                    group.biblioteca$getDraws().add(new DynamicGpuData.IndexedDraw(
-                            original.indexCount(),
-                            original.instanceCount(),
-                            original.firstIndex(),
-                            original.baseVertex(),
-                            copyIndex));
-                }
-            }
-        }
-    }
-
-    private static AABB biblioteca$bounds(DynamicGpuData.ChunkSectionInfo info, int y) {
-        return new AABB(info.x(), y, info.z(), info.x() + 16.0, y + 16.0, info.z() + 16.0);
     }
 
     /**
@@ -236,11 +263,13 @@ public abstract class LevelRendererYLoopMixin {
      * is in view, and a copy's twin is the section being copied, visible by construction.
      */
     private static boolean biblioteca$worthDrawing(
-            Frustum frustum, AABB box, double cameraY, double viewDistanceBlocks) {
+            Frustum frustum, int x, int y, int z,
+            double cameraY, double viewDistanceBlocks) {
 
-        double centreY = (box.minY + box.maxY) * 0.5;
+        double centreY = y + 8.0;
         if (Math.abs(centreY - cameraY) > viewDistanceBlocks) return false;
 
-        return SeamCull.plainlyVisible(frustum, box);
+        return SeamCull.plainlyVisible(frustum,
+                x, y, z, x + 16.0, y + 16.0, z + 16.0);
     }
 }
