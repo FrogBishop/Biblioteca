@@ -14,18 +14,18 @@ releases are tracked below.
 | 1.21.11 | 21 | 0.141.6+1.21.11 | not started |
 | 1.21.10 | 21 | 0.138.4+1.21.10 | not started |
 | 1.21.9 | 21 | 0.134.1+1.21.9 | not started |
-| 1.21.8 | 21 | 0.136.1+1.21.8 | **builds** (server loop + client sync; legacy renderer pending) |
+| 1.21.8 | 21 | 0.136.1+1.21.8 | **builds** (server, GUI, reach, neighbours; renderer pending) |
 | 1.21.7 | 21 | 0.129.0+1.21.7 | not started |
 | 1.21.6 | 21 | 0.128.2+1.21.6 | not started |
 | 1.21.5 | 21 | 0.128.2+1.21.5 | not started |
 | 1.21.4 | 21 | 0.119.4+1.21.4 | not started |
 | 1.21.3 | 21 | 0.114.1+1.21.3 | not started |
 | 1.21.2 | 21 | 0.106.1+1.21.2 | not started |
-| 1.21.1 | 21 | 0.116.17+1.21.1 | **builds** (server loop + client sync; legacy renderer pending) |
+| 1.21.1 | 21 | 0.116.17+1.21.1 | **builds** (server, GUI, reach, neighbours; renderer pending) |
 | 1.21 | 21 | 0.102.0+1.21 | not started |
 | 1.20.6 | 21 | 0.100.8+1.20.6 | not started |
 | 1.20.5 | 21 | 0.97.8+1.20.5 | not started |
-| 1.20.4 | 17 | 0.97.3+1.20.4 | **builds** (server loop + client sync; legacy renderer pending) |
+| 1.20.4 | 17 | 0.97.3+1.20.4 | **builds** (server, GUI, reach, neighbours; renderer pending) |
 
 The 20 nodes are already declared in `settings.gradle.kts`; the default build
 configures the four versions whose source port is complete. Set
@@ -33,14 +33,17 @@ configures the four versions whose source port is complete. Set
 
 ### Legacy client status (1.20.4 / 1.21.1 / 1.21.8)
 
-Those three jars compile the entrypoint, the payload cache and the complete
-server-side loop. The 26.3 renderer is not compiled for them and their
-generated client mixin config is empty: the client receives the dimension
-attributes but still draws the vanilla single-period world. The create-world
-tab, video-settings slider, mirrored terrain, entity/block-entity folding,
-beacon beams, light ring, effect folding, neighbour updates, dripstone and
-grass bonemeal hooks are disabled on those nodes. The dedicated-server jar is
-the complete artifact for those releases today.
+Those three jars compile the entrypoint, the payload cache, the create-world
+"Dimension Attributes" button and its screen, cross-seam reach, neighbour updates
+and the door/tall-plant/vine/chorus growth hooks. The 26.3 renderer is not
+compiled for them: the client receives the dimension attributes but still draws
+the vanilla single-period world.
+
+Still missing on those nodes: the video-settings slider, mirrored terrain and
+the renderer-side entity/block-entity folding, beacon beam scanning, level
+events/sounds/particles, bamboo/kelp/sugar-cane growth, grass bonemeal,
+dripstone, the build-limit message suppression, and the client block-prediction
+hook. The dedicated-server jar carries the whole current server behaviour.
 
 ## Build layout
 

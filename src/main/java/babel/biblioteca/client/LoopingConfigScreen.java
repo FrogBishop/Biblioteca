@@ -2,7 +2,11 @@ package babel.biblioteca.client;
 
 import babel.biblioteca.PendingLoopingConfig;
 import net.minecraft.client.Minecraft;
+//? if >=26.1 {
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+//?} else {
+/*import net.minecraft.client.gui.GuiGraphics;
+*///?}
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
@@ -140,9 +144,14 @@ public class LoopingConfigScreen extends Screen {
 
     @Override
     public void onClose() {
+        //? if >=26.2 {
         Minecraft.getInstance().setScreenAndShow(parent);
+        //?} else {
+        /*Minecraft.getInstance().setScreen(parent);
+        *///?}
     }
 
+    //? if >=26.1 {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -157,4 +166,20 @@ public class LoopingConfigScreen extends Screen {
                 Component.translatable("biblioteca.gui.looping_config.note"),
                 width / 2, rowY(3) + 44, 0xAAAAAA);
     }
+    //?} else {
+    /*@Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.render(graphics, mouseX, mouseY, partialTick);
+        graphics.drawCenteredString(font, title, width / 2, rowY(0) - 34, 0xFFFFFF);
+        graphics.drawCenteredString(font,
+                Component.translatable("biblioteca.gui.looping_config.header_looping"),
+                leftX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFF);
+        graphics.drawCenteredString(font,
+                Component.translatable("biblioteca.gui.looping_config.header_beacon"),
+                rightX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFF);
+        graphics.drawCenteredString(font,
+                Component.translatable("biblioteca.gui.looping_config.note"),
+                width / 2, rowY(3) + 44, 0xAAAAAA);
+    }
+    *///?}
 }

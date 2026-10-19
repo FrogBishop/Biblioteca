@@ -1,9 +1,7 @@
 package babel.biblioteca.client.mixin;
 
 import babel.biblioteca.client.CreateWorldScreenInjector;
-import net.minecraft.client.gui.components.tabs.GridLayoutTab;
 import net.minecraft.client.gui.layouts.GridLayout;
-import net.minecraft.client.gui.layouts.Layout;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,9 +20,7 @@ public abstract class CreateWorldScreenMoreTabMixin {
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void biblioteca$addDimensionAttributesButton(CallbackInfo ci) {
-        Layout layout = ((GridLayoutTab) (Object) this).getLayout();
-        if (layout instanceof GridLayout grid) {
-            grid.addChild(CreateWorldScreenInjector.createButton(), 3, 0);
-        }
+        GridLayout layout = ((GridLayoutTabAccessor) (Object) this).biblioteca$getLayout();
+        layout.addChild(CreateWorldScreenInjector.createButton(), 3, 0);
     }
 }

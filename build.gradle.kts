@@ -21,6 +21,13 @@ val requiredJava: JavaVersion = when {
 }
 
 repositories {
+    // Fallback for the occasional Fabric Maven artifact that times out on a
+    // cold download; populated by tools/fetch-intermediary.ps1.
+    maven {
+        name = "Local intermediary fallback"
+        url = uri(rootProject.layout.projectDirectory.dir("local-repo"))
+        content { includeGroup("net.fabricmc") }
+    }
     mavenCentral()
 }
 
@@ -117,29 +124,27 @@ val excludedServerMixins = buildSet {
     if (sc.current.parsed < "26.1") {
         addAll(listOf(
             // Before 26.1 the reach check is inline in ServerPlayerGameMode and
-            // the dedicated build-limit message helper does not exist yet.
+            // the dedicated build-limit message helper does not exist yet;
+            // LegacyReachMixin covers the inline check.
             "PlayerReachMixin",
             "ServerPlayerGameModeMixin",
             "ServerPlayerBuildLimitMixin",
         ))
+    } else {
+        add("LegacyReachMixin")
     }
     if (sc.current.parsed < "26.3") {
         addAll(listOf(
             "BeaconBlockEntityAccessor",
             "BeaconBlockEntityYLoopMixin",
             "ServerLevelEffectsYLoopMixin",
-            "NeighborUpdaterYLoopMixin",
             "SpeleothemBlockYLoopMixin",
             "GrassBlockYLoopMixin",
             // The plant-growth hooks call different helpers in each era (or
             // check the build height inline). They are gameplay extras at the
             // seam; keep them out of the legacy jars until each is ported.
             "BambooStalkBlockYLoopMixin",
-            "ChorusFlowerBlockYLoopMixin",
-            "DoorBlockYLoopMixin",
-            "DoublePlantBlockYLoopMixin",
             "GrowingPlantHeadBlockYLoopMixin",
-            "VineBlockYLoopMixin",
         ))
     }
 }
@@ -151,18 +156,40 @@ if (excludedServerMixins.isNotEmpty()) {
 }
 
 // The 26.3 client is a render-state/submit renderer. Before that the renderer
-// is a different architecture, so a legacy jar keeps the payload cache and the
-// entrypoint but none of the 26.3 renderer mixins.
+// is a different architecture, so a legacy jar keeps the payload cache, the
+// create-world screen and the entrypoint, but not the 26.3 renderer mixins.
+val legacyClientMixins = listOf(
+    "CreateWorldScreenMoreTabMixin",
+    "GridLayoutTabAccessor",
+)
+val legacyRendererMixins = listOf(
+    "BeaconBeamRenderYLoopMixin",
+    "BlockEntityRenderRangeYLoopMixin",
+    "ChunkDrawGroupAccessor",
+    "ClientLevelDirtyMixin",
+    "CloudRendererLoopMixin",
+    "EntityRenderYLoopMixin",
+    "EntityShouldRenderYLoopMixin",
+    "FrustumInvoker",
+    "FrustumYLoopMixin",
+    "ImprovedTransparencyYLoopMixin",
+    "LevelRendererYLoopMixin",
+    "OptionsSubScreenAccessor",
+    "RenderRegionCacheYLoopMixin",
+    "SectionOcclusionGraphLoopMixin",
+    "SkyRendererYLoopMixin",
+    "VideoSettingsScreenMixin",
+    "ViewAreaAccessor",
+    "VoidFogMixin",
+)
 if (sc.current.parsed < "26.3") {
     sourceSets.named("main") {
         java.exclude(
             "babel/biblioteca/SeamEffects.java",
             "babel/biblioteca/client/LoopingClientSettings.java",
-            "babel/biblioteca/client/LoopingConfigScreen.java",
-            "babel/biblioteca/client/CreateWorldScreenInjector.java",
             "babel/biblioteca/client/SeamCull.java",
-            "babel/biblioteca/client/mixin/**",
         )
+        java.exclude(legacyRendererMixins.map { "babel/biblioteca/client/mixin/$it.java" })
     }
 }
 
@@ -208,16 +235,19 @@ tasks.processResources {
         }
 
         if (sc.current.parsed < "26.3") {
-            // No 26.3 renderer classes are compiled for this node; an empty
-            // client config keeps Mixin from asking for them at startup.
+            // Only the GUI hooks are compiled for this node; the 26.3 renderer
+            // classes are not in the jar and must not be requested at startup.
+            val clientEntries = legacyClientMixins.joinToString(",\n    ") { "\"$it\"" }
             outputDir.resolve("biblioteca.client.mixins.json").writeText(
                 """{
   "required": true,
   "package": "babel.biblioteca.client.mixin",
   "compatibilityLevel": "JAVA_${requiredJava.majorVersion}",
-  "client": [],
+  "client": [
+    $clientEntries
+  ],
   "injectors": {
-    "defaultRequire": 1
+    "defaultRequire": 0
   }
 }
 """)

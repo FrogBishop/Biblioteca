@@ -21,8 +21,13 @@ stonecutter parameters {
             replace("getMaxY()", "getMaxBuildHeight()")
         }
 
-        string(current.parsed < "26.1") {
+        string(current.parsed < "1.21.11") {
+            // The minecart classes moved back under ...vehicle.minecart in
+            // 1.21.11 along with the Identifier rename.
             replace("world.entity.vehicle.minecart.AbstractMinecart", "world.entity.vehicle.AbstractMinecart")
+        }
+
+        string(current.parsed < "26.1") {
             replace("SpeleothemBlock", "PointedDripstoneBlock")
         }
     }

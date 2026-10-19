@@ -17,6 +17,7 @@
     "FallingBlockEntityYLoopMixin",
     "GrassBlockYLoopMixin",
     "GrowingPlantHeadBlockYLoopMixin",
+    "LegacyReachMixin",
     "LevelBlockAccessMixin",
     "LevelLoopingCacheMixin",
     "LightEngineAccessor",
