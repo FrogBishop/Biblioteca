@@ -11,12 +11,22 @@ public class BibliotecaClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         // Receive S2C looping-state packet and populate the client-side cache.
+        //? if >=1.20.5 {
         ClientPlayNetworking.registerGlobalReceiver(
                 LoopingStatePayload.TYPE,
                 (payload, context) -> context.client().execute(
                         () -> LoopingDimensionCache.applyPayload(payload)
                 )
         );
+        //?} else {
+        /*ClientPlayNetworking.registerGlobalReceiver(
+                LoopingStatePayload.ID,
+                (client, handler, buffer, responseSender) -> {
+                    LoopingStatePayload payload = LoopingStatePayload.fromBuffer(buffer);
+                    client.execute(() -> LoopingDimensionCache.applyPayload(payload));
+                }
+        );
+        *///?}
 
         // Wire the client checkers into the shared LoopingRegistry.
         LoopingRegistry.setClientChecker(LoopingDimensionCache::isLooping);

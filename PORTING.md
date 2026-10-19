@@ -14,21 +14,33 @@ releases are tracked below.
 | 1.21.11 | 21 | 0.141.6+1.21.11 | not started |
 | 1.21.10 | 21 | 0.138.4+1.21.10 | not started |
 | 1.21.9 | 21 | 0.134.1+1.21.9 | not started |
-| 1.21.8 | 21 | 0.136.1+1.21.8 | not started |
+| 1.21.8 | 21 | 0.136.1+1.21.8 | **builds** (server loop + client sync; legacy renderer pending) |
 | 1.21.7 | 21 | 0.129.0+1.21.7 | not started |
 | 1.21.6 | 21 | 0.128.2+1.21.6 | not started |
 | 1.21.5 | 21 | 0.128.2+1.21.5 | not started |
 | 1.21.4 | 21 | 0.119.4+1.21.4 | not started |
 | 1.21.3 | 21 | 0.114.1+1.21.3 | not started |
 | 1.21.2 | 21 | 0.106.1+1.21.2 | not started |
-| 1.21.1 | 21 | 0.116.17+1.21.1 | not started |
+| 1.21.1 | 21 | 0.116.17+1.21.1 | **builds** (server loop + client sync; legacy renderer pending) |
 | 1.21 | 21 | 0.102.0+1.21 | not started |
 | 1.20.6 | 21 | 0.100.8+1.20.6 | not started |
 | 1.20.5 | 21 | 0.97.8+1.20.5 | not started |
-| 1.20.4 | 17 | 0.97.3+1.20.4 | not started (149 compile errors) |
+| 1.20.4 | 17 | 0.97.3+1.20.4 | **builds** (server loop + client sync; legacy renderer pending) |
 
 The 20 nodes are already declared in `settings.gradle.kts`; the default build
-only configures the supported node so `./gradlew build` stays green.
+configures the four versions whose source port is complete. Set
+`SC_VERSIONS=...` or `SC_ALL=1` to configure the rest.
+
+### Legacy client status (1.20.4 / 1.21.1 / 1.21.8)
+
+Those three jars compile the entrypoint, the payload cache and the complete
+server-side loop. The 26.3 renderer is not compiled for them and their
+generated client mixin config is empty: the client receives the dimension
+attributes but still draws the vanilla single-period world. The create-world
+tab, video-settings slider, mirrored terrain, entity/block-entity folding,
+beacon beams, light ring, effect folding, neighbour updates, dripstone and
+grass bonemeal hooks are disabled on those nodes. The dedicated-server jar is
+the complete artifact for those releases today.
 
 ## Build layout
 
@@ -130,11 +142,12 @@ types. Expect import and accessor changes; `Identifier` starts in 1.21.11.
 
 ## What a complete port needs
 
-1. A `Compat` helper for `minY/maxY`, identifiers, saved data, payload
-   registration and permission checks, so the common code stops naming
-   version-specific API.
-2. Server mixins ported per era (block access, collisions, entities, light,
-   neighbour updates, pistons, growth, beacons, effects).
+1. The shared `Compat` + version scopes now cover identifiers, saved data,
+   payload registration, permissions and the height accessors; the remaining
+   server mixins are the ones listed as disabled above.
+2. A legacy client renderer for 1.20.4 / 1.21.1 / 1.21.8 (the current
+   `LevelRenderer` hooks are 26.3-only), then re-enable the client-side
+   interaction hooks that were excluded with `PlayerReachMixin`
 3. Client renderer implementations:
    - 1.21.9 – 26.3: adapt the current draw-group renderer;
    - 1.21.2 – 1.21.8: classic `LevelRenderer` section layers;

@@ -1,5 +1,6 @@
 package babel.biblioteca.world;
 
+import babel.biblioteca.Compat;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -8,7 +9,20 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
+//? if >=1.21.5 {
 import net.minecraft.world.level.saveddata.SavedDataType;
+//?}
+//? if >=1.21.5 <26.1 {
+import net.minecraft.util.datafix.DataFixTypes;
+//?}
+//? if <1.21.5 {
+/*import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.util.datafix.DataFixTypes;
+*///?}
+//? if >=1.20.5 <1.21.5 {
+/*import net.minecraft.core.HolderLookup;
+*///?}
 
 import java.util.HashSet;
 import java.util.List;
@@ -52,12 +66,66 @@ public class LoopingWorldData extends SavedData {
                     data -> Either.<LoopingWorldData, LoopingWorldData>left(data));
 
     /** A new world starts with every attribute off; both are opt-in per dimension. */
+    //? if >=26.1 {
     public static final SavedDataType<LoopingWorldData> TYPE = new SavedDataType<>(
-            Identifier.fromNamespaceAndPath("biblioteca", "looping"),
+            Compat.id("biblioteca", "looping"),
             () -> new LoopingWorldData(Set.of(), Set.of()),
             CODEC,
             null
     );
+    //?}
+    //? if >=1.21.5 <26.1 {
+    /*public static final SavedDataType<LoopingWorldData> TYPE = new SavedDataType<>(
+            "biblioteca_looping",
+            () -> new LoopingWorldData(Set.of(), Set.of()),
+            CODEC,
+            DataFixTypes.LEVEL
+    );
+    *///?}
+    //? if >=1.20.5 <1.21.5 {
+    /*public static final SavedData.Factory<LoopingWorldData> TYPE = new SavedData.Factory<>(
+            () -> new LoopingWorldData(Set.of(), Set.of()),
+            (tag, provider) -> decode(tag),
+            DataFixTypes.LEVEL
+    );
+    *///?}
+    //? if <1.20.5 {
+    /*public static final SavedData.Factory<LoopingWorldData> TYPE = new SavedData.Factory<>(
+            () -> new LoopingWorldData(Set.of(), Set.of()),
+            tag -> decode(tag),
+            DataFixTypes.LEVEL
+    );
+    *///?}
+
+    //? if <1.21.5 {
+    /*private static LoopingWorldData decode(CompoundTag tag) {
+        return CODEC.parse(NbtOps.INSTANCE, tag)
+                .result()
+                .orElseGet(() -> new LoopingWorldData(Set.of(), Set.of()));
+    }
+
+    private CompoundTag writeTo(CompoundTag tag) {
+        // DimensionDataStorage writes this tag as the file payload; the codec
+        // fields therefore belong at the top level, not under a "data" key.
+        return CODEC.encodeStart(NbtOps.INSTANCE, this)
+                .result()
+                .filter(CompoundTag.class::isInstance)
+                .map(CompoundTag.class::cast)
+                .orElse(tag);
+    }
+    *///?}
+    //? if >=1.20.5 <1.21.5 {
+    /*@Override
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
+        return writeTo(tag);
+    }
+    *///?}
+    //? if <1.20.5 {
+    /*@Override
+    public CompoundTag save(CompoundTag tag) {
+        return writeTo(tag);
+    }
+    *///?}
 
     public boolean isLooping(ResourceKey<Level> dimension) {
         return loopingDimensions.contains(dimension);

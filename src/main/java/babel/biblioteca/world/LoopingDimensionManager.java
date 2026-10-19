@@ -6,7 +6,12 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+//? if >=26.1 {
 import net.minecraft.world.level.storage.SavedDataStorage;
+//?}
+//? if <26.1 {
+/*import net.minecraft.world.level.storage.DimensionDataStorage;
+*///?}
 
 import java.util.Set;
 
@@ -37,8 +42,18 @@ public final class LoopingDimensionManager {
             Biblioteca.LOGGER.error("[Biblioteca] Could not find overworld when loading looping data!");
             return;
         }
+        //? if >=26.1 {
         SavedDataStorage storage = overworld.getDataStorage();
         serverData = storage.computeIfAbsent(LoopingWorldData.TYPE);
+        //?}
+        //? if >=1.21.5 <26.1 {
+        /*DimensionDataStorage storage = overworld.getDataStorage();
+        serverData = storage.computeIfAbsent(LoopingWorldData.TYPE);
+        *///?}
+        //? if <1.21.5 {
+        /*DimensionDataStorage storage = overworld.getDataStorage();
+        serverData = storage.computeIfAbsent(LoopingWorldData.TYPE, "biblioteca_looping");
+        *///?}
         republishSnapshots();
 
         Biblioteca.LOGGER.info("[Biblioteca] Looping dimensions: {}", loopingSnapshot);

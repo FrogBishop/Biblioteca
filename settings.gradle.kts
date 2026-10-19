@@ -25,7 +25,7 @@ val allVersions = listOf(
 // Only versions whose source port is complete are part of the default build.
 // Set SC_VERSIONS=1.20.4,26.3 (or SC_ALL=1 for the whole matrix) to configure
 // other nodes; a full matrix downloads twenty Minecraft installations.
-val supportedVersions = listOf("26.3")
+val supportedVersions = listOf("1.20.4", "1.21.1", "1.21.8", "26.3")
 
 val selected = when {
     System.getenv("SC_ALL") == "1" -> allVersions

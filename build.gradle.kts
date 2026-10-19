@@ -91,6 +91,62 @@ java {
     targetCompatibility = requiredJava
 }
 
+// Hooks whose 26.3 targets do not exist before the renderer/beacon rewrites.
+// They are left out of the old-version ports until their own compat variants
+// land; the rest of the loop stays active. The same set is removed from the
+// generated mixin config, because Mixin would otherwise fail to load the class.
+val excludedServerMixins = buildSet {
+    if (sc.current.parsed < "26.1") {
+        addAll(listOf(
+            // Before 26.1 the reach check is inline in ServerPlayerGameMode and
+            // the dedicated build-limit message helper does not exist yet.
+            "PlayerReachMixin",
+            "ServerPlayerGameModeMixin",
+            "ServerPlayerBuildLimitMixin",
+        ))
+    }
+    if (sc.current.parsed < "26.3") {
+        addAll(listOf(
+            "BeaconBlockEntityAccessor",
+            "BeaconBlockEntityYLoopMixin",
+            "ServerLevelEffectsYLoopMixin",
+            "NeighborUpdaterYLoopMixin",
+            "SpeleothemBlockYLoopMixin",
+            "GrassBlockYLoopMixin",
+        ))
+    }
+}
+
+if (excludedServerMixins.isNotEmpty()) {
+    sourceSets.named("main") {
+        java.exclude(excludedServerMixins.map { "babel/biblioteca/mixin/$it.java" })
+    }
+}
+
+// The 26.3 client is a render-state/submit renderer. Before that the renderer
+// is a different architecture, so a legacy jar keeps the payload cache and the
+// entrypoint but none of the 26.3 renderer mixins.
+if (sc.current.parsed < "26.3") {
+    sourceSets.named("main") {
+        java.exclude(
+            "babel/biblioteca/SeamEffects.java",
+            "babel/biblioteca/client/LoopingClientSettings.java",
+            "babel/biblioteca/client/LoopingConfigScreen.java",
+            "babel/biblioteca/client/CreateWorldScreenInjector.java",
+            "babel/biblioteca/client/SeamCull.java",
+            "babel/biblioteca/client/mixin/**",
+        )
+    }
+}
+
+// Diagnostic switch: compile the shared/server half of the mod without the
+// client entrypoint as well, which is what the server-only smoke builds use.
+if (System.getenv("SERVER_ONLY") == "1") {
+    sourceSets.named("main") {
+        java.exclude("babel/biblioteca/client/**")
+    }
+}
+
 tasks.withType<JavaCompile>().configureEach {
     options.release.set(requiredJava.majorVersion.toInt())
 }
@@ -103,8 +159,39 @@ tasks.processResources {
         "java" to requiredJava.majorVersion,
     )
     inputs.properties(props)
+    inputs.property("excludedServerMixins", excludedServerMixins.joinToString(","))
     filesMatching("fabric.mod.json") { expand(props) }
     filesMatching("*.mixins.json") { expand("java" to "JAVA_${requiredJava.majorVersion}") }
+
+    doLast {
+        val outputDir = destinationDirectory.get().asFile
+
+        if (excludedServerMixins.isNotEmpty()) {
+            val configFile = outputDir.resolve("biblioteca.mixins.json")
+            val slurper = groovy.json.JsonSlurper()
+            @Suppress("UNCHECKED_CAST")
+            val config = slurper.parse(configFile) as MutableMap<String, Any?>
+            config["mixins"] = (config["mixins"] as List<*>).filterNot { it in excludedServerMixins }
+            configFile.writeText(
+                groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config)) + "\n")
+        }
+
+        if (sc.current.parsed < "26.3") {
+            // No 26.3 renderer classes are compiled for this node; an empty
+            // client config keeps Mixin from asking for them at startup.
+            outputDir.resolve("biblioteca.client.mixins.json").writeText(
+                """{
+  "required": true,
+  "package": "babel.biblioteca.client.mixin",
+  "compatibilityLevel": "JAVA_${requiredJava.majorVersion}",
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
+""")
+        }
+    }
 }
 
 tasks.jar {
