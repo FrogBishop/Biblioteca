@@ -1,6 +1,6 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingDimensionCache;
+import babel.biblioteca.LoopingRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.CloudRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -33,7 +33,7 @@ public abstract class CloudRendererLoopMixin {
     private float biblioteca$foldCloudHeight(float cloudHeight) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return cloudHeight;
-        if (!LoopingDimensionCache.isLooping(mc.level.dimension())) return cloudHeight;
+        if (!LoopingRegistry.isLooping(mc.level)) return cloudHeight;
 
         int height = mc.level.getHeight();
         double camY = mc.player.getEyeY();

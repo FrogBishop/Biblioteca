@@ -177,12 +177,40 @@ if (excludedServerMixins.isNotEmpty()) {
 
 // The 26.3 client is a render-state/submit renderer. Before that the renderer
 // is a different architecture, so a legacy jar keeps the payload cache, the
-// create-world screen and the entrypoint, but not the 26.3 renderer mixins.
+// create-world screen and the entrypoint. 1.21.1 and 1.21.8 add their own
+// renderer ports below; the remaining legacy nodes have gameplay only.
 val legacyClientMixins = listOf(
     "ClientLevelDirtyMixin",
     "CreateWorldScreenMoreTabMixin",
     "GridLayoutTabAccessor",
 )
+// Classic-renderer port for 1.21.1. It is intentionally built only for that
+// node until the other legacy releases have their own renderer variants.
+val legacy1211RendererMixins = listOf(
+    "LegacyLevelRendererYLoopMixin",
+    "LegacySectionOcclusionGraphLoopMixin",
+    "LegacyViewAreaAccessor",
+    "LegacyEntityRender1211YLoopMixin",
+)
+
+// 1.21.8 has the new frame-graph chunk renderer. Its terrain copies are built by
+// calling prepareChunkRenders once per period; the chunk render mixin replays them.
+val legacy1218RendererMixins = listOf(
+    "MidLevelRendererYLoopMixin",
+    "MidChunkSectionsToRenderMixin",
+    "MidViewAreaAccessor",
+    "MidSectionOcclusionGraphLoopMixin",
+    "LegacyEntityRender1218YLoopMixin",
+)
+val legacy1218ClientClasses = listOf("MidChunkCopyStore")
+
+// The block-entity dispatcher kept the same render signature across 1.21.1 and
+// 1.21.8; include the shared hook in both ported nodes without duplicating its
+// source exclusion. Entity renderers differ by one float and are version-specific.
+val legacyClassicSharedMixins = listOf(
+    "LegacyBlockEntityRenderYLoopMixin",
+)
+
 val legacyRendererMixins = listOf(
     "BeaconBeamRenderYLoopMixin",
     "BlockEntityRenderRangeYLoopMixin",
@@ -209,6 +237,22 @@ if (sc.current.parsed < "26.3") {
             "babel/biblioteca/client/SeamCull.java",
         )
         java.exclude(legacyRendererMixins.map { "babel/biblioteca/client/mixin/$it.java" })
+    }
+}
+if (sc.current.version != "1.21.1") {
+    sourceSets.named("main") {
+        java.exclude(legacy1211RendererMixins.map { "babel/biblioteca/client/mixin/$it.java" })
+    }
+}
+if (sc.current.version != "1.21.8") {
+    sourceSets.named("main") {
+        java.exclude(legacy1218RendererMixins.map { "babel/biblioteca/client/mixin/$it.java" })
+        java.exclude(legacy1218ClientClasses.map { "babel/biblioteca/client/$it.java" })
+    }
+}
+if (sc.current.version != "1.21.1" && sc.current.version != "1.21.8") {
+    sourceSets.named("main") {
+        java.exclude(legacyClassicSharedMixins.map { "babel/biblioteca/client/mixin/$it.java" })
     }
 }
 
@@ -254,10 +298,16 @@ tasks.processResources {
         }
 
         if (sc.current.parsed < "26.3") {
-            // Only client hooks that do not need the 26.3 renderer are compiled
-            // for this node; the renderer classes are not in the jar and must
-            // not be requested at startup.
-            val clientEntries = legacyClientMixins.joinToString(",\n    ") { "\"$it\"" }
+            // Only client hooks that are compiled for this node may be named in
+            // the generated config; asking for a class that was excluded is a
+            // startup crash.
+            val rendererEntries = when (sc.current.version) {
+                "1.21.1" -> legacy1211RendererMixins + legacyClassicSharedMixins
+                "1.21.8" -> legacy1218RendererMixins + legacyClassicSharedMixins
+                else -> emptyList()
+            }
+            val clientEntries = (legacyClientMixins + rendererEntries)
+                .joinToString(",\n    ") { "\"$it\"" }
             outputDir.resolve("biblioteca.client.mixins.json").writeText(
                 """{
   "required": true,
@@ -304,7 +354,7 @@ val noRenderMixins = listOf(
     "SkyRendererYLoopMixin",
     "ViewAreaAccessor",
     "VoidFogMixin",
-)
+) + legacy1211RendererMixins + legacy1218RendererMixins + legacyClassicSharedMixins
 
 val noRenderDir = layout.buildDirectory.dir("generated/noRender")
 

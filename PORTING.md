@@ -18,8 +18,10 @@ releases are tracked below.
 | 26.3 | 25 | builds full + no-render; also in the common group |
 
 All 20 nodes compile: `SC_ALL=1 ./gradlew compileJava` is the full audit
-command. The default build compiles only the group representatives. The only
-large missing piece is the pre-26.3 renderer.
+command. The default build compiles only the group representatives. The 26.3
+renderer is complete; 1.21.1 and 1.21.8 now have their own terrain, entity and
+block-entity renderer ports. The other legacy nodes and the 1.20.5 / 1.21.5
+group representatives still build without the renderer (see below).
 
 The 20 nodes are declared in `settings.gradle.kts`; the default build
 configures the six group representatives plus 26.3 and emits the seven grouped
@@ -43,8 +45,28 @@ still out.
 | Grass / bamboo / growing-plant growth | **covered indirectly** — 26.3 added explicit height guards; older code reaches the folded blocks through `LevelBlockAccessMixin`, so the 26.3 hooks have no target there |
 | Seam preload slider | **deferred with the renderer** — `VideoSettingsScreenMixin` / `OptionsSubScreenAccessor` only control the renderer's warm-up distance |
 
-The 26.3 renderer (15 client mixins) remains the only large unimplemented
-block. The seam-preload slider is deliberately left with it.
+### Renderer port
+
+| Node | Renderer status |
+|---|---|
+| 26.3 | complete: OIT, terrain copies, section discovery, entities/block entities, beacons, clouds, preload slider |
+| 1.21.1 | terrain copies via `renderSectionLayer` replay, exact source-section scan, entity and block-entity layer folding; no beacon-beam repetition, cloud folding or OIT |
+| 1.21.8 | terrain copies via `prepareChunkRenders` + `renderGroup` replay, exact source-section scan, entity and block-entity layer folding; no beacon-beam repetition, cloud folding or OIT |
+| other legacy nodes | no renderer; gameplay loop only |
+
+The ported renderer classes are compiled only on their exact nodes. The grouped
+`1.20.5-1.21.1` and `1.21.5-1.21.10` jars are built from 1.20.5 and 1.21.5, so
+they do not contain the 1.21.1 / 1.21.8 renderer yet. Use the exact-node jar for
+testing; moving the renderer into a group representative is a separate port.
+
+1.21.1 repeats the classic `renderSectionLayer` call with a shifted camera Y;
+1.21.8 builds one `ChunkSectionsToRender` per period and replays the extra
+lists at the original `renderGroup` call. Neither copies a compiled mesh. The
+1.21.8 replay currently creates one render pass per copy, which is correct but
+not the final performance shape.
+
+The 26.3 seam-preload slider remains 26.3-only. The draw-command cost model and
+the remaining performance ceiling are recorded in `PERFORMANCE.md`.
 
 Present on every port: the server loop (entity/block collisions, light, piston,
 TNT, falling blocks, minecarts, neighbour updates, packet positions), saved data

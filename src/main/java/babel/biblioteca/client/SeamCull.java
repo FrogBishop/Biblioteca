@@ -41,15 +41,29 @@ public final class SeamCull {
 
     /** Exactly what Frustum.isVisible would answer without the ring: -2/-1 visible, 0/1 culled. */
     public static boolean plainlyVisible(Frustum frustum, AABB box) {
+        return plainlyVisible(frustum, box.minX, box.minY, box.minZ,
+                box.maxX, box.maxY, box.maxZ);
+    }
+
+    /**
+     * Allocation-free form for the seam scans, which test thousands of virtual copy bounds.
+     *
+     * AABB is avoided deliberately: the scan runs per section per periodic row, and a temporary
+     * box per candidate was a measurable allocation source during the height-16 tests.
+     */
+    public static boolean plainlyVisible(Frustum frustum,
+                                         double minX, double minY, double minZ,
+                                         double maxX, double maxY, double maxZ) {
         if (IN_TWIN_TEST.get()) {
             // Already inside a twin test; asking again must not re-enter the ring logic.
-            return frustum.isVisible(box);
+            return ((FrustumInvoker) frustum).biblioteca$cubeInFrustum(
+                    minX, minY, minZ, maxX, maxY, maxZ) < 0;
         }
 
         IN_TWIN_TEST.set(Boolean.TRUE);
         try {
             return ((FrustumInvoker) frustum).biblioteca$cubeInFrustum(
-                    box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ) < 0;
+                    minX, minY, minZ, maxX, maxY, maxZ) < 0;
         } finally {
             IN_TWIN_TEST.set(Boolean.FALSE);
         }
