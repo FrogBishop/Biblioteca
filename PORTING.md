@@ -32,19 +32,34 @@ configures the six group representatives plus 26.3 and emits the seven grouped
 jars below. Set `SC_VERSIONS=...` or `SC_ALL=1` to configure individual nodes
 or the full matrix.
 
-### Legacy client status (1.20.4 / 1.21.1 / 1.21.8)
+### Non-render parity (audit)
 
-Those three jars compile the entrypoint, the payload cache, the create-world
-"Dimension Attributes" button and its screen, cross-seam reach, neighbour updates
-and the door/tall-plant/vine/chorus growth hooks. The 26.3 renderer is not
-compiled for them: the client receives the dimension attributes but still draws
-the vanilla single-period world.
+Reference: the effective 26.3 server config has 29 mixins and the client config
+has 20. The legacy grouped jars (1.20.4 – 1.21.11) and the 26.1 – 26.3 common
+jar are **not** at full non-render parity yet, even though they start and the
+core loop works.
 
-Still missing on those nodes: the video-settings slider, mirrored terrain and
-the renderer-side entity/block-entity folding, beacon beam scanning, level
-events/sounds/particles, bamboo/kelp/sugar-cane growth, grass bonemeal,
-dripstone, the build-limit message suppression, and the client block-prediction
-hook. The dedicated-server jar carries the whole current server behaviour.
+| Area | 26.3 hook(s) | 1.20.4 – 1.21.11 | 26.1 – 26.3 common | Why it is still out |
+|---|---|---|---|---|
+| Beacon beam scan | `BeaconBlockEntityAccessor`, `BeaconBlockEntityYLoopMixin` | missing | missing | pre-26.3 uses `BeaconBeamSection`, no `BeaconBeamOwner` |
+| Sounds / particles / level events | `ServerLevelEffectsYLoopMixin`, `SeamEffects` | missing | missing | packet constructors differ per era |
+| Bamboo bonemeal | `BambooStalkBlockYLoopMixin` | missing | missing | old `performBonemeal` does not call `isOutsideBuildHeight` |
+| Kelp / cane / vine growth | `GrowingPlantHeadBlockYLoopMixin` | missing | missing | call site differs or is absent |
+| Grass bonemeal | `GrassBlockYLoopMixin` | missing | missing | `placeBonemealEffect` does not exist |
+| Dripstone growth | `SpeleothemBlockYLoopMixin` | missing | missing | `PointedDripstoneBlock` target/method differs |
+| Build-limit message | `ServerPlayerBuildLimitMixin` | missing | present | no helper before 26.1 |
+| Client block prediction | `ClientLevelDirtyMixin` | missing | missing | excluded together with the renderer hook; its prediction half is non-render |
+| Seam preload slider | `VideoSettingsScreenMixin`, `OptionsSubScreenAccessor` | missing | missing | depends on the renderer-side `LoopingClientSettings` |
+
+Present on every port: the server loop (entity/block collisions, light, piston,
+TNT, falling blocks, minecarts, neighbour updates, packet positions), saved data
+and payload networking, reach (`LegacyReachMixin` before 26.1,
+`PlayerReachMixin`/`ServerPlayerGameModeMixin` from 26.1), and the
+door/tall-plant/vine/chorus growth hooks. The create-world GUI and the
+dimension-attribute screen are also present everywhere.
+
+The 26.3 renderer (15 client mixins) is a separate, larger port and is not
+counted in the table. Only `+26.3.jar` contains the full non-render set today.
 
 ## Build layout
 

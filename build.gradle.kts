@@ -407,97 +407,97 @@ if (project.path != ":") {
     val isFullRenderer = sc.current.version == fullRendererVersion
 
     if (currentGroup != null || isFullRenderer) {
-    val artifactId = if (isFullRenderer) {
-        fullRendererVersion
-    } else {
-        currentGroup!!["id"] as String
-    }
-    val minecraftRange = if (isFullRenderer) {
-        fullRendererVersion
-    } else {
-        currentGroup!!["minecraft"] as String
-    }
-    val useNoRender = !isFullRenderer && currentGroup!!["noRender"] == true
-    val sourceTask = when {
-        useNoRender -> "noRenderJar"
-        sc.current.parsed < "26.1" -> "remapJar"
-        else -> "jar"
-    }
-    val sourceJar = if (useNoRender) {
-        // noRenderJar is a plain task that writes a sibling of the remapped
-        // jar, so it has no archiveFile property to read.
-        layout.buildDirectory.file(
-            "libs/${property("mod.id")}-${project.version}-norender.jar"
-        )
-    } else {
-        tasks.named(sourceTask).flatMap {
-            (it as org.gradle.api.tasks.bundling.AbstractArchiveTask).archiveFile
+        val artifactId = if (isFullRenderer) {
+            fullRendererVersion
+        } else {
+            currentGroup!!["id"] as String
         }
-    }
-    val modVersion = property("mod.version").toString()
-    val targetJar = rootProject.layout.buildDirectory.file(
-        "grouped/biblioteca-$modVersion+$artifactId" +
-            if (useNoRender) "-norender.jar" else ".jar"
-    )
-
-    val groupJar = tasks.register("groupJar") {
-        group = "build"
-        description = "Writes the grouped jar for $artifactId."
-        dependsOn(sourceTask)
-        inputs.file(sourceJar)
-        outputs.file(targetJar)
-        // Metadata injection is cheap; always rewrite instead of risking a
-        // stale range after a property change.
-        outputs.upToDateWhen { false }
-
-        doLast {
-            val source = sourceJar.get().asFile
-            val target = targetJar.get().asFile
-            target.parentFile.mkdirs()
-
-            val metadata = ZipFile(source).use { zip ->
-                val entry = zip.getEntry("fabric.mod.json")
-                    ?: error("$source has no fabric.mod.json")
-                val text = zip.getInputStream(entry).use {
-                    it.readBytes().toString(Charsets.UTF_8)
-                }
-                @Suppress("UNCHECKED_CAST")
-                val json = groovy.json.JsonSlurper().parseText(text) as MutableMap<String, Any?>
-                json["version"] = "$modVersion+$artifactId" +
-                    if (useNoRender) "-norender" else ""
-                @Suppress("UNCHECKED_CAST")
-                val depends = json["depends"] as MutableMap<String, Any?>
-                depends["minecraft"] = minecraftRange
-                if (useNoRender) {
-                    json["name"] = json["name"].toString().removeSuffix(" (No Render)") + " (No Render)"
-                }
-                groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)) + "\n"
+        val minecraftRange = if (isFullRenderer) {
+            fullRendererVersion
+        } else {
+            currentGroup!!["minecraft"] as String
+        }
+        val useNoRender = !isFullRenderer && currentGroup!!["noRender"] == true
+        val sourceTask = when {
+            useNoRender -> "noRenderJar"
+            sc.current.parsed < "26.1" -> "remapJar"
+            else -> "jar"
+        }
+        val sourceJar = if (useNoRender) {
+            // noRenderJar is a plain task that writes a sibling of the remapped
+            // jar, so it has no archiveFile property to read.
+            layout.buildDirectory.file(
+                "libs/${property("mod.id")}-${project.version}-norender.jar"
+            )
+        } else {
+            tasks.named(sourceTask).flatMap {
+                (it as org.gradle.api.tasks.bundling.AbstractArchiveTask).archiveFile
             }
+        }
+        val modVersion = property("mod.version").toString()
+        val targetJar = rootProject.layout.buildDirectory.file(
+            "grouped/biblioteca-$modVersion+$artifactId" +
+                if (useNoRender) "-norender.jar" else ".jar"
+        )
 
-            ZipFile(source).use { zip ->
-                ZipOutputStream(
-                    BufferedOutputStream(FileOutputStream(target))
-                ).use { out ->
-                    for (entry in zip.entries()) {
-                        if (entry.name == "fabric.mod.json") continue
-                        val copy = ZipEntry(entry.name)
-                        copy.time = entry.time
-                        out.putNextEntry(copy)
-                        if (!entry.isDirectory) {
-                            zip.getInputStream(entry).use { input -> input.copyTo(out) }
+        val groupJar = tasks.register("groupJar") {
+            group = "build"
+            description = "Writes the grouped jar for $artifactId."
+            dependsOn(sourceTask)
+            inputs.file(sourceJar)
+            outputs.file(targetJar)
+            // Metadata injection is cheap; always rewrite instead of risking a
+            // stale range after a property change.
+            outputs.upToDateWhen { false }
+
+            doLast {
+                val source = sourceJar.get().asFile
+                val target = targetJar.get().asFile
+                target.parentFile.mkdirs()
+
+                val metadata = ZipFile(source).use { zip ->
+                    val entry = zip.getEntry("fabric.mod.json")
+                        ?: error("$source has no fabric.mod.json")
+                    val text = zip.getInputStream(entry).use {
+                        it.readBytes().toString(Charsets.UTF_8)
+                    }
+                    @Suppress("UNCHECKED_CAST")
+                    val json = groovy.json.JsonSlurper().parseText(text) as MutableMap<String, Any?>
+                    json["version"] = "$modVersion+$artifactId" +
+                        if (useNoRender) "-norender" else ""
+                    @Suppress("UNCHECKED_CAST")
+                    val depends = json["depends"] as MutableMap<String, Any?>
+                    depends["minecraft"] = minecraftRange
+                    if (useNoRender) {
+                        json["name"] = json["name"].toString().removeSuffix(" (No Render)") + " (No Render)"
+                    }
+                    groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)) + "\n"
+                }
+
+                ZipFile(source).use { zip ->
+                    ZipOutputStream(
+                        BufferedOutputStream(FileOutputStream(target))
+                    ).use { out ->
+                        for (entry in zip.entries()) {
+                            if (entry.name == "fabric.mod.json") continue
+                            val copy = ZipEntry(entry.name)
+                            copy.time = entry.time
+                            out.putNextEntry(copy)
+                            if (!entry.isDirectory) {
+                                zip.getInputStream(entry).use { input -> input.copyTo(out) }
+                            }
+                            out.closeEntry()
                         }
+                        val bytes = metadata.toByteArray(Charsets.UTF_8)
+                        val copy = ZipEntry("fabric.mod.json")
+                        copy.time = source.lastModified()
+                        out.putNextEntry(copy)
+                        out.write(bytes)
                         out.closeEntry()
                     }
-                    val bytes = metadata.toByteArray(Charsets.UTF_8)
-                    val copy = ZipEntry("fabric.mod.json")
-                    copy.time = source.lastModified()
-                    out.putNextEntry(copy)
-                    out.write(bytes)
-                    out.closeEntry()
                 }
             }
         }
-    }
 
         tasks.findByName("build")?.finalizedBy(groupJar)
     }
