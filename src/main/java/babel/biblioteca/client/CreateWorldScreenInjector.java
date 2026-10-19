@@ -21,14 +21,10 @@ public final class CreateWorldScreenInjector {
     private CreateWorldScreenInjector() {}
 
     /** One More-tab row, sized like the Game Rules / Experiments / Data Packs buttons above it. */
-    public static Button createButton() {
+    public static Button createButton(CreateWorldScreen parent) {
         return Button.builder(
                 Component.translatable("biblioteca.gui.looping_button"),
-                button -> {
-                    if (ClientScreens.current(Minecraft.getInstance()) instanceof CreateWorldScreen parent) {
-                        openConfig(parent);
-                    }
-                })
+                button -> openConfig(parent))
                 .width(210)
                 .build();
     }
@@ -40,6 +36,10 @@ public final class CreateWorldScreenInjector {
         Set<ResourceKey<Level>> beaconIgnoresSky = PendingLoopingConfig.hasPending()
                 ? PendingLoopingConfig.getPendingBeaconIgnoresSky()
                 : Set.of();
-        ClientScreens.show(Minecraft.getInstance(), new LoopingConfigScreen(parent, looping, beaconIgnoresSky));
+        //? if >=26.1 {
+        Minecraft.getInstance().setScreenAndShow(new LoopingConfigScreen(parent, looping, beaconIgnoresSky));
+        //?} else {
+        /*Minecraft.getInstance().setScreen(new LoopingConfigScreen(parent, looping, beaconIgnoresSky));
+        *///?}
     }
 }

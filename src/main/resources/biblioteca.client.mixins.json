@@ -9,6 +9,7 @@
     "ClientLevelDirtyMixin",
     "CloudRendererLoopMixin",
     "CreateWorldScreenMoreTabMixin",
+    "GridLayoutTabAccessor",
     "EntityRenderYLoopMixin",
     "EntityShouldRenderYLoopMixin",
     "FrustumInvoker",
