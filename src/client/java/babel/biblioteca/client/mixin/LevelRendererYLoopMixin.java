@@ -44,6 +44,11 @@ import java.util.Map;
  * answers for a box's periodic twin as well, which would let copies far beyond anything loaded
  * through.
  *
+ * The cost is command count, not mesh memory: every copy is one ChunkSectionInfo plus one draw per
+ * section layer. A height-16 world at 32 chunks can produce about 65 copies of every visible
+ * section. If profiling shows command submission or GPU vertex work dominates, batch copies into
+ * instanced draws; do not grow another cache around the command list.
+ *
  * Translucency is not sorted here, and that is deliberate. A compiled section mesh carries one quad
  * order baked for one viewpoint; the same mesh is drawn at several periodic heights, so sorting it
  * for one copy breaks every other copy, and no amount of re-sorting the shared mesh can satisfy

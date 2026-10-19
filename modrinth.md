@@ -156,6 +156,7 @@ In a looping dimension, vanilla's "the beacon must see the sky" rule can never b
 
 - A mirrored section is one more set of draw commands pointing at the **same compiled mesh**. The extra cost is draw calls, not extra mesh memory.
 - Copies are only submitted within the render distance and the camera frustum. The **Seam preload** setting keeps a configurable amount of extra slack warm.
+- The copy count scales with the render distance divided by the world height. A height-16 world at 12 chunks can show about 25 terrain layers; at 32 chunks it can show about 65. The current renderer submits one draw command per section layer per copy and does not instance or merge copies yet, so very short worlds at long render distances are draw-command bound. See `PERFORMANCE.md` in the source tree for the cost model and benchmark method.
 - Vanilla sorts a section's translucent quads once, for one viewpoint. A mirrored copy is the same mesh drawn at another height, so that baked order is wrong for the copy; re-sorting the shared mesh for one copy breaks the others. Looping dimensions therefore use **order-independent transparency (OIT)**, which resolves blending per fragment and is correct at every height. The vanilla "Improved Transparency" option may still read as off; Biblioteca forces the render path for the dimension.
 - If Minecraft's GPU warning list flags the GPU, the mod does not force OIT. Translucency at the seam may then not blend correctly.
 - OIT is not forced in the wireframe debug view, matching vanilla's own rule.
@@ -205,7 +206,7 @@ Clients still need the normal jar to see the ring. Do not install both jars in o
 - **Mixin-based.** Biblioteca patches vanilla level, entity, collision, lighting and renderer code. Mods that rewrite the same internals can conflict. Shader packs are not officially tested.
 - **Create-world GUI is singleplayer only.** Existing worlds and dedicated servers use the commands.
 - **The `-norender` jar has no visual loop.** It is intended for servers, not for clients that want to see the ring.
-- **Render distance matters.** More visible copies mean more draw calls; the seam preload setting trades compile work for fewer hitches.
+- **Render distance matters.** More visible copies mean more draw calls. A height-16 world at 32 chunks is the stress case; the renderer currently does not instance or merge copies. The seam preload setting trades compile work for fewer hitches, not for fewer draw commands.
 - **The loop period is the dimension's height.** The mod does not generate extra terrain above or below the world; it wraps the height the dimension already has.
 - **0.0.x.** The mod is young; internals and behaviour may change between releases.
 
