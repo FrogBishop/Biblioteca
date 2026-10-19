@@ -131,6 +131,15 @@ val excludedServerMixins = buildSet {
             "NeighborUpdaterYLoopMixin",
             "SpeleothemBlockYLoopMixin",
             "GrassBlockYLoopMixin",
+            // The plant-growth hooks call different helpers in each era (or
+            // check the build height inline). They are gameplay extras at the
+            // seam; keep them out of the legacy jars until each is ported.
+            "BambooStalkBlockYLoopMixin",
+            "ChorusFlowerBlockYLoopMixin",
+            "DoorBlockYLoopMixin",
+            "DoublePlantBlockYLoopMixin",
+            "GrowingPlantHeadBlockYLoopMixin",
+            "VineBlockYLoopMixin",
         ))
     }
 }
@@ -190,6 +199,10 @@ tasks.processResources {
             @Suppress("UNCHECKED_CAST")
             val config = slurper.parse(configFile) as MutableMap<String, Any?>
             config["mixins"] = (config["mixins"] as List<*>).filterNot { it in excludedServerMixins }
+            // A legacy preview build must not take the game down when an
+            // optional hook cannot find its call site; the core hooks still log
+            // and apply normally.
+            config["injectors"] = mapOf("defaultRequire" to 0)
             configFile.writeText(
                 groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config)) + "\n")
         }
