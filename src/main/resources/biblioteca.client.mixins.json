@@ -1,7 +1,7 @@
 {
   "required": true,
   "package": "babel.biblioteca.client.mixin",
-  "compatibilityLevel": "JAVA_25",
+  "compatibilityLevel": "${java}",
   "client": [
     "BeaconBeamRenderYLoopMixin",
     "BlockEntityRenderRangeYLoopMixin",

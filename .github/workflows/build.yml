@@ -9,6 +9,10 @@ on: [pull_request, push]
 jobs:
   build:
     runs-on: ubuntu-24.04
+    env:
+      # Keep CI on the supported node. Add versions here as their source port
+      # lands (see PORTING.md); the full matrix is SC_ALL=1.
+      SC_VERSIONS: "26.3"
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
@@ -23,7 +27,7 @@ jobs:
         run: chmod +x ./gradlew
       - name: build
         shell: bash
-        run: ./gradlew build
+        run: ./gradlew :26.3:build
       # `build` emits two jars: the normal one and the no-render variant. Fail loudly
       # rather than shipping a silently wrong artifact if the variant step breaks.
       - name: verify both jars were produced
@@ -35,7 +39,7 @@ jobs:
 
           main_jars=()
           variant_jars=()
-          for jar in build/libs/*.jar; do
+          for jar in versions/26.3/build/libs/*.jar; do
             case "$jar" in
               *-sources.jar|*-javadoc.jar) ;;
               *-norender.jar) variant_jars+=("$jar") ;;
@@ -140,12 +144,12 @@ jobs:
         with:
           name: Artifacts
           path: |
-            build/libs/*.jar
-            !build/libs/*-norender.jar
+            versions/26.3/build/libs/*.jar
+            !versions/26.3/build/libs/*-norender.jar
           if-no-files-found: error
       - name: capture no-render artifact
         uses: actions/upload-artifact@v7
         with:
           name: Artifacts-no-render
-          path: build/libs/*-norender.jar
+          path: versions/26.3/build/libs/*-norender.jar
           if-no-files-found: error
