@@ -9,15 +9,12 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Suppresses the void-darkening term of the fog colour, and nothing else.
+ * Removes only the void-darkening term of the fog colour, not the colour itself.
  *
- * The previous version cancelled computeFogColor at HEAD. That method is the only writer of
- * FogData.color, and FogData.color starts as a bare new Vector4f() - (0,0,0,0), not the white
- * the old comment claimed. With the method cancelled the colour stayed black, and that colour is
- * the clear colour LevelRenderer paints the frame with: the sky's upper disc is still drawn in
- * SKY_COLOR, so the sky read as blue above the horizon and black below it. It also zeroed the
- * alpha that apply_fog multiplies its blend factor by, which switched off every atmospheric fog
- * in the dimension, not just the void darkening.
+ * computeFogColor is the only writer of FogData.color, which starts at (0,0,0,0). Cancelling the
+ * whole method therefore clears the frame to black - the sky's lower half is the cleared
+ * background, so it reads as blue above the horizon and black below - and zeroes the alpha that
+ * apply_fog multiplies its blend factor by, disabling every atmospheric fog in the dimension.
  *
  * The darkness term is the only part of the calculation that cares about the world floor:
  * darkness = clamp((voidDarknessOnsetRange + minY - cameraY) / voidDarknessOnsetRange, 0, 1).

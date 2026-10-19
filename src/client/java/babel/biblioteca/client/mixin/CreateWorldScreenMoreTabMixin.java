@@ -16,10 +16,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * per row, each 210 px wide, with 8 px of row spacing. Appending a fourth child at row 3, column 0
  * makes the new button share that column and spacing, and because it belongs to the tab's layout it
  * is added to the screen only while the More tab is selected - exactly like its neighbours.
- *
- * The old implementation added a 120 px button to the screen's widget list at fixed footer
- * coordinates through ScreenEvents.AFTER_INIT, which is what left it below the Create/Cancel row
- * and misaligned with everything else.
  */
 @Mixin(targets = "net.minecraft.client.gui.screens.worldselection.CreateWorldScreen$MoreTab")
 public abstract class CreateWorldScreenMoreTabMixin {

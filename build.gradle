@@ -27,7 +27,7 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-	// Fabric API. This is technically optional, but you probably want it anyway.
+	// Fabric API is required at runtime: the command and networking APIs come from it.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 }
 
@@ -85,8 +85,8 @@ publishing {
 // ---------------------------------------------------------------------------
 // Every build emits a second jar next to the normal one: the same mod with the
 // client renderer hooks stripped out (no mirrored chunk sections, no frustum or
-// BFS workarounds, no cloud or fog tweaks). Server logic, networking, coordinate
-// folding and block prediction are untouched.
+// BFS workarounds, no cloud or fog tweaks, no OIT override). Server logic,
+// networking, coordinate folding and block prediction are untouched.
 //
 // The variant is cut from the finished jar instead of a second source set, so the
 // two jars cannot drift apart. Only the mixin config and the mod metadata inside
@@ -107,6 +107,7 @@ def noRenderMixins = [
 		'EntityShouldRenderYLoopMixin',
 		'FrustumInvoker',
 		'FrustumYLoopMixin',
+		'ImprovedTransparencyYLoopMixin',
 		'LevelRendererYLoopMixin',
 		'RenderRegionCacheYLoopMixin',
 		'SectionOcclusionGraphLoopMixin',
@@ -235,7 +236,13 @@ tasks.named('assemble') {
 // Copies the deliverable (non-norender) jar into a Minecraft instance's mods
 // folder and removes older biblioteca jars, so Fabric never sees two versions
 // of the same mod. Override the destination with -PmodsDir=<path>.
-def defaultModsDir = 'C:/Users/DELL/AppData/Roaming/.minecraft/versions/26.3-Fabric 0.19.5/mods'
+// APPDATA is what %AppData% expands to; a build script cannot use the %...% form itself. The
+// user.home fallback keeps the task usable off Windows.
+def defaultModsDir = providers.environmentVariable('APPDATA')
+		.map { appData -> "${appData}/.minecraft/versions/26.3-Fabric 0.19.5/mods" }
+		.orElse(providers.provider {
+			"${System.getProperty('user.home')}/.minecraft/versions/26.3-Fabric 0.19.5/mods"
+		})
 def primaryJarFile = tasks.named('jar').flatMap { it.archiveFile }.map { it.asFile }
 
 tasks.register('deployMod', Copy) {

@@ -13,6 +13,7 @@
     "EntityShouldRenderYLoopMixin",
     "FrustumInvoker",
     "FrustumYLoopMixin",
+    "ImprovedTransparencyYLoopMixin",
     "LevelRendererYLoopMixin",
     "OptionsSubScreenAccessor",
     "RenderRegionCacheYLoopMixin",

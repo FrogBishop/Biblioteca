@@ -26,8 +26,5 @@ public class BibliotecaClient implements ClientModInitializer {
         // server's payload is not mixed with the previous one.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
                 client.execute(LoopingDimensionCache::clear));
-
-        // The world-creation button is now a row of the More tab's GridLayout, added by
-        // CreateWorldScreenMoreTabMixin rather than at fixed footer coordinates.
     }
 }

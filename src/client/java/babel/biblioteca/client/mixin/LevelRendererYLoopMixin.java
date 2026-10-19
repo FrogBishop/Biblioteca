@@ -45,10 +45,17 @@ import java.util.Map;
  * answers for a box's periodic twin as well, which would let copies far beyond anything loaded
  * through.
  *
- * Translucent sorting is deliberately not handled here. The previous implementation (SeamSortOrder,
- * SectionCompileSortYLoopMixin, SectionResortYLoopMixin and LevelRendererInvoker) has been removed;
- * mirrored sections currently keep whatever ordering vanilla produced for the source section, and a
- * fresh implementation will replace it once the actual artefact is pinned down.
+ * Translucency is not sorted here, and that is deliberate. A compiled section mesh carries one quad
+ * order baked for one viewpoint; the same mesh is drawn at several periodic heights, so sorting it
+ * for one copy breaks every other copy, and no amount of re-sorting the shared mesh can satisfy
+ * them all. ImprovedTransparencyYLoopMixin switches a looping dimension to the order-independent
+ * path instead, where the shared mesh is correct at every height. This is what fixes water at the
+ * seam: the bottom row's water and the mirrored copy of the top row's water meet there, and the
+ * copy's quads were ordered for the source row's camera.
+ *
+ * A copy also starts at full visibility. ChunkSectionInfo.visibility is the source section's chunk
+ * fade-in and feeds terrain.fsh's mix toward FogColor; reusing it tinted a copy for the fade
+ * duration and showed up as one fog-coloured patch per 16-block section on mirrored terrain.
  *
  * Entities, block entities and clouds stay single-layer (they are far more expensive per copy, and
  * a mirrored mob is indistinguishable from a mob standing on the mirrored terrain); the entity side
@@ -126,6 +133,8 @@ public abstract class LevelRendererYLoopMixin {
             Map drawGroups,
             CallbackInfoReturnable<Integer> cir) {
 
+        // respectTranslucentOrder belongs to the vanilla signature; the copy path only duplicates
+        // draws and never reorders them. Translucency is handled by ImprovedTransparencyYLoopMixin.
         LevelRenderState renderState = this.levelRenderState;
         if (renderState == null || renderState.cameraRenderState == null) return;
         Frustum frustum = renderState.cameraRenderState.cullFrustum;
@@ -186,9 +195,13 @@ public abstract class LevelRendererYLoopMixin {
                 AABB copyBounds = biblioteca$bounds(info, copyY);
                 if (!biblioteca$worthDrawing(frustum, copyBounds, cameraY, viewDistanceBlocks)) continue;
 
+                // ChunkSectionInfo.visibility feeds terrain.fsh's mix toward FogColor. It is the
+                // source section's chunk fade-in; a copy has no fade history of its own, so reusing
+                // it tinted the copy for the fade duration and produced one fog-coloured patch per
+                // 16-block section. Copies are fully present from their first frame.
                 int copyIndex = sectionInfos.size();
                 sectionInfos.add(new DynamicGpuData.ChunkSectionInfo(
-                        info.x(), copyY, info.z(), info.visibility()));
+                        info.x(), copyY, info.z(), 1.0F));
 
                 for (Object[] entry : entries) {
                     ChunkDrawGroupAccessor group         = (ChunkDrawGroupAccessor) entry[0];

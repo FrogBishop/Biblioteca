@@ -14,9 +14,7 @@ import java.util.Set;
  * Builds the "Dimension Attributes…" button for the world-creation screen.
  *
  * The button is appended to the More tab's grid by CreateWorldScreenMoreTabMixin, where it shares
- * that tab's 210 px column width, its 8 px row spacing and its show/hide lifecycle. The old
- * implementation placed a 120 px button at fixed footer coordinates through
- * ScreenEvents.AFTER_INIT, which is what left it floating under the Create/Cancel row.
+ * that tab's 210 px column width, its 8 px row spacing and its show/hide lifecycle.
  */
 public final class CreateWorldScreenInjector {
 
