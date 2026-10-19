@@ -34,12 +34,16 @@ val selected = when {
         .map { it.trim() }
         .filter { it.isNotEmpty() }
     else -> supportedVersions
+}.toMutableList().apply {
+    // Stonecutter's active version must always be present; 26.3 is the
+    // workspace version the sources are edited in.
+    if ("26.3" !in this) add("26.3")
 }
 
 stonecutter {
     create(rootProject) {
         versions(*selected.toTypedArray())
-        vcsVersion = "26.3"
+        vcsVersion = if ("26.3" in selected) "26.3" else selected.last()
     }
 }
 

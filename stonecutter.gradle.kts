@@ -15,8 +15,10 @@ stonecutter parameters {
         }
 
         string(current.parsed < "1.21.2") {
-            replace(".getMinY()", ".getMinBuildHeight()")
-            replace(".getMaxY()", ".getMaxBuildHeight()")
+            // No leading dot: the same names appear inside mixin target
+            // descriptors such as "Lnet/minecraft/world/level/Level;getMaxY()I".
+            replace("getMinY()", "getMinBuildHeight()")
+            replace("getMaxY()", "getMaxBuildHeight()")
         }
 
         string(current.parsed < "26.1") {

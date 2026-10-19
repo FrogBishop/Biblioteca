@@ -1,5 +1,9 @@
+import java.io.BufferedOutputStream
+import java.io.FileOutputStream
 import java.net.URI
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 
 plugins {
     // Applies the remapping Loom variant for obfuscated versions and the plain
@@ -18,6 +22,20 @@ val requiredJava: JavaVersion = when {
 
 repositories {
     mavenCentral()
+}
+
+// Legacy (obfuscated) nodes need a refmap so the mojmap targets written in the
+// mixins are remapped to intermediary names inside the jar. The 26.1+ nodes are
+// unobfuscated and do not need one.
+if (sc.current.parsed < "26.1") {
+    loom {
+        mixin {
+            // Loom 1.18 no longer enables the mixin AP implicitly; the
+            // obfuscated nodes need it to write the refmap the runtime uses.
+            useLegacyMixinAp.set(true)
+            defaultRefmapName.set("biblioteca.refmap.json")
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -256,20 +274,72 @@ val prepareNoRenderResources = tasks.register("prepareNoRenderResources") {
     }
 }
 
-val noRenderJar = tasks.register<Jar>("noRenderJar") {
+val noRenderJar = tasks.register("noRenderJar") {
     group = "build"
     description = "Assembles the no-render variant jar from the normal jar."
-    dependsOn(tasks.jar, prepareNoRenderResources)
-
-    from(tasks.jar.flatMap { it.archiveFile }.map { zipTree(it) }) {
-        for (name in noRenderMixins) {
-            exclude("babel/biblioteca/client/mixin/$name.class")
-            exclude("babel/biblioteca/client/mixin/$name\$*.class")
+    // Cut from the deliverable (remapped) jar, not the dev jar. Loom's
+    // remapJar is the shipped artifact on obfuscated nodes; 26.1+ has no remap
+    // step and jar is already the deliverable.
+    val deliverable = if (sc.current.parsed < "26.1") {
+        tasks.named("remapJar").flatMap {
+            (it as org.gradle.api.tasks.bundling.AbstractArchiveTask).archiveFile
         }
-        exclude("fabric.mod.json", "biblioteca.client.mixins.json")
+    } else {
+        tasks.jar.flatMap { it.archiveFile }
     }
-    from(noRenderDir)
-    archiveClassifier.set("norender")
+    dependsOn(
+        if (sc.current.parsed < "26.1") tasks.named("remapJar") else tasks.jar,
+        prepareNoRenderResources
+    )
+
+    val primaryJar = deliverable
+    val variantJar = primaryJar.map { primary ->
+        File(primary.asFile.parentFile, primary.asFile.name.removeSuffix(".jar") + "-norender.jar")
+    }
+    inputs.file(primaryJar)
+    inputs.dir(noRenderDir)
+    outputs.file(variantJar)
+    // The variant is cut from the remapped jar; rerun after every build rather
+    // than risk a stale config without the refmap entry.
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val source = primaryJar.get().asFile
+        val target = variantJar.get()
+        // Read the finished primary jar at execution time: its mixin config has
+        // the refmap entry Loom adds during remap, which the processed resources
+        // do not contain yet.
+        val droppedClasses = noRenderMixins.map { "babel/biblioteca/client/mixin/$it.class" }.toSet()
+        val droppedNested = noRenderMixins.map { "babel/biblioteca/client/mixin/$it\$" }
+        val rewritten = setOf("fabric.mod.json", "biblioteca.client.mixins.json")
+
+        target.parentFile.mkdirs()
+        ZipFile(source).use { zip ->
+            ZipOutputStream(
+                BufferedOutputStream(FileOutputStream(target))).use { out ->
+                for (entry in zip.entries()) {
+                    val name = entry.name
+                    if (name in rewritten) continue
+                    if (name in droppedClasses || droppedNested.any { name.startsWith(it) }) continue
+                    val copy = ZipEntry(name)
+                    copy.time = entry.time
+                    out.putNextEntry(copy)
+                    if (!entry.isDirectory) {
+                        zip.getInputStream(entry).use { input -> input.copyTo(out) }
+                    }
+                    out.closeEntry()
+                }
+                for (file in (noRenderDir.get().asFile.listFiles() ?: emptyArray())) {
+                    if (!file.isFile) continue
+                    val copy = ZipEntry(file.name)
+                    copy.time = file.lastModified()
+                    out.putNextEntry(copy)
+                    out.write(file.readBytes())
+                    out.closeEntry()
+                }
+            }
+        }
+    }
 }
 
 tasks.assemble {
