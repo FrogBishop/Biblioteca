@@ -155,31 +155,31 @@ public class LoopingConfigScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        graphics.centeredText(font, title, width / 2, rowY(0) - 34, 0xFFFFFF);
+        graphics.centeredText(font, title, width / 2, rowY(0) - 34, 0xFFFFFFFF);
         graphics.centeredText(font,
                 Component.translatable("biblioteca.gui.looping_config.header_looping"),
-                leftX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFF);
+                leftX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFFFF);
         graphics.centeredText(font,
                 Component.translatable("biblioteca.gui.looping_config.header_beacon"),
-                rightX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFF);
+                rightX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFFFF);
         graphics.centeredText(font,
                 Component.translatable("biblioteca.gui.looping_config.note"),
-                width / 2, rowY(3) + 44, 0xAAAAAA);
+                width / 2, rowY(3) + 44, 0xFFAAAAAA);
     }
     //?} else {
     /*@Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(font, title, width / 2, rowY(0) - 34, 0xFFFFFF);
+        graphics.drawCenteredString(font, title, width / 2, rowY(0) - 34, 0xFFFFFFFF);
         graphics.drawCenteredString(font,
                 Component.translatable("biblioteca.gui.looping_config.header_looping"),
-                leftX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFF);
+                leftX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFFFF);
         graphics.drawCenteredString(font,
                 Component.translatable("biblioteca.gui.looping_config.header_beacon"),
-                rightX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFF);
+                rightX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFFFF);
         graphics.drawCenteredString(font,
                 Component.translatable("biblioteca.gui.looping_config.note"),
-                width / 2, rowY(3) + 44, 0xAAAAAA);
+                width / 2, rowY(3) + 44, 0xFFAAAAAA);
     }
     *///?}
 }
