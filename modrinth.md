@@ -41,7 +41,7 @@ Tested with Fabric Loader 0.19.5 and Fabric API 0.162.0+26.3 on Minecraft 26.3.
 
 ### New singleplayer world
 
-Create New World → **More** tab → **Dimension Attributes…**
+Create New World → **More** tab → **Dimension Attributes**
 
 The screen has two columns:
 
