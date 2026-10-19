@@ -13,7 +13,7 @@ releases are tracked below.
 | 26.1 / 26.1.1 / 26.1.2 | 25 | 0.155.3+26.1.2 | **builds** (common/GUI) |
 | 1.21.11 | 21 | 0.141.6+1.21.11 | **builds** (server, GUI, reach) |
 | 1.21.10 | 21 | 0.138.4+1.21.10 | not started |
-| 1.21.9 | 21 | 0.134.1+1.21.9 | not started |
+| 1.21.9 | 21 | 0.134.1+1.21.9 | **builds** (grouped at 1.21.5) |
 | 1.21.8 | 21 | 0.136.1+1.21.8 | **builds** (server, GUI, reach, neighbours; renderer pending) |
 | 1.21.7 | 21 | 0.129.0+1.21.7 | not started |
 | 1.21.6 | 21 | 0.128.2+1.21.6 | not started |
