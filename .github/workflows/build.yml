@@ -10,9 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     env:
-      # The versions whose source port is complete. Add nodes here as they
-      # land (see PORTING.md); the full matrix is SC_ALL=1.
-      SC_VERSIONS: "1.20.4,1.21.1,1.21.8,26.3"
+      # One representative per shared jar; the full 20-node matrix is SC_ALL=1.
+      SC_VERSIONS: "1.20.4,1.20.5,1.21.2,1.21.5,1.21.11,26.1,26.3"
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
@@ -28,128 +27,50 @@ jobs:
       - name: build
         shell: bash
         run: ./gradlew build
-      # `build` emits two jars: the normal one and the no-render variant. Fail loudly
-      # rather than shipping a silently wrong artifact if the variant step breaks.
-      - name: verify both jars were produced
+      - name: verify grouped jars
         shell: bash
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          root=$(pwd)
+          mod_version=$(sed -n 's/^mod.version *= *"\([^"]*\)"/\1/p' stonecutter.properties.toml)
+          test -n "$mod_version"
 
-          main_jars=()
-          variant_jars=()
-          for jar in versions/26.3/build/libs/*.jar; do
-            case "$jar" in
-              *-sources.jar|*-javadoc.jar) ;;
-              *-norender.jar) variant_jars+=("$jar") ;;
-              *) main_jars+=("$jar") ;;
-            esac
+          declare -A ranges=(
+            ["1.20.4"]="1.20.4"
+            ["1.20.5-1.21.1"]=">=1.20.5 <1.21.2"
+            ["1.21.2-1.21.4"]=">=1.21.2 <1.21.5"
+            ["1.21.5-1.21.10"]=">=1.21.5 <1.21.11"
+            ["1.21.11"]="1.21.11"
+            ["26.1-26.3-norender"]=">=26.1 <26.4"
+            ["26.3"]="26.3"
+          )
+
+          for group in "${!ranges[@]}"; do
+            jar="build/grouped/biblioteca-${mod_version}+${group}.jar"
+            if [ ! -f "$jar" ]; then
+              echo "::error::missing grouped jar $jar"
+              exit 1
+            fi
+            actual=$(python3 -c 'import json,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); print(json.loads(z.read("fabric.mod.json"))["depends"]["minecraft"])' "$jar")
+            expected="${ranges[$group]}"
+            if [ "$actual" != "$expected" ]; then
+              echo "::error::$jar declares minecraft '$actual', expected '$expected'"
+              exit 1
+            fi
+            echo "$jar -> $actual"
           done
 
-          if [ "${#main_jars[@]}" -ne 1 ]; then
-            echo "::error::expected one main jar in build/libs, found ${#main_jars[@]}"
-            exit 1
-          fi
-          if [ "${#variant_jars[@]}" -ne 1 ]; then
-            echo "::error::expected one no-render jar in build/libs, found ${#variant_jars[@]}"
-            exit 1
-          fi
-          main_jar="${main_jars[0]}"
-          variant_jar="${variant_jars[0]}"
           render_mixin='babel/biblioteca/client/mixin/LevelRendererYLoopMixin.class'
-
-          main_listing=$(jar tf "$main_jar")
-          variant_listing=$(jar tf "$variant_jar")
-
-          if grep -qxF "$render_mixin" <<< "$variant_listing"; then
-            echo "::error::$variant_jar still contains $render_mixin"
+          if ! jar tf "build/grouped/biblioteca-${mod_version}+26.3.jar" | grep -qxF "$render_mixin"; then
+            echo "::error::the 26.3 jar lost the renderer mixin"
             exit 1
           fi
-          if ! grep -qxF "$render_mixin" <<< "$main_listing"; then
-            echo "::error::$main_jar lost $render_mixin"
+          if jar tf "build/grouped/biblioteca-${mod_version}+26.1-26.3-norender.jar" | grep -qxF "$render_mixin"; then
+            echo "::error::the 26.1-26.3 common jar contains the 26.3 renderer"
             exit 1
           fi
-
-          # Extract both mixin configs and check the relationship between them, rather than a
-          # hardcoded list of names: the variant must list exactly what the main jar lists minus
-          # the renderer mixins, and each listed name must match a class in that same jar. A
-          # hardcoded name goes stale the moment a mixin is renamed or removed, which is exactly
-          # the failure this step is meant to catch, not cause.
-          verify_dir=$(mktemp -d)
-          trap 'rm -rf "$verify_dir"' EXIT
-          mkdir -p "$verify_dir/main" "$verify_dir/variant"
-          ( cd "$verify_dir/main" && jar xf "$root/${main_jar}" fabric.mod.json biblioteca.client.mixins.json )
-          ( cd "$verify_dir/variant" && jar xf "$root/${variant_jar}" fabric.mod.json biblioteca.client.mixins.json )
-
-          main_config="$verify_dir/main/biblioteca.client.mixins.json"
-          variant_config="$verify_dir/variant/biblioteca.client.mixins.json"
-
-          # One mixin name per line, from the "client" array of a config.
-          client_mixins() {
-            sed -n '/"client"[[:space:]]*:[[:space:]]*\[/,/]/p' "$1" \
-              | grep -o '"[A-Za-z0-9_$]*"' | tr -d '"' | grep -vx 'client' | sort -u
-          }
-
-          client_mixins "$main_config"    > "$verify_dir/main.names"
-          client_mixins "$variant_config" > "$verify_dir/variant.names"
-
-          if [ ! -s "$verify_dir/main.names" ]; then
-            echo "::error::could not read any client mixins from $main_jar"
-            exit 1
-          fi
-
-          comm -23 "$verify_dir/main.names" "$verify_dir/variant.names" > "$verify_dir/removed.names"
-          comm -13 "$verify_dir/main.names" "$verify_dir/variant.names" > "$verify_dir/added.names"
-
-          if [ -s "$verify_dir/added.names" ]; then
-            echo "::error::the no-render mixin config lists mixins the main config does not: $(tr '\n' ' ' < "$verify_dir/added.names")"
-            exit 1
-          fi
-          if [ ! -s "$verify_dir/removed.names" ]; then
-            echo "::error::the no-render mixin config stripped nothing"
-            exit 1
-          fi
-
-          # Every stripped name must have no class left, and every kept name must still have one.
-          while read -r name; do
-            if grep -qxF "babel/biblioteca/client/mixin/$name.class" <<< "$variant_listing"; then
-              echo "::error::the no-render jar still contains the class for stripped mixin $name"
-              exit 1
-            fi
-          done < "$verify_dir/removed.names"
-
-          while read -r name; do
-            if ! grep -qxF "babel/biblioteca/client/mixin/$name.class" <<< "$variant_listing"; then
-              echo "::error::the no-render jar is missing the class for kept mixin $name"
-              exit 1
-            fi
-          done < "$verify_dir/variant.names"
-
-          if grep -q 'LevelRendererYLoopMixin' "$variant_config"; then
-            echo "::error::the no-render mixin config still lists renderer mixins"
-            exit 1
-          fi
-          if ! grep -q '"version": "[^"]*-norender"' "$verify_dir/variant/fabric.mod.json"; then
-            echo "::error::the no-render jar is not marked as such in fabric.mod.json"
-            exit 1
-          fi
-
-          echo "main jar:    $main_jar"
-          echo "variant jar: $variant_jar"
-          echo "stripped:    $(tr '\n' ' ' < "$verify_dir/removed.names")"
-          echo "kept:        $(tr '\n' ' ' < "$verify_dir/variant.names")"
-      - name: capture build artifacts
+      - name: capture grouped artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: Artifacts
-          path: |
-            versions/*/build/libs/*.jar
-            !versions/*/build/libs/*-norender.jar
-          if-no-files-found: error
-      - name: capture no-render artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: Artifacts-no-render
-          path: versions/*/build/libs/*-norender.jar
+          name: Biblioteca
+          path: build/grouped/*.jar
           if-no-files-found: error

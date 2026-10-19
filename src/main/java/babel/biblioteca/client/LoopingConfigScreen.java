@@ -144,11 +144,7 @@ public class LoopingConfigScreen extends Screen {
 
     @Override
     public void onClose() {
-        //? if >=26.2 {
-        Minecraft.getInstance().setScreenAndShow(parent);
-        //?} else {
-        /*Minecraft.getInstance().setScreen(parent);
-        *///?}
+        ClientScreens.show(Minecraft.getInstance(), parent);
     }
 
     //? if >=26.1 {

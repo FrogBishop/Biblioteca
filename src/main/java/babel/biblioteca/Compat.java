@@ -19,10 +19,9 @@ public final class Compat {
     public static Identifier id(String namespace, String path) {
         //? if >=1.21.11 {
         return Identifier.fromNamespaceAndPath(namespace, path);
-        //?} else if >=1.21 {
-        /*return Identifier.fromNamespaceAndPath(namespace, path);
-        *///?} else {
-        /*return new Identifier(namespace, path);
+        //?} else {
+        /*return java.util.Objects.requireNonNull(Identifier.tryBuild(namespace, path),
+                "Invalid identifier: " + namespace + ":" + path);
         *///?}
     }
 
@@ -30,10 +29,9 @@ public final class Compat {
     public static Identifier parseId(String value) {
         //? if >=1.21.11 {
         return Identifier.parse(value);
-        //?} else if >=1.21 {
-        /*return Identifier.parse(value);
-        *///?} else {
-        /*return new Identifier(value);
+        //?} else {
+        /*return java.util.Objects.requireNonNull(Identifier.tryParse(value),
+                "Invalid identifier: " + value);
         *///?}
     }
 

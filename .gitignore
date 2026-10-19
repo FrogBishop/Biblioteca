@@ -4,3 +4,5 @@ local-repo/
 run/
 *.log
 *.legacy
+.test-group/
+.test-run-*/

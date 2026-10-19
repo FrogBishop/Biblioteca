@@ -9,9 +9,9 @@ releases are tracked below.
 | Release | Java | Fabric API | Build state |
 |---|---|---|---|
 | 26.3 | 25 | 0.164.0+26.3 | **builds** (normal + no-render jar) |
-| 26.2 | 25 | 0.161.0+26.2 | 28 compile errors (renderer renames) |
-| 26.1 / 26.1.1 / 26.1.2 | 25 | 0.155.3+26.1.2 | 33 compile errors (client API renames) |
-| 1.21.11 | 21 | 0.141.6+1.21.11 | not started |
+| 26.2 | 25 | 0.161.0+26.2 | **builds** (common/GUI; 26.3 renderer is separate) |
+| 26.1 / 26.1.1 / 26.1.2 | 25 | 0.155.3+26.1.2 | **builds** (common/GUI) |
+| 1.21.11 | 21 | 0.141.6+1.21.11 | **builds** (server, GUI, reach) |
 | 1.21.10 | 21 | 0.138.4+1.21.10 | not started |
 | 1.21.9 | 21 | 0.134.1+1.21.9 | not started |
 | 1.21.8 | 21 | 0.136.1+1.21.8 | **builds** (server, GUI, reach, neighbours; renderer pending) |
@@ -27,9 +27,10 @@ releases are tracked below.
 | 1.20.5 | 21 | 0.97.8+1.20.5 | not started |
 | 1.20.4 | 17 | 0.97.3+1.20.4 | **builds** (server, GUI, reach, neighbours; renderer pending) |
 
-The 20 nodes are already declared in `settings.gradle.kts`; the default build
-configures the four versions whose source port is complete. Set
-`SC_VERSIONS=...` or `SC_ALL=1` to configure the rest.
+The 20 nodes are declared in `settings.gradle.kts`; the default build
+configures the six group representatives plus 26.3 and emits the seven grouped
+jars below. Set `SC_VERSIONS=...` or `SC_ALL=1` to configure individual nodes
+or the full matrix.
 
 ### Legacy client status (1.20.4 / 1.21.1 / 1.21.8)
 
@@ -60,16 +61,39 @@ hook. The dedicated-server jar carries the whole current server behaviour.
 - Output jars: `versions/<version>/build/libs/biblioteca-<mod version>+<mc>.jar`
   and `...-norender.jar`.
 
+### Grouped jars
+
+The default build compiles one representative per API era and writes a copy
+into `build/grouped/` whose `fabric.mod.json` accepts the whole range:
+
+| Artifact | Covers | Compiled at |
+|---|---|---|
+| `biblioteca-<v>+1.20.4.jar` | 1.20.4 | 1.20.4 |
+| `biblioteca-<v>+1.20.5-1.21.1.jar` | 1.20.5 – 1.21.1 | 1.20.5 |
+| `biblioteca-<v>+1.21.2-1.21.4.jar` | 1.21.2 – 1.21.4 | 1.21.2 |
+| `biblioteca-<v>+1.21.5-1.21.10.jar` | 1.21.5 – 1.21.10 | 1.21.5 |
+| `biblioteca-<v>+1.21.11.jar` | 1.21.11 | 1.21.11 |
+| `biblioteca-<v>+26.1-26.3-norender.jar` | 26.1 – 26.3 (servers, 26.1/26.2 clients) | 26.1 |
+| `biblioteca-<v>+26.3.jar` | 26.3 client with the renderer | 26.3 |
+
+A group is only valid when the intermediary names, Java version and the APIs
+this mod touches do not change inside it. The 26.3 renderer is the exception:
+it uses 26.3-only classes, so `+26.3.jar` remains a separate full artifact
+while the common jar serves the rest of the 26.x range.
+
+The per-version jars under `versions/*/build/libs` are still produced as build
+inputs; only `build/grouped/` is meant for distribution.
+
 ### Commands
 
 ```bash
-# default: the supported node (26.3)
+# default: the seven grouped jars in build/grouped
 ./gradlew build
 
 # one or more nodes
 SC_VERSIONS=1.20.4,26.3 ./gradlew :26.3:build :1.20.4:compileJava
 
-# whole matrix (downloads twenty Minecraft installations)
+# whole matrix (downloads twenty Minecraft installations, no grouping)
 SC_ALL=1 ./gradlew build
 ```
 
