@@ -5,8 +5,6 @@ import babel.biblioteca.network.LoopingStatePayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 
 public class BibliotecaClient implements ClientModInitializer {
 
@@ -29,11 +27,7 @@ public class BibliotecaClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
                 client.execute(LoopingDimensionCache::clear));
 
-        // Inject the "Dimension Attributes…" button into the world-creation screen.
-        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
-            if (screen instanceof CreateWorldScreen cws) {
-                CreateWorldScreenInjector.inject(cws, scaledWidth, scaledHeight);
-            }
-        });
+        // The world-creation button is now a row of the More tab's GridLayout, added by
+        // CreateWorldScreenMoreTabMixin rather than at fixed footer coordinates.
     }
 }

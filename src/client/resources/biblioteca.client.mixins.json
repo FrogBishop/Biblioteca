@@ -8,6 +8,7 @@
     "ChunkDrawGroupAccessor",
     "ClientLevelDirtyMixin",
     "CloudRendererLoopMixin",
+    "CreateWorldScreenMoreTabMixin",
     "EntityRenderYLoopMixin",
     "EntityShouldRenderYLoopMixin",
     "FrustumInvoker",

@@ -11,4 +11,3 @@ Very much thanks to DeepSeek-v4.1-flash. She fixed all the bugs I found.
 
 Known issues:
 1. Water's render is wrong.
-1. Zoom in/out the window duplicates the button in world creation page.

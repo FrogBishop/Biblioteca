@@ -231,3 +231,38 @@ def noRenderJar = tasks.register('noRenderJar') {
 tasks.named('assemble') {
 	dependsOn noRenderJar
 }
+
+// ---------------------------------------------------------------------------
+// Local deployment
+// ---------------------------------------------------------------------------
+// Copies the deliverable (non-norender) jar into a Minecraft instance's mods
+// folder and removes older biblioteca jars, so Fabric never sees two versions
+// of the same mod. Override the destination with -PmodsDir=<path>.
+def defaultModsDir = 'C:/Users/DELL/AppData/Roaming/.minecraft/versions/26.3-Fabric 0.19.5/mods'
+def primaryJarFile = tasks.named('jar').flatMap { it.archiveFile }.map { it.asFile }
+
+tasks.register('deployMod', Copy) {
+	group = 'deploy'
+	description = 'Copies the built mod jar into the Minecraft mods folder.'
+
+	dependsOn tasks.named('jar')
+	from(primaryJarFile)
+	into(providers.gradleProperty('modsDir').orElse(defaultModsDir))
+
+	doFirst {
+		def built = primaryJarFile.get()
+		def stale = destinationDir.listFiles({ dir, name ->
+			name ==~ /biblioteca-.*\.jar/ && name != built.name
+		} as FilenameFilter)
+		if (stale != null) {
+			stale.each { f ->
+				logger.lifecycle("[deploy] removing stale ${f.name}")
+				f.delete()
+			}
+		}
+	}
+
+	doLast {
+		logger.lifecycle("[deploy] ${primaryJarFile.get().name} -> ${destinationDir}")
+	}
+}

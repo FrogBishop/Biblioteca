@@ -1,7 +1,6 @@
 package babel.biblioteca.client;
 
 import babel.biblioteca.PendingLoopingConfig;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
@@ -12,24 +11,28 @@ import net.minecraft.world.level.Level;
 import java.util.Set;
 
 /**
- * Inserts a "Dimension Attributes…" button into the CreateWorldScreen footer area.
+ * Builds the "Dimension Attributes…" button for the world-creation screen.
+ *
+ * The button is appended to the More tab's grid by CreateWorldScreenMoreTabMixin, where it shares
+ * that tab's 210 px column width, its 8 px row spacing and its show/hide lifecycle. The old
+ * implementation placed a 120 px button at fixed footer coordinates through
+ * ScreenEvents.AFTER_INIT, which is what left it floating under the Create/Cancel row.
  */
 public final class CreateWorldScreenInjector {
 
     private CreateWorldScreenInjector() {}
 
-    public static void inject(CreateWorldScreen screen, int scaledWidth, int scaledHeight) {
-        int btnWidth  = 120;
-        int btnHeight = 20;
-        int btnX      = scaledWidth / 2 - btnWidth - 4;
-        int btnY      = scaledHeight - 52;
-
-        Button btn = Button.builder(
+    /** One More-tab row, sized like the Game Rules / Experiments / Data Packs buttons above it. */
+    public static Button createButton() {
+        return Button.builder(
                 Component.translatable("biblioteca.gui.looping_button"),
-                b -> openConfig(screen)
-        ).bounds(btnX, btnY, btnWidth, btnHeight).build();
-
-        Screens.getWidgets(screen).add(btn);
+                button -> {
+                    if (Minecraft.getInstance().gui.screen() instanceof CreateWorldScreen parent) {
+                        openConfig(parent);
+                    }
+                })
+                .width(210)
+                .build();
     }
 
     private static void openConfig(CreateWorldScreen parent) {
