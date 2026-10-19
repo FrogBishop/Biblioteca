@@ -50,8 +50,8 @@ still out.
 | Node | Renderer status |
 |---|---|
 | 26.3 | complete: OIT, terrain copies, section discovery, entities/block entities, beacons, clouds, preload slider |
-| 1.21.1 | terrain copies via `renderSectionLayer` replay, exact source-section scan, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
-| 1.21.8 | terrain copies via `prepareChunkRenders` + `renderGroup` replay, exact source-section scan, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
+| 1.21.1 | terrain copies via `renderSectionLayer` replay, exact source-section scan with reusable set and allocation-free frustum test, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
+| 1.21.8 | terrain copies via `prepareChunkRenders` + `renderGroup` replay, exact source-section scan with reusable set and allocation-free frustum test, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
 | other legacy nodes | no renderer; gameplay loop only |
 
 The ported renderer classes are compiled only on their exact nodes. The grouped

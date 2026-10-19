@@ -9,9 +9,9 @@ import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.LevelHeightAccessor;
-import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -30,6 +30,10 @@ import java.util.List;
 public abstract class MidSectionOcclusionGraphLoopMixin {
 
     @Shadow private ViewArea viewArea;
+
+    // Reused between frustum updates: the seam scan visits every loaded section of
+    // every candidate row and should not rebuild this set each time.
+    @Unique private LongOpenHashSet biblioteca$presentScratch;
 
     @Inject(method = "addSectionsInFrustum", at = @At("TAIL"))
     private void biblioteca$addFarSeamSources(
@@ -56,7 +60,13 @@ public abstract class MidSectionOcclusionGraphLoopMixin {
         SectionPos camera = this.viewArea.getCameraSectionPos();
         MidViewAreaAccessor accessor = (MidViewAreaAccessor) this.viewArea;
 
-        LongOpenHashSet present = new LongOpenHashSet(visibleSections.size() * 2);
+        LongOpenHashSet present = this.biblioteca$presentScratch;
+        if (present == null) {
+            present = new LongOpenHashSet();
+            this.biblioteca$presentScratch = present;
+        } else {
+            present.clear();
+        }
         for (SectionRenderDispatcher.RenderSection section : visibleSections) {
             present.add(section.getSectionNode());
         }
@@ -83,10 +93,11 @@ public abstract class MidSectionOcclusionGraphLoopMixin {
 
                     for (int step = lowestStep; step <= highestStep; step++) {
                         double minY = sourceBaseY + (double) step * period;
-                        AABB copyBounds = new AABB(
+                        if (((MidFrustumInvoker) frustum).biblioteca$cubeInFrustum(
                                 sectionX << 4, minY, sectionZ << 4,
-                                (sectionX << 4) + 16.0, minY + 16.0, (sectionZ << 4) + 16.0);
-                        if (!frustum.isVisible(copyBounds)) continue;
+                                (sectionX << 4) + 16.0, minY + 16.0, (sectionZ << 4) + 16.0) >= 0) {
+                            continue;
+                        }
 
                         visibleSections.add(section);
                         present.add(node);

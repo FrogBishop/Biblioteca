@@ -192,6 +192,7 @@ val legacy1211RendererMixins = listOf(
     "LegacyViewAreaAccessor",
     "LegacyEntityRender1211YLoopMixin",
     "LegacyBeaconBeam1211YLoopMixin",
+    "LegacyFrustumInvoker",
 )
 
 // 1.21.8 has the new frame-graph chunk renderer. Its terrain copies are built by
@@ -203,6 +204,7 @@ val legacy1218RendererMixins = listOf(
     "MidSectionOcclusionGraphLoopMixin",
     "LegacyEntityRender1218YLoopMixin",
     "LegacyBeaconBeam1218YLoopMixin",
+    "MidFrustumInvoker",
 )
 val legacy1218ClientClasses = listOf("MidChunkCopyStore")
 
