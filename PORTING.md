@@ -50,8 +50,8 @@ still out.
 | Node | Renderer status |
 |---|---|
 | 26.3 | complete: OIT, terrain copies, section discovery, entities/block entities, beacons, clouds, preload slider |
-| 1.21.1 | terrain copies via `renderSectionLayer` replay, exact source-section scan, entity and block-entity layer folding; no beacon-beam repetition, cloud folding or OIT |
-| 1.21.8 | terrain copies via `prepareChunkRenders` + `renderGroup` replay, exact source-section scan, entity and block-entity layer folding; no beacon-beam repetition, cloud folding or OIT |
+| 1.21.1 | terrain copies via `renderSectionLayer` replay, exact source-section scan, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
+| 1.21.8 | terrain copies via `prepareChunkRenders` + `renderGroup` replay, exact source-section scan, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
 | other legacy nodes | no renderer; gameplay loop only |
 
 The ported renderer classes are compiled only on their exact nodes. The grouped
@@ -63,7 +63,9 @@ testing; moving the renderer into a group representative is a separate port.
 1.21.8 builds one `ChunkSectionsToRender` per period and replays the extra
 lists at the original `renderGroup` call. Neither copies a compiled mesh. The
 1.21.8 replay currently creates one render pass per copy, which is correct but
-not the final performance shape.
+not the final performance shape. Both nodes also repeat the beacon beam at whole
+periods; the beam still uses the vanilla 2048-block stretch, so only the copies
+that fit the render distance are emitted (capped at eight per direction).
 
 The 26.3 seam-preload slider remains 26.3-only. The draw-command cost model and
 the remaining performance ceiling are recorded in `PERFORMANCE.md`.
