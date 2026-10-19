@@ -26,6 +26,11 @@ public class LoopingConfigScreen extends Screen {
     private static final Component TITLE =
             Component.translatable("biblioteca.gui.looping_config.title");
 
+    // Text colors are ARGB. GuiGraphicsExtractor.text() returns early when the alpha is
+    // zero, so these must stay opaque or the whole line becomes invisible.
+    private static final int TEXT_COLOR = 0xFFFFFFFF;
+    private static final int NOTE_COLOR = 0xFFAAAAAA;
+
     private static final String OVERWORLD_KEY = "biblioteca.gui.looping_config.overworld";
     private static final String NETHER_KEY    = "biblioteca.gui.looping_config.nether";
     private static final String END_KEY       = "biblioteca.gui.looping_config.end";
@@ -146,15 +151,15 @@ public class LoopingConfigScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        graphics.centeredText(font, title, width / 2, rowY(0) - 34, 0xFFFFFF);
+        graphics.centeredText(font, title, width / 2, rowY(0) - 34, TEXT_COLOR);
         graphics.centeredText(font,
                 Component.translatable("biblioteca.gui.looping_config.header_looping"),
-                leftX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFF);
+                leftX() + columnWidth() / 2, rowY(0) - 16, TEXT_COLOR);
         graphics.centeredText(font,
                 Component.translatable("biblioteca.gui.looping_config.header_beacon"),
-                rightX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFF);
+                rightX() + columnWidth() / 2, rowY(0) - 16, TEXT_COLOR);
         graphics.centeredText(font,
                 Component.translatable("biblioteca.gui.looping_config.note"),
-                width / 2, rowY(3) + 44, 0xAAAAAA);
+                width / 2, rowY(3) + 44, NOTE_COLOR);
     }
 }
