@@ -48,8 +48,8 @@ val jarGroups = listOf(
     ),
     JarGroup(
         "1.21.5-1.21.10", "1.21.5",
-        // 1.21.9 still needs its intermediary artifact; it is listed here
-        // because the 1.21.5 binary is the one that will serve it.
+        // 1.21.9 shares this range; the 1.21.5 binary is the one that
+        // serves it.
         listOf("1.21.5", "1.21.6", "1.21.7", "1.21.8", "1.21.9", "1.21.10"),
         ">=1.21.5 <1.21.11",
     ),
