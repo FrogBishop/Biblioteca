@@ -92,8 +92,12 @@ public abstract class ServerLevelEffectsYLoopMixin {
             CallbackInfoReturnable<Integer> cir) {
 
         int sent = SeamEffects.broadcastParticles(
-                (ServerLevel) (Object) this, particle, overrideLimiter, alwaysShow,
-                x, y, z, count, xDist, yDist, zDist, xSpeed, ySpeed, zSpeed, randomizationType);
+                (ServerLevel) (Object) this, x, y, z, overrideLimiter ? 512.0 : 32.0,
+                foldedY -> new ClientboundLevelParticlesPacket(
+                        particle, overrideLimiter, alwaysShow, x, foldedY, z,
+                        (float) xDist, (float) yDist, (float) zDist,
+                        (float) xSpeed, (float) ySpeed, (float) zSpeed,
+                        count, randomizationType));
 
         if (sent >= 0) cir.setReturnValue(sent);
     }

@@ -87,6 +87,14 @@ public abstract class BeaconBlockEntityYLoopMixin {
      * Walks the column above {@code origin} once around the ring and returns the beam it builds,
      * stopping where vanilla stops: at the first block that damps light like a solid block.
      */
+    private static boolean biblioteca$blocksBeam(BlockState state) {
+        //? if >=26.1 {
+        return state.getLightDampening() >= 15;
+        //?} else {
+        /*return state.getLightBlock() >= 15;
+        *///?}
+    }
+
     private static List<BeaconBeamOwner.Section> biblioteca$scanAroundTheRing(Level level, BlockPos origin) {
         int period = level.getHeight();
         int minY   = level.getMinY();
@@ -117,7 +125,7 @@ public abstract class BeaconBlockEntityYLoopMixin {
             } else {
                 // Same test vanilla uses, including its bedrock exception.
                 if (lastSection == null
-                        || state.getLightDampening() >= 15 && !state.is(Blocks.BEDROCK)) {
+                        || biblioteca$blocksBeam(state) && !state.is(Blocks.BEDROCK)) {
                     break;
                 }
                 lastSection.increaseHeight();

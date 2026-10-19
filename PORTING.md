@@ -6,26 +6,20 @@ releases are tracked below.
 
 ## Status
 
-| Release | Java | Fabric API | Build state |
-|---|---|---|---|
-| 26.3 | 25 | 0.164.0+26.3 | **builds** (normal + no-render jar) |
-| 26.2 | 25 | 0.161.0+26.2 | **builds** (common/GUI; 26.3 renderer is separate) |
-| 26.1 / 26.1.1 / 26.1.2 | 25 | 0.155.3+26.1.2 | **builds** (common/GUI) |
-| 1.21.11 | 21 | 0.141.6+1.21.11 | **builds** (server, GUI, reach) |
-| 1.21.10 | 21 | 0.138.4+1.21.10 | not started |
-| 1.21.9 | 21 | 0.134.1+1.21.9 | **builds** (grouped at 1.21.5) |
-| 1.21.8 | 21 | 0.136.1+1.21.8 | **builds** (server, GUI, reach, neighbours; renderer pending) |
-| 1.21.7 | 21 | 0.129.0+1.21.7 | not started |
-| 1.21.6 | 21 | 0.128.2+1.21.6 | not started |
-| 1.21.5 | 21 | 0.128.2+1.21.5 | not started |
-| 1.21.4 | 21 | 0.119.4+1.21.4 | not started |
-| 1.21.3 | 21 | 0.114.1+1.21.3 | not started |
-| 1.21.2 | 21 | 0.106.1+1.21.2 | not started |
-| 1.21.1 | 21 | 0.116.17+1.21.1 | **builds** (server, GUI, reach, neighbours; renderer pending) |
-| 1.21 | 21 | 0.102.0+1.21 | not started |
-| 1.20.6 | 21 | 0.100.8+1.20.6 | not started |
-| 1.20.5 | 21 | 0.97.8+1.20.5 | not started |
-| 1.20.4 | 17 | 0.97.3+1.20.4 | **builds** (server, GUI, reach, neighbours; renderer pending) |
+| Line | Java | Build |
+|---|---|---|
+| 1.20.4 | 17 | builds; grouped artifact |
+| 1.20.5 – 1.20.6 | 21 | builds from the 1.20.5 representative |
+| 1.21 – 1.21.1 | 21 | builds in the 1.20.5 – 1.21.1 group |
+| 1.21.2 – 1.21.4 | 21 | builds from the 1.21.2 representative |
+| 1.21.5 – 1.21.10 | 21 | builds from the 1.21.5 representative |
+| 1.21.11 | 21 | builds; single-version group |
+| 26.1 – 26.1.2, 26.2 | 25 | builds; common group |
+| 26.3 | 25 | builds full + no-render; also in the common group |
+
+All 20 nodes compile: `SC_ALL=1 ./gradlew compileJava` is the full audit
+command. The default build compiles only the group representatives. The only
+large missing piece is the pre-26.3 renderer.
 
 The 20 nodes are declared in `settings.gradle.kts`; the default build
 configures the six group representatives plus 26.3 and emits the seven grouped
@@ -36,30 +30,29 @@ or the full matrix.
 
 Reference: the effective 26.3 server config has 29 mixins and the client config
 has 20. The legacy grouped jars (1.20.4 – 1.21.11) and the 26.1 – 26.3 common
-jar are **not** at full non-render parity yet, even though they start and the
-core loop works.
+jar now carry the same **gameplay** hooks; only renderer-coupled client state is
+still out.
 
-| Area | 26.3 hook(s) | 1.20.4 – 1.21.11 | 26.1 – 26.3 common | Why it is still out |
-|---|---|---|---|---|
-| Beacon beam scan | `BeaconBlockEntityAccessor`, `BeaconBlockEntityYLoopMixin` | missing | missing | pre-26.3 uses `BeaconBeamSection`, no `BeaconBeamOwner` |
-| Sounds / particles / level events | `ServerLevelEffectsYLoopMixin`, `SeamEffects` | missing | missing | packet constructors differ per era |
-| Bamboo bonemeal | `BambooStalkBlockYLoopMixin` | missing | missing | old `performBonemeal` does not call `isOutsideBuildHeight` |
-| Kelp / cane / vine growth | `GrowingPlantHeadBlockYLoopMixin` | missing | missing | call site differs or is absent |
-| Grass bonemeal | `GrassBlockYLoopMixin` | missing | missing | `placeBonemealEffect` does not exist |
-| Dripstone growth | `SpeleothemBlockYLoopMixin` | missing | missing | `PointedDripstoneBlock` target/method differs |
-| Build-limit message | `ServerPlayerBuildLimitMixin` | missing | present | no helper before 26.1 |
-| Client block prediction | `ClientLevelDirtyMixin` | missing | missing | excluded together with the renderer hook; its prediction half is non-render |
-| Seam preload slider | `VideoSettingsScreenMixin`, `OptionsSubScreenAccessor` | missing | missing | depends on the renderer-side `LoopingClientSettings` |
+| Area | Status |
+|---|---|
+| Beacon beam scan | **ported** — `LegacyBeaconBlockEntityYLoopMixin` before 1.21.5, `BeaconBlockEntityYLoopMixin` from 1.21.5 |
+| Sounds / particles / level events | **ported** — `LegacyServerLevelEffectsYLoopMixin` before 1.21.5, `MidServerLevelEffectsYLoopMixin` for 1.21.5 – 26.2 |
+| Dripstone growth | **ported** — `DripstoneYLoopMixin` targets `PointedDripstoneBlock` / `SpeleothemBlock` |
+| Build-limit message | **ported** — `LegacyBuildLimitMixin` before 26.1 |
+| Client block prediction | **ported** — `ClientLevelDirtyMixin` is now in the legacy client config; its mirror-dirty half is inert without the renderer |
+| Grass / bamboo / growing-plant growth | **covered indirectly** — 26.3 added explicit height guards; older code reaches the folded blocks through `LevelBlockAccessMixin`, so the 26.3 hooks have no target there |
+| Seam preload slider | **deferred with the renderer** — `VideoSettingsScreenMixin` / `OptionsSubScreenAccessor` only control the renderer's warm-up distance |
+
+The 26.3 renderer (15 client mixins) remains the only large unimplemented
+block. The seam-preload slider is deliberately left with it.
 
 Present on every port: the server loop (entity/block collisions, light, piston,
 TNT, falling blocks, minecarts, neighbour updates, packet positions), saved data
 and payload networking, reach (`LegacyReachMixin` before 26.1,
-`PlayerReachMixin`/`ServerPlayerGameModeMixin` from 26.1), and the
+`PlayerReachMixin`/`ServerPlayerGameModeMixin` from 26.1), beacons, effect
+broadcasts, dripstone, build-limit suppression, block prediction, and the
 door/tall-plant/vine/chorus growth hooks. The create-world GUI and the
 dimension-attribute screen are also present everywhere.
-
-The 26.3 renderer (15 client mixins) is a separate, larger port and is not
-counted in the table. Only `+26.3.jar` contains the full non-render set today.
 
 ## Build layout
 

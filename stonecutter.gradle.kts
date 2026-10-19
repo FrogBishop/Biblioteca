@@ -27,7 +27,7 @@ stonecutter parameters {
             replace("world.entity.vehicle.minecart.AbstractMinecart", "world.entity.vehicle.AbstractMinecart")
         }
 
-        string(current.parsed < "26.1") {
+        string(current.parsed < "26.3") {
             replace("SpeleothemBlock", "PointedDripstoneBlock")
         }
     }

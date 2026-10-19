@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.At;
  * the seam.
  */
 @Mixin(SpeleothemBlock.class)
-public abstract class SpeleothemBlockYLoopMixin {
+public abstract class DripstoneYLoopMixin {
 
     @WrapOperation(
             method = "findBlockVertical",

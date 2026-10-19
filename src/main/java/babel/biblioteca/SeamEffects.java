@@ -1,15 +1,11 @@
 package babel.biblioteca;
 
-import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
-
 import java.util.List;
 import java.util.function.DoubleFunction;
 
@@ -45,7 +41,7 @@ public final class SeamEffects {
      */
     public static boolean broadcastPerListener(
             final ServerLevel level,
-            final @Nullable Player except,
+            final Player except,
             final double x,
             final double y,
             final double z,
@@ -79,35 +75,31 @@ public final class SeamEffects {
         return true;
     }
 
+    /** Builds the packet for one folded Y coordinate. */
+    public interface ParticlePacketFactory {
+        Packet<?> create(double foldedY);
+    }
+
     /**
-     * The particle API, matching ServerLevel.sendParticles: sends to listeners whose block position
-     * centre is within 32 blocks of the position, or 512 when the limiter is overridden.
+     * Particle broadcasts without the 26.3 randomization type. The pre-26.3
+     * packet has one speed value, so callers pass the value their API exposes.
      *
      * @return the number of listeners sent to, or -1 when the dimension does not loop
      */
     public static int broadcastParticles(
             final ServerLevel level,
-            final ParticleOptions particle,
-            final boolean overrideLimiter,
-            final boolean alwaysShow,
             final double x,
             final double y,
             final double z,
-            final int count,
-            final double xDist,
-            final double yDist,
-            final double zDist,
-            final double xSpeed,
-            final double ySpeed,
-            final double zSpeed,
-            final ClientboundLevelParticlesPacket.RandomizationType randomizationType) {
+            final double range,
+            final ParticlePacketFactory packets) {
 
         if (!LoopingRegistry.isLooping(level)) return -1;
 
         int period = level.getHeight();
         if (period <= 0) return -1;
 
-        double range = overrideLimiter ? 512.0 : 32.0;
+        double rangeSquared = range * range;
         List<ServerPlayer> players = level.players();
         Packets cache = new Packets();
         int sent = 0;
@@ -118,25 +110,12 @@ public final class SeamEffects {
 
             double foldedY = foldToward(y, player.getY(), period);
 
-            BlockPos probe = player.blockPosition();
-            if (!probe.closerToCenterThan(new Vec3(x, foldedY, z), range)) continue;
+            double dx = x - player.getX();
+            double dy = foldedY - player.getY();
+            double dz = z - player.getZ();
+            if (dx * dx + dy * dy + dz * dz >= rangeSquared) continue;
 
-            player.connection.send(cache.get(foldedY, packetY -> new ClientboundLevelParticlesPacket(
-                    particle,
-                    overrideLimiter,
-                    alwaysShow,
-                    x,
-                    packetY,
-                    z,
-                    (float) xDist,
-                    (float) yDist,
-                    (float) zDist,
-                    (float) xSpeed,
-                    (float) ySpeed,
-                    (float) zSpeed,
-                    count,
-                    randomizationType)));
-
+            player.connection.send(cache.get(foldedY, packets::create));
             sent++;
         }
 

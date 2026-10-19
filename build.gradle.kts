@@ -116,10 +116,10 @@ java {
     targetCompatibility = requiredJava
 }
 
-// Hooks whose 26.3 targets do not exist before the renderer/beacon rewrites.
-// They are left out of the old-version ports until their own compat variants
-// land; the rest of the loop stays active. The same set is removed from the
-// generated mixin config, because Mixin would otherwise fail to load the class.
+// Hooks whose 26.3 target does not exist in an older release. The matching
+// legacy or mid-era variant is listed in the same config; this set only removes
+// the inapplicable one. The generated mixin config is filtered to match, because
+// Mixin would otherwise fail to load the class.
 val excludedServerMixins = buildSet {
     if (sc.current.parsed < "26.1") {
         addAll(listOf(
@@ -131,18 +131,38 @@ val excludedServerMixins = buildSet {
             "ServerPlayerBuildLimitMixin",
         ))
     } else {
+        add("LegacyBuildLimitMixin")
         add("LegacyReachMixin")
     }
-    if (sc.current.parsed < "26.3") {
+    if (sc.current.parsed < "1.21.5") {
         addAll(listOf(
             "BeaconBlockEntityAccessor",
             "BeaconBlockEntityYLoopMixin",
+        ))
+    } else {
+        addAll(listOf(
+            "LegacyBeaconBeamSectionAccessor",
+            "LegacyBeaconBlockEntityAccessor",
+            "LegacyBeaconBlockEntityYLoopMixin",
+        ))
+    }
+    if (sc.current.parsed < "1.21.5") {
+        add("MidServerLevelEffectsYLoopMixin")
+    } else {
+        add("LegacyServerLevelEffectsYLoopMixin")
+    }
+    if (sc.current.parsed >= "26.3") {
+        add("MidServerLevelEffectsYLoopMixin")
+    }
+    if (sc.current.parsed < "26.3") {
+        addAll(listOf(
             "ServerLevelEffectsYLoopMixin",
-            "SpeleothemBlockYLoopMixin",
+            // 26.3 added explicit isOutsideBuildHeight guards to these growth
+            // paths. Older releases do not have those guards; their growth
+            // code goes through Level.getBlockState/setBlock, which
+            // LevelBlockAccessMixin already folds, so the 26.3 hooks have no
+            // call site to attach to there.
             "GrassBlockYLoopMixin",
-            // The plant-growth hooks call different helpers in each era (or
-            // check the build height inline). They are gameplay extras at the
-            // seam; keep them out of the legacy jars until each is ported.
             "BambooStalkBlockYLoopMixin",
             "GrowingPlantHeadBlockYLoopMixin",
         ))
@@ -159,6 +179,7 @@ if (excludedServerMixins.isNotEmpty()) {
 // is a different architecture, so a legacy jar keeps the payload cache, the
 // create-world screen and the entrypoint, but not the 26.3 renderer mixins.
 val legacyClientMixins = listOf(
+    "ClientLevelDirtyMixin",
     "CreateWorldScreenMoreTabMixin",
     "GridLayoutTabAccessor",
 )
@@ -166,7 +187,6 @@ val legacyRendererMixins = listOf(
     "BeaconBeamRenderYLoopMixin",
     "BlockEntityRenderRangeYLoopMixin",
     "ChunkDrawGroupAccessor",
-    "ClientLevelDirtyMixin",
     "CloudRendererLoopMixin",
     "EntityRenderYLoopMixin",
     "EntityShouldRenderYLoopMixin",
@@ -185,7 +205,6 @@ val legacyRendererMixins = listOf(
 if (sc.current.parsed < "26.3") {
     sourceSets.named("main") {
         java.exclude(
-            "babel/biblioteca/SeamEffects.java",
             "babel/biblioteca/client/LoopingClientSettings.java",
             "babel/biblioteca/client/SeamCull.java",
         )
@@ -235,8 +254,9 @@ tasks.processResources {
         }
 
         if (sc.current.parsed < "26.3") {
-            // Only the GUI hooks are compiled for this node; the 26.3 renderer
-            // classes are not in the jar and must not be requested at startup.
+            // Only client hooks that do not need the 26.3 renderer are compiled
+            // for this node; the renderer classes are not in the jar and must
+            // not be requested at startup.
             val clientEntries = legacyClientMixins.joinToString(",\n    ") { "\"$it\"" }
             outputDir.resolve("biblioteca.client.mixins.json").writeText(
                 """{

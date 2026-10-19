@@ -17,6 +17,12 @@
     "FallingBlockEntityYLoopMixin",
     "GrassBlockYLoopMixin",
     "GrowingPlantHeadBlockYLoopMixin",
+    "LegacyBeaconBeamSectionAccessor",
+    "LegacyBeaconBlockEntityAccessor",
+    "LegacyBeaconBlockEntityYLoopMixin",
+    "LegacyBuildLimitMixin",
+    "LegacyServerLevelEffectsYLoopMixin",
+    "MidServerLevelEffectsYLoopMixin",
     "LegacyReachMixin",
     "LevelBlockAccessMixin",
     "LevelLoopingCacheMixin",
@@ -31,7 +37,7 @@
     "ServerLevelEffectsYLoopMixin",
     "ServerPlayerBuildLimitMixin",
     "ServerPlayerGameModeMixin",
-    "SpeleothemBlockYLoopMixin",
+    "DripstoneYLoopMixin",
     "VineBlockYLoopMixin"
   ],
   "injectors": {
