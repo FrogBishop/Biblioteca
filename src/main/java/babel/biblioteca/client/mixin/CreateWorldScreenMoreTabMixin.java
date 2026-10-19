@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * makes the new button share that column and spacing, and because it belongs to the tab's layout it
  * is added to the screen only while the More tab is selected - exactly like its neighbours.
  */
-@Mixin(targets = "net.minecraft.client.gui.screens.worldselection.CreateWorldScreen$MoreTab")
+@Mixin(targets = "net/minecraft/client/gui/screens/worldselection/CreateWorldScreen$MoreTab")
 public abstract class CreateWorldScreenMoreTabMixin {
 
     @Inject(method = "<init>", at = @At("TAIL"))

@@ -304,6 +304,13 @@ val prepareNoRenderResources = tasks.register("prepareNoRenderResources") {
         @Suppress("UNCHECKED_CAST")
         val config = slurper.parse(mixinFile) as MutableMap<String, Any?>
         config["client"] = (config["client"] as List<*>).filterNot { it in noRenderMixins }
+        // processResources runs before Loom adds the refmap entry, and this
+        // rewrite replaces the remapped config wholesale. Put it back for the
+        // obfuscated nodes or string mixin targets, such as the private
+        // CreateWorldScreen$MoreTab, cannot be resolved at runtime.
+        if (sc.current.parsed < "26.1") {
+            config["refmap"] = "biblioteca.refmap.json"
+        }
         File(out, mixinFile.name).writeText(
             groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config)) + "\n")
 
