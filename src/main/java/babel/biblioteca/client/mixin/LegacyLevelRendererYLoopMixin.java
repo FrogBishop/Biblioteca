@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -46,7 +47,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LevelRenderer.class)
 public abstract class LegacyLevelRendererYLoopMixin {
 
-    @Shadow @Final private ObjectArrayList<SectionRenderDispatcher.RenderSection> visibleSections;
+    // @Mutable strips ACC_FINAL from the target field. Without it the accessor setter is a
+    // putfield to a final field outside <init>, which the JVM rejects with IllegalAccessError
+    // even though the mixin added the method to the same class.
+    @Shadow @Final @Mutable private ObjectArrayList<SectionRenderDispatcher.RenderSection> visibleSections;
     @Shadow private Frustum cullingFrustum;
     @Shadow private Frustum capturedFrustum;
 
