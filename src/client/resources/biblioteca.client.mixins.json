@@ -16,6 +16,7 @@
     "ImprovedTransparencyYLoopMixin",
     "LevelRendererYLoopMixin",
     "OptionsSubScreenAccessor",
+    "ParticleYLoopMixin",
     "RenderRegionCacheYLoopMixin",
     "SectionOcclusionGraphLoopMixin",
     "SkyRendererYLoopMixin",
