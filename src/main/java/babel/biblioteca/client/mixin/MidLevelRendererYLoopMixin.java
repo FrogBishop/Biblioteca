@@ -103,7 +103,7 @@ public abstract class MidLevelRendererYLoopMixin {
                     // No frustum yet (first frame after a resize): keep the old draw-everything
                     // behaviour rather than hiding every copy.
                     copies.add(invoker.biblioteca$prepareChunkRenders(
-                            matrix, x, y + (double) step * period, z));
+                            matrix, x, y - (double) step * period, z));
                     continue;
                 }
 
@@ -114,8 +114,11 @@ public abstract class MidLevelRendererYLoopMixin {
 
                 ((MidLevelRendererAccessor) (Object) this).biblioteca$setVisibleSections(visible);
                 try {
+                    // prepareChunkRenders bakes blockPos - cameraY into modelOffset, so
+                    // y - step * period moves the copy *up* by one period. That matches the
+                    // filter above (origin + step * period) and 26.3's section-info y.
                     copies.add(invoker.biblioteca$prepareChunkRenders(
-                            matrix, x, y + (double) step * period, z));
+                            matrix, x, y - (double) step * period, z));
                 } finally {
                     ((MidLevelRendererAccessor) (Object) this).biblioteca$setVisibleSections(source);
                 }

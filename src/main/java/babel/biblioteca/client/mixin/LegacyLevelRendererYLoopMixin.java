@@ -25,9 +25,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *
  * Before 26.3 the renderer walks LevelRenderer.visibleSections and calls
  * renderSectionLayer(type, cameraX, cameraY, cameraZ, ...) once per layer. The camera Y is only
- * used to build the per-section CHUNK_OFFSET uniform, so calling the same method again with
- * y + step * height draws the same compiled section buffers one period higher or lower. No mesh
- * is copied and no draw list is rebuilt.
+ * used to build the per-section CHUNK_OFFSET uniform, and that uniform is sectionOrigin - camera,
+ * so calling the same method again with y - step * height moves every compiled section buffer up
+ * by step periods. No mesh is copied and no draw list is rebuilt. The sign matters now that each
+ * copy is filtered: the filter tests origin + step * period, so the render call has to agree.
  *
  * A copy is only drawn when its own box is inside the cull frustum. That second gate is not
  * optional: visibleSections is filled by the seam scan with every source section that is visible
@@ -113,7 +114,10 @@ public abstract class LegacyLevelRendererYLoopMixin {
 
             ((LegacyLevelRendererAccessor) (Object) this).biblioteca$setVisibleSections(visible);
             try {
-                original.call(renderer, type, x, y + (double) step * period, z,
+                // The camera Y is subtracted from each section origin when CHUNK_OFFSET is
+                // built, so y - step * period moves the copy *up* by one period. That matches
+                // the filter above (origin + step * period) and 26.3's ChunkSectionInfo.y.
+                original.call(renderer, type, x, y - (double) step * period, z,
                         projection, frustumMatrix);
             } finally {
                 ((LegacyLevelRendererAccessor) (Object) this).biblioteca$setVisibleSections(source);
