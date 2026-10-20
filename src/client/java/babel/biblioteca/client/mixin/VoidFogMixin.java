@@ -29,6 +29,9 @@ public abstract class VoidFogMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Mth;clamp(FFF)F"))
     private float biblioteca$noVoidDarkness(
             float original, @Local(argsOnly = true) ClientLevel level) {
-        return LoopingRegistry.isLooping(level) ? 0.0F : original;
+        // The void_fog attribute describes the vanilla phenomenon: when it is on, the darkening
+        // is left alone; off (the default) keeps the ring's even lighting.
+        return LoopingRegistry.isLooping(level) && !LoopingRegistry.showsVoidFog(level)
+                ? 0.0F : original;
     }
 }

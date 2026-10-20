@@ -18,12 +18,16 @@ public final class LoopingDimensionCache {
 
     private static final Set<ResourceKey<Level>> loopingDimensions = new HashSet<>();
     private static final Set<ResourceKey<Level>> beaconIgnoresSky = new HashSet<>();
+    private static final Set<ResourceKey<Level>> voidFog = new HashSet<>();
+    private static final Set<ResourceKey<Level>> skyLight = new HashSet<>();
 
     private LoopingDimensionCache() {}
 
     public static void applyPayload(LoopingStatePayload payload) {
         fill(loopingDimensions, payload.loopingDimensions());
         fill(beaconIgnoresSky, payload.beaconIgnoresSky());
+        fill(voidFog, payload.voidFog());
+        fill(skyLight, payload.skyLight());
         LoopingRegistry.bumpRevision();
     }
 
@@ -37,6 +41,8 @@ public final class LoopingDimensionCache {
     public static void clear() {
         loopingDimensions.clear();
         beaconIgnoresSky.clear();
+        voidFog.clear();
+        skyLight.clear();
         LoopingRegistry.bumpRevision();
     }
 
@@ -61,5 +67,21 @@ public final class LoopingDimensionCache {
 
     public static Set<ResourceKey<Level>> getBeaconIgnoresSky() {
         return Set.copyOf(beaconIgnoresSky);
+    }
+
+    public static boolean showsVoidFog(ResourceKey<Level> dimension) {
+        return voidFog.contains(dimension);
+    }
+
+    public static Set<ResourceKey<Level>> getVoidFogDimensions() {
+        return Set.copyOf(voidFog);
+    }
+
+    public static boolean keepsSkyLight(ResourceKey<Level> dimension) {
+        return skyLight.contains(dimension);
+    }
+
+    public static Set<ResourceKey<Level>> getSkyLightDimensions() {
+        return Set.copyOf(skyLight);
     }
 }

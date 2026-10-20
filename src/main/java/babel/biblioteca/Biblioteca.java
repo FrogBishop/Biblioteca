@@ -34,6 +34,8 @@ public class Biblioteca implements ModInitializer {
     public void onInitialize() {
         LoopingRegistry.setServerChecker(LoopingDimensionManager::isLooping);
         LoopingRegistry.setServerBeaconChecker(LoopingDimensionManager::beaconIgnoresSky);
+        LoopingRegistry.setServerVoidFogChecker(LoopingDimensionManager::showsVoidFog);
+        LoopingRegistry.setServerSkyLightChecker(LoopingDimensionManager::keepsSkyLight);
 
         PayloadTypeRegistry.clientboundPlay().register(LoopingStatePayload.TYPE, LoopingStatePayload.STREAM_CODEC);
 
@@ -48,7 +50,9 @@ public class Biblioteca implements ModInitializer {
     public static LoopingStatePayload currentPayload() {
         return new LoopingStatePayload(
                 keysOf(LoopingDimensionManager.getLoopingDimensions()),
-                keysOf(LoopingDimensionManager.getBeaconIgnoresSkyDimensions()));
+                keysOf(LoopingDimensionManager.getBeaconIgnoresSkyDimensions()),
+                keysOf(LoopingDimensionManager.getVoidFogDimensions()),
+                keysOf(LoopingDimensionManager.getSkyLightDimensions()));
     }
 
     private static Set<String> keysOf(Set<ResourceKey<Level>> dimensions) {
@@ -123,6 +127,51 @@ public class Biblioteca implements ModInitializer {
                                 broadcastState(ctx.getSource().getServer());
                                 ctx.getSource().sendSuccess(() -> Component.literal(
                                         "Beacon ignores sky in " + dim.identifier() + " = " + ignoresSky),
+                                        true);
+                                return 1;
+                            })
+                        )
+                    )
+                    // Applies to the dimension the command was run in.
+                    .then(Commands.literal("voidfog")
+                        .executes(ctx -> {
+                            ResourceKey<Level> dim = ctx.getSource().getLevel().dimension();
+                            boolean shown = LoopingDimensionManager.showsVoidFog(dim);
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "Void fog in " + dim.identifier() + " = " + shown),
+                                    false);
+                            return shown ? 1 : 0;
+                        })
+                        .then(Commands.argument("shown", BoolArgumentType.bool())
+                            .executes(ctx -> {
+                                ResourceKey<Level> dim = ctx.getSource().getLevel().dimension();
+                                boolean shown = BoolArgumentType.getBool(ctx, "shown");
+                                LoopingDimensionManager.setVoidFog(dim, shown);
+                                broadcastState(ctx.getSource().getServer());
+                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                        "Void fog in " + dim.identifier() + " = " + shown),
+                                        true);
+                                return 1;
+                            })
+                        )
+                    )
+                    .then(Commands.literal("skylight")
+                        .executes(ctx -> {
+                            ResourceKey<Level> dim = ctx.getSource().getLevel().dimension();
+                            boolean kept = LoopingDimensionManager.keepsSkyLight(dim);
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "Sky light in " + dim.identifier() + " = " + kept),
+                                    false);
+                            return kept ? 1 : 0;
+                        })
+                        .then(Commands.argument("kept", BoolArgumentType.bool())
+                            .executes(ctx -> {
+                                ResourceKey<Level> dim = ctx.getSource().getLevel().dimension();
+                                boolean kept = BoolArgumentType.getBool(ctx, "kept");
+                                LoopingDimensionManager.setSkyLight(dim, kept);
+                                broadcastState(ctx.getSource().getServer());
+                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                        "Sky light in " + dim.identifier() + " = " + kept),
                                         true);
                                 return 1;
                             })

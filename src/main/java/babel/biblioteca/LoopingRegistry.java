@@ -20,6 +20,12 @@ public final class LoopingRegistry {
     private static Predicate<ResourceKey<Level>> serverBeaconCheck = dim -> false;
     private static Predicate<ResourceKey<Level>> clientBeaconCheck = dim -> false;
 
+    private static Predicate<ResourceKey<Level>> serverVoidFogCheck = dim -> false;
+    private static Predicate<ResourceKey<Level>> clientVoidFogCheck = dim -> false;
+
+    private static Predicate<ResourceKey<Level>> serverSkyLightCheck = dim -> false;
+    private static Predicate<ResourceKey<Level>> clientSkyLightCheck = dim -> false;
+
     /** Bumped whenever a dimension attribute changes. Lets hot paths cache the answer. */
     private static volatile int revision;
 
@@ -48,6 +54,22 @@ public final class LoopingRegistry {
 
     public static void setClientBeaconChecker(Predicate<ResourceKey<Level>> check) {
         clientBeaconCheck = check;
+    }
+
+    public static void setServerVoidFogChecker(Predicate<ResourceKey<Level>> check) {
+        serverVoidFogCheck = check;
+    }
+
+    public static void setClientVoidFogChecker(Predicate<ResourceKey<Level>> check) {
+        clientVoidFogCheck = check;
+    }
+
+    public static void setServerSkyLightChecker(Predicate<ResourceKey<Level>> check) {
+        serverSkyLightCheck = check;
+    }
+
+    public static void setClientSkyLightChecker(Predicate<ResourceKey<Level>> check) {
+        clientSkyLightCheck = check;
     }
 
     /** Picks the right delegate based on which side the level is on. */
@@ -79,6 +101,20 @@ public final class LoopingRegistry {
         return level.isClientSide()
                 ? clientBeaconCheck.test(level.dimension())
                 : serverBeaconCheck.test(level.dimension());
+    }
+
+    /** Should the vanilla void-fog darkening be shown in this dimension? */
+    public static boolean showsVoidFog(Level level) {
+        return level.isClientSide()
+                ? clientVoidFogCheck.test(level.dimension())
+                : serverVoidFogCheck.test(level.dimension());
+    }
+
+    /** Should the vanilla sky-light channel be kept in this dimension? */
+    public static boolean keepsSkyLight(Level level) {
+        return level.isClientSide()
+                ? clientSkyLightCheck.test(level.dimension())
+                : serverSkyLightCheck.test(level.dimension());
     }
 
     public static boolean isLoopingClient(ResourceKey<Level> dim) {

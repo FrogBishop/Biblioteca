@@ -1,13 +1,16 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.PositionAndRotation;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -95,6 +98,39 @@ public abstract class ServerGamePacketListenerMixin {
         long layer = Math.round((player.getY() - requestedY) / period);
         if (layer == 0L) return requestedY;
         return requestedY + (double) layer * period;
+    }
+
+    // --- handleMoveVehicle: same fold for the vehicle position packet ---
+
+    /**
+     * Folds the vehicle's requested position the same way as the player's.
+     *
+     * A guest riding through the seam has the identical 384-block jump in this packet, and the
+     * vehicle branch of the movement check carries the same single-player-owner exemption for the
+     * host. Folding here keeps the delta one period smaller for every connection; the committed
+     * position is folded into the world by EntityYLoopMixin.
+     */
+    @ModifyExpressionValue(
+            method = "handleMoveVehicle",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/network/protocol/game/ServerboundMoveVehiclePacket;"
+                            + "movingTo()Lnet/minecraft/core/PositionAndRotation;"))
+    private PositionAndRotation biblioteca$foldVehiclePosition(PositionAndRotation movingTo) {
+        ServerLevel level = player.level();
+        if (!LoopingRegistry.isLooping(level)) return movingTo;
+
+        int period = level.getHeight();
+        if (period <= 0) return movingTo;
+
+        Entity vehicle = player.getRootVehicle();
+        double referenceY = vehicle != player ? vehicle.getY() : player.getY();
+        Vec3 pos = movingTo.position();
+        long layer = Math.round((referenceY - pos.y) / period);
+        if (layer == 0L) return movingTo;
+
+        return PositionAndRotation.of(
+                new Vec3(pos.x, pos.y + (double) layer * period, pos.z),
+                movingTo.yRot(), movingTo.xRot());
     }
 
     @WrapOperation(

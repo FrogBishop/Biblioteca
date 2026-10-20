@@ -40,6 +40,13 @@ public final class CreateWorldScreenInjector {
         Set<ResourceKey<Level>> beaconIgnoresSky = PendingLoopingConfig.hasPending()
                 ? PendingLoopingConfig.getPendingBeaconIgnoresSky()
                 : Set.of();
-        Minecraft.getInstance().setScreenAndShow(new LoopingConfigScreen(parent, looping, beaconIgnoresSky));
+        Set<ResourceKey<Level>> voidFog = PendingLoopingConfig.hasPending()
+                ? PendingLoopingConfig.getPendingVoidFog()
+                : Set.of();
+        Set<ResourceKey<Level>> skyLight = PendingLoopingConfig.hasPending()
+                ? PendingLoopingConfig.getPendingSkyLight()
+                : Set.of();
+        Minecraft.getInstance().setScreenAndShow(
+                new LoopingConfigScreen(parent, looping, beaconIgnoresSky, voidFog, skyLight));
     }
 }

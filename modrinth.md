@@ -43,10 +43,12 @@ Tested with Fabric Loader 0.19.5 and Fabric API 0.162.0+26.3 on Minecraft 26.3.
 
 Create New World → **More** tab → **Dimension Attributes**
 
-The screen has two columns:
+The screen has one row per dimension and four toggle columns:
 
 - **Y-axis loops** — turn the ring on or off per dimension.
 - **Beacon ignores sky** — let beacon beams skip the vanilla sky check.
+- **Void fog** — show the vanilla void-fog darkening. Off by default: the ring hides it so the two halves of the seam stay evenly lit.
+- **Sky light** — keep the vanilla sky-light channel. Off by default: the ring removes it for the same reason.
 
 Choose the settings for the Overworld, The Nether and The End, press **Done**, and create the world. The choices are applied the first time the new world loads.
 
@@ -62,9 +64,11 @@ Everything is available through `/biblioteca`:
 /biblioteca looping set minecraft:the_nether true
 /biblioteca looping set minecraft:the_end false
 /biblioteca beacon true
+/biblioteca voidfog true
+/biblioteca skylight true
 ```
 
-`/biblioteca beacon` acts on the dimension you are currently in. `/biblioteca looping set` takes any dimension ID, including modded ones.
+`/biblioteca beacon`, `/biblioteca voidfog` and `/biblioteca skylight` act on the dimension you are currently in. `/biblioteca looping set` takes any dimension ID, including modded ones.
 
 ## Commands
 
@@ -74,6 +78,10 @@ Everything is available through `/biblioteca`:
 | `/biblioteca looping set <dimension> <enabled>` | 2 (GAMEMASTERS) | Enable or disable the loop for a dimension. |
 | `/biblioteca beacon` | 2 (GAMEMASTERS) | Show whether beacons ignore the sky in the current dimension. |
 | `/biblioteca beacon <enabled>` | 2 (GAMEMASTERS) | Set that attribute for the current dimension. |
+| `/biblioteca voidfog` | 2 (GAMEMASTERS) | Show whether void fog is enabled in the current dimension. |
+| `/biblioteca voidfog <shown>` | 2 (GAMEMASTERS) | Show or hide the vanilla void-fog darkening there. |
+| `/biblioteca skylight` | 2 (GAMEMASTERS) | Show whether sky light is kept in the current dimension. |
+| `/biblioteca skylight <kept>` | 2 (GAMEMASTERS) | Keep or remove the vanilla sky-light channel there. |
 
 Examples:
 
@@ -89,8 +97,10 @@ Examples:
 |---|---|---|---|
 | **Y-axis loops** | `looping` | Off | Wraps `minY` and `maxY`; the dimension becomes a ring. |
 | **Beacon ignores sky** | `beacon_ignores_sky` | Off | Beacon beams skip the vanilla sky check and scan around the ring. |
+| **Void fog** | `void_fog` | Off | Shows the vanilla void-fog darkening; off keeps the ring evenly lit. |
+| **Sky light** | `sky_light` | Off | Keeps the vanilla sky-light channel; off keeps the ring evenly lit. |
 
-Both attributes are stored with the world and synced to clients. Changing one takes effect immediately; no restart is needed.
+All four attributes are stored with the world and synced to clients. Changing one takes effect immediately; no restart is needed.
 
 In a looping dimension, vanilla's "the beacon must see the sky" rule can never be satisfied, because the dimension has no sky. Without **Beacon ignores sky**, beacons stay dark. Enable it for every looping dimension where you want beacons to work.
 
@@ -129,10 +139,10 @@ In a looping dimension, vanilla's "the beacon must see the sky" rule can never b
 
 ### Lighting
 
-- **Sky light is disabled** in looping dimensions. A ring has no sky, so the sky-light channel is always zero.
+- **Sky light is removed** in looping dimensions by default. A ring has no sky, so the sky-light channel is zero and both halves of the seam are lit the same way. Enable **Sky light** for a dimension if you want the vanilla bright-top/dark-bottom split back.
 - **Block light wraps around the seam**, so torches, lamps and other light sources illuminate the other side.
-- **Void fog is disabled** in looping dimensions.
-- The world is lit by block light; bring light sources when you explore.
+- **Void fog is hidden** in looping dimensions by default. Enable **Void fog** to get the vanilla darkening at the seam back.
+- With sky light off, the world is lit by block light; bring light sources when you explore.
 
 ### Beacons
 
@@ -193,13 +203,13 @@ Clients still need the normal jar to see the ring. Do not install both jars in o
 ## Storage and synchronisation
 
 - World data: `saves/<world>/data/biblioteca/looping.dat` in singleplayer, or `<world>/data/biblioteca/looping.dat` on a server.
-- The file stores the set of looping dimensions and the set of dimensions where beacons ignore the sky.
+- The file stores the sets of dimensions for every attribute: looping, beacon ignores sky, void fog and sky light.
 - On join, and after every change, the server sends the attribute sets to clients. The client clears its copy on disconnect.
 - Attributes persist with the world; they are not stored in the client options file.
 
 ## Known limitations
 
-- **No sky light.** Looping dimensions are lit by block light only. This is intentional (a ring has no sky), but caves and large builds will be darker than in a normal world.
+- **No sky light by default.** Looping dimensions are lit by block light only. Enable **Sky light** for a dimension to restore the vanilla channel; caves and large builds will otherwise be darker than in a normal world.
 - **Beacons need the attribute.** Without **Beacon ignores sky**, beacons stay dark in a looping dimension.
 - **The mirror is visual.** The server stores one period. Terrain is drawn repeatedly, but there are no duplicate chunks, blocks or entities; entities and block entities are drawn at the nearest layer only.
 - **OIT is forced.** On a GPU flagged by Minecraft's warning list, the mod leaves the transparency path alone and seam translucency may look wrong.
@@ -222,7 +232,7 @@ No. It wraps the dimension's existing height. The server still stores one period
 Yes. Enable it with `/biblioteca looping set <dimension> true`. The setting is saved with the world.
 
 **Why is everything so dark?**
-Sky light is zero in looping dimensions by design. Use torches, lanterns, glowstone or other block light. Block light wraps around the seam.
+Sky light is zero in looping dimensions by design. Use torches, lanterns, glowstone or other block light (it wraps around the seam), or enable **Sky light** for that dimension: `/biblioteca skylight true` while standing in it. To bring the vanilla void darkening back, use `/biblioteca voidfog true`.
 
 **Why are my beacons dark?**
 Enable **Beacon ignores sky** for that dimension: `/biblioteca beacon true` while standing in it, or the toggle in the create-world screen.

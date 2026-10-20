@@ -39,6 +39,22 @@ public class MinecraftServerMixin {
                 LoopingDimensionManager.setBeaconIgnoresSky(dim, true);
             }
 
+            Set<ResourceKey<Level>> pendingVoidFog = PendingLoopingConfig.getPendingVoidFog();
+            for (ResourceKey<Level> dim : LoopingDimensionManager.getVoidFogDimensions()) {
+                if (!pendingVoidFog.contains(dim)) LoopingDimensionManager.setVoidFog(dim, false);
+            }
+            for (ResourceKey<Level> dim : pendingVoidFog) {
+                LoopingDimensionManager.setVoidFog(dim, true);
+            }
+
+            Set<ResourceKey<Level>> pendingSkyLight = PendingLoopingConfig.getPendingSkyLight();
+            for (ResourceKey<Level> dim : LoopingDimensionManager.getSkyLightDimensions()) {
+                if (!pendingSkyLight.contains(dim)) LoopingDimensionManager.setSkyLight(dim, false);
+            }
+            for (ResourceKey<Level> dim : pendingSkyLight) {
+                LoopingDimensionManager.setSkyLight(dim, true);
+            }
+
             PendingLoopingConfig.consume();
         }
 

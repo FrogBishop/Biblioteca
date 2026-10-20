@@ -6,7 +6,8 @@
   "biblioteca.gui.looping_config.end": "末地",
   "biblioteca.gui.looping_config.header_looping": "Y 轴循环",
   "biblioteca.gui.looping_config.header_beacon": "信标忽略天空判定",
-  "biblioteca.gui.looping_config.beacon_prefix": "信标",
-  "biblioteca.gui.looping_config.note": "游戏内：/biblioteca looping set <维度> <bool>；/biblioteca beacon <bool> 作用于当前维度",
+  "biblioteca.gui.looping_config.header_void_fog": "虚空迷雾",
+  "biblioteca.gui.looping_config.header_sky_light": "天空光照",
+  "biblioteca.gui.looping_config.note": "游戏内：/biblioteca looping set <维度> <bool>；/biblioteca beacon|voidfog|skylight <bool> 作用于当前维度。光照两项默认关闭，开启后恢复原版效果。",
   "biblioteca.options.preload": "边界预加载（区段）"
 }

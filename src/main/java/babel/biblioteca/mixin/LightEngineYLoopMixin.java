@@ -31,6 +31,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * section vertices, entity and block entity lighting, mob spawning and canSeeSky all agree, with
  * no per-caller special cases.
  *
+ * The sky_light attribute can keep the vanilla channel for a dimension that wants it; it is read
+ * at this funnel so the baked section vertices, entity and block entity lighting, mob spawning
+ * and canSeeSky all follow the same switch.
+ *
  * Block light is left alone: it is the only light a looping dimension has, and
  * BlockLightEngineYLoopMixin makes it wrap around the seam. Its queries are folded instead, so a
  * lookup just outside the world answers with the row the ring puts there.
@@ -48,6 +52,9 @@ public abstract class LightEngineYLoopMixin {
     private void biblioteca$noSkyLight(BlockPos pos, CallbackInfoReturnable<Integer> cir) {
         if (!((Object) this instanceof SkyLightEngine)) return;
         if (!biblioteca$looping()) return;
+        // The sky_light attribute describes the vanilla channel: on means keep it (with the
+        // vanilla bright-top/dark-bottom split), off (the default) keeps the ring uniform.
+        if (LoopingRegistry.keepsSkyLight(this.biblioteca$level)) return;
         cir.setReturnValue(0);
     }
 
