@@ -1,22 +1,15 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.LoopingRegistry;
-import net.minecraft.client.Minecraft;
+import babel.biblioteca.client.CloudFold;
 import net.minecraft.client.renderer.CloudRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
- * In looping dimensions, folds cloudHeight to the nearest periodic equivalent
- * relative to the player's current Y so the cloud layer is always visible near
- * the player, regardless of which "cycle" they are in.
- *
- * Example: cloudHeight=192, playerY=319, H=384
- *   → n = round((319-192)/384) = round(0.33) = 0 → no change (base layer visible)
- * Example: cloudHeight=192, playerY=-64, H=384
- *   → n = round((-64-192)/384) = round(-0.67) = -1 → 192 + (-1)*384 = -192
- *   (clouds appear 128 blocks below player, visible when looking down)
+ * 26.3 hands CloudRenderer.prepare the absolute cloud height and builds the mesh
+ * relative to the camera, so folding that float onto the periodic copy nearest
+ * the player is all the cloud pass needs.
  *
  * Signature: prepare(int cloudColor, CloudStatus, float cloudHeight,
  *                    int cloudRange, Vec3 cameraPos, long gameTime, float partialTick)
@@ -31,13 +24,6 @@ public abstract class CloudRendererLoopMixin {
             argsOnly = true,
             ordinal = 0)
     private float biblioteca$foldCloudHeight(float cloudHeight) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null) return cloudHeight;
-        if (!LoopingRegistry.isLooping(mc.level)) return cloudHeight;
-
-        int height = mc.level.getHeight();
-        double camY = mc.player.getEyeY();
-        int n = (int) Math.round((camY - cloudHeight) / height);
-        return cloudHeight + n * height;
+        return CloudFold.nearest(cloudHeight);
     }
 }
