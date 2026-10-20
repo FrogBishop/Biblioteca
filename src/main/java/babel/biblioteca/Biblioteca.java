@@ -37,6 +37,8 @@ public class Biblioteca implements ModInitializer {
         LoopingRegistry.setServerVoidFogChecker(LoopingDimensionManager::showsVoidFog);
         LoopingRegistry.setServerSkyLightChecker(LoopingDimensionManager::keepsSkyLight);
 
+        SeamStats.init();
+
         PayloadTypeRegistry.clientboundPlay().register(LoopingStatePayload.TYPE, LoopingStatePayload.STREAM_CODEC);
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->

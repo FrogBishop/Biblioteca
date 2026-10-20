@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamStats;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -95,8 +96,19 @@ public abstract class ServerGamePacketListenerMixin {
         int period = level.getHeight();
         if (period <= 0) return requestedY;
 
-        long layer = Math.round((player.getY() - requestedY) / period);
+        int minY = level.getMinY();
+        double currentY = player.getY();
+
+        // Fast path: both rows are already inside the world, so this packet cannot be a crossing.
+        if (requestedY >= minY && requestedY < minY + period
+                && currentY >= minY && currentY < minY + period) {
+            return requestedY;
+        }
+
+        long layer = Math.round((currentY - requestedY) / period);
         if (layer == 0L) return requestedY;
+
+        SeamStats.awardCrossing(player);
         return requestedY + (double) layer * period;
     }
 
@@ -125,9 +137,17 @@ public abstract class ServerGamePacketListenerMixin {
         Entity vehicle = player.getRootVehicle();
         double referenceY = vehicle != player ? vehicle.getY() : player.getY();
         Vec3 pos = movingTo.position();
+
+        int minY = level.getMinY();
+        if (pos.y >= minY && pos.y < minY + period
+                && referenceY >= minY && referenceY < minY + period) {
+            return movingTo;
+        }
+
         long layer = Math.round((referenceY - pos.y) / period);
         if (layer == 0L) return movingTo;
 
+        SeamStats.awardCrossing(player);
         return PositionAndRotation.of(
                 new Vec3(pos.x, pos.y + (double) layer * period, pos.z),
                 movingTo.yRot(), movingTo.xRot());

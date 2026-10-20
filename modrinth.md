@@ -155,6 +155,11 @@ In a looping dimension, vanilla's "the beacon must see the sky" rule can never b
 - Block break and place sounds, particles and level events are sent to each listener at the copy of the position nearest to them.
 - An effect on the far side of the seam is therefore heard and seen in the right place, instead of being culled by distance.
 
+### Statistics
+
+- Crossing the seam increments **Seam crossings** in the statistics screen (General tab). It is a vanilla custom stat: stored in the player's stats file, synced per player, and reset with the rest of the statistics.
+- The counter is bumped by the movement packet that actually crosses the seam, not by a per-tick scan.
+
 ### Rendering
 
 - Visible sections are drawn again above and below at whole world-height offsets, so the world repeats visibly in both directions.

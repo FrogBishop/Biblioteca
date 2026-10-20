@@ -9,5 +9,6 @@
   "biblioteca.gui.looping_config.header_void_fog": "虚空迷雾",
   "biblioteca.gui.looping_config.header_sky_light": "天空光照",
   "biblioteca.gui.looping_config.note": "游戏内：/biblioteca looping set <维度> <bool>；/biblioteca beacon|voidfog|skylight <bool> 作用于当前维度。光照两项默认关闭，开启后恢复原版效果。",
-  "biblioteca.options.preload": "边界预加载（区段）"
+  "biblioteca.options.preload": "边界预加载（区段）",
+  "stat.biblioteca.seam_crossings": "穿过边界次数"
 }
