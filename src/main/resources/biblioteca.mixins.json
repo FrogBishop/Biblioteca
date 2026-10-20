@@ -21,6 +21,7 @@
     "LegacyBeaconBeamSectionAccessor",
     "LegacyBeaconBlockEntityAccessor",
     "LegacyBeaconBlockEntityYLoopMixin",
+    "LegacyBlockReachMixin",
     "LegacyBuildHeight1211Mixin",
     "LegacyBuildLimitMixin",
     "LegacyServerLevelEffectsYLoopMixin",

@@ -41,7 +41,7 @@ still out.
 | Sounds / particles / level events | **ported** — `LegacyServerLevelEffectsYLoopMixin` before 1.21.5, `MidServerLevelEffectsYLoopMixin` for 1.21.5 – 26.2 |
 | Dripstone growth | **ported** — `DripstoneYLoopMixin` targets `PointedDripstoneBlock` / `SpeleothemBlock` |
 | Build-limit message | **ported** — `LegacyBuildLimitMixin` before 26.1; 1.21.1 / 1.21.8 also remove the interaction gate itself (`LegacyBuildHeight1211Mixin` / `MidBuildHeight1218Mixin`), so the action is not rejected silently |
-| Seam placement | **ported** — `BlockPlaceContextYLoopMixin` treats the one row just outside the build height as replaceable, so clicking the top face of the highest block places the folded block on the bottom row instead of failing on the folded bedrock |
+| Seam placement | **ported** — `BlockPlaceContextYLoopMixin` treats the one row just outside the build height as replaceable, so the top face of the highest block places onto the bottom row; `LegacyBlockReachMixin` (1.20.5 – 1.21.10) measures reach against the periodic copy nearest the player, so the rendered bottom row can also be clicked from above instead of failing a 384-block distance check |
 | Client block prediction | **ported** — `ClientLevelDirtyMixin` is now in the legacy client config; its mirror-dirty half is inert without the renderer |
 | Grass / bamboo / growing-plant growth | **covered indirectly** — 26.3 added explicit height guards; older code reaches the folded blocks through `LevelBlockAccessMixin`, so the 26.3 hooks have no target there |
 | Seam preload slider | **deferred with the renderer** — `VideoSettingsScreenMixin` / `OptionsSubScreenAccessor` only control the renderer's warm-up distance |

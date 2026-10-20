@@ -125,6 +125,10 @@ val excludedServerMixins = buildSet {
     // also lets the player stand above a short world's top row.
     if (sc.current.version != "1.21.1") add("LegacyBuildHeight1211Mixin")
     if (sc.current.version != "1.21.8") add("MidBuildHeight1218Mixin")
+    // Player.canInteractWithBlock exists from 1.20.5 through 1.21.10; outside
+    // that window the reach check has a different shape and the hook has no
+    // target method to attach to.
+    if (sc.current.parsed < "1.20.5" || sc.current.parsed >= "1.21.11") add("LegacyBlockReachMixin")
     if (sc.current.parsed < "26.1") {
         addAll(listOf(
             // Before 26.1 the reach check is inline in ServerPlayerGameMode and
