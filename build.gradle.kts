@@ -121,6 +121,10 @@ java {
 // the inapplicable one. The generated mixin config is filtered to match, because
 // Mixin would otherwise fail to load the class.
 val excludedServerMixins = buildSet {
+    // The two build-height hooks only exist for the nodes whose renderer port
+    // also lets the player stand above a short world's top row.
+    if (sc.current.version != "1.21.1") add("LegacyBuildHeight1211Mixin")
+    if (sc.current.version != "1.21.8") add("MidBuildHeight1218Mixin")
     if (sc.current.parsed < "26.1") {
         addAll(listOf(
             // Before 26.1 the reach check is inline in ServerPlayerGameMode and

@@ -40,7 +40,8 @@ still out.
 | Beacon beam scan | **ported** — `LegacyBeaconBlockEntityYLoopMixin` before 1.21.5, `BeaconBlockEntityYLoopMixin` from 1.21.5 |
 | Sounds / particles / level events | **ported** — `LegacyServerLevelEffectsYLoopMixin` before 1.21.5, `MidServerLevelEffectsYLoopMixin` for 1.21.5 – 26.2 |
 | Dripstone growth | **ported** — `DripstoneYLoopMixin` targets `PointedDripstoneBlock` / `SpeleothemBlock` |
-| Build-limit message | **ported** — `LegacyBuildLimitMixin` before 26.1 |
+| Build-limit message | **ported** — `LegacyBuildLimitMixin` before 26.1; 1.21.1 / 1.21.8 also remove the interaction gate itself (`LegacyBuildHeight1211Mixin` / `MidBuildHeight1218Mixin`), so the action is not rejected silently |
+| Seam placement | **ported** — `BlockPlaceContextYLoopMixin` treats the one row just outside the build height as replaceable, so clicking the top face of the highest block places the folded block on the bottom row instead of failing on the folded bedrock |
 | Client block prediction | **ported** — `ClientLevelDirtyMixin` is now in the legacy client config; its mirror-dirty half is inert without the renderer |
 | Grass / bamboo / growing-plant growth | **covered indirectly** — 26.3 added explicit height guards; older code reaches the folded blocks through `LevelBlockAccessMixin`, so the 26.3 hooks have no target there |
 | Seam preload slider | **deferred with the renderer** — `VideoSettingsScreenMixin` / `OptionsSubScreenAccessor` only control the renderer's warm-up distance |
@@ -99,7 +100,7 @@ TNT, falling blocks, minecarts, neighbour updates, packet positions), saved data
 and payload networking, reach (`LegacyReachMixin` before 26.1,
 `PlayerReachMixin`/`ServerPlayerGameModeMixin` from 26.1), beacons, effect
 broadcasts, dripstone, build-limit suppression, block prediction, and the
-door/tall-plant/vine/chorus growth hooks. The create-world GUI and the
+door/tall-plant/vine/chorus growth hooks, and seam placement. The create-world GUI and the
 dimension-attribute screen are also present everywhere.
 
 ## Build layout
