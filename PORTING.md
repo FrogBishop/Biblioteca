@@ -1,8 +1,22 @@
 # Multi-version port (1.20.4 – 26.3)
 
-This branch turns the 26.3-only project into a Stonecutter matrix. The build
-infrastructure works and 26.3 is verified; the source ports for the other
-releases are tracked below.
+`multiversion` is the Stonecutter matrix. `main` stays the 26.3-only source;
+this branch carries the per-release preprocessing, the grouped artifacts and the
+legacy renderer ports.
+
+## Where the port stands
+
+- All twenty nodes compile. The default build configures the six group
+  representatives plus 26.3, and writes the seven grouped jars.
+- 26.3 is the reference implementation: complete renderer (order-independent
+  transparency, terrain copies, seam section discovery, entities, block
+  entities, beacons, clouds, seam-preload slider).
+- 1.21.1 and 1.21.8 have exact-node classic-renderer ports: terrain copies with
+  per-copy frustum filtering, the sky/fog seam fixes, entity and block-entity
+  layer folding, repeated beacon beams and a folded cloud layer. No OIT.
+- The other seventeen nodes are gameplay-only: the server loop, persistence,
+  networking, reach, beacons, effects, growth and seam placement work, but the
+  client draws vanilla terrain (no periodic copies).
 
 ## Status
 
@@ -10,54 +24,46 @@ releases are tracked below.
 |---|---|---|
 | 1.20.4 | 17 | builds; grouped artifact |
 | 1.20.5 – 1.20.6 | 21 | builds from the 1.20.5 representative |
-| 1.21 – 1.21.1 | 21 | builds in the 1.20.5 – 1.21.1 group |
+| 1.21 – 1.21.1 | 21 | builds in the 1.20.5 – 1.21.1 group; 1.21.1 has its own renderer jar |
 | 1.21.2 – 1.21.4 | 21 | builds from the 1.21.2 representative |
-| 1.21.5 – 1.21.10 | 21 | builds from the 1.21.5 representative |
+| 1.21.5 – 1.21.10 | 21 | builds from the 1.21.5 representative; 1.21.8 has its own renderer jar |
 | 1.21.11 | 21 | builds; single-version group |
-| 26.1 – 26.1.2, 26.2 | 25 | builds; common group |
+| 26.1 – 26.1.2, 26.2 | 25 | builds; common group, no client renderer |
 | 26.3 | 25 | builds full + no-render; also in the common group |
 
-All 20 nodes compile: `SC_ALL=1 ./gradlew compileJava` is the full audit
-command. The default build compiles only the group representatives. The 26.3
-renderer is complete; 1.21.1 and 1.21.8 now have their own terrain, entity and
-block-entity renderer ports. The other legacy nodes and the 1.20.5 / 1.21.5
-group representatives still build without the renderer (see below).
-
-The 20 nodes are declared in `settings.gradle.kts`; the default build
-configures the six group representatives plus 26.3 and emits the seven grouped
-jars below. Set `SC_VERSIONS=...` or `SC_ALL=1` to configure individual nodes
-or the full matrix.
+The twenty nodes are declared in `settings.gradle.kts`; the default build
+configures the six group representatives plus 26.3. Set `SC_VERSIONS=...` or
+`SC_ALL=1` to configure individual nodes or the full matrix.
 
 ### Non-render parity (audit)
 
-Reference: the effective 26.3 server config has 29 mixins and the client config
-has 20. The legacy grouped jars (1.20.4 – 1.21.11) and the 26.1 – 26.3 common
-jar now carry the same **gameplay** hooks; only renderer-coupled client state is
-still out.
+Reference: the 26.3 server config carries 29 mixins and the client config 20.
+The legacy grouped jars (1.20.4 – 1.21.11) and the 26.1 – 26.3 common jar carry
+the same **gameplay** hooks; only renderer-coupled client state is still out.
 
 | Area | Status |
 |---|---|
 | Beacon beam scan | **ported** — `LegacyBeaconBlockEntityYLoopMixin` before 1.21.5, `BeaconBlockEntityYLoopMixin` from 1.21.5 |
 | Sounds / particles / level events | **ported** — `LegacyServerLevelEffectsYLoopMixin` before 1.21.5, `MidServerLevelEffectsYLoopMixin` for 1.21.5 – 26.2 |
 | Dripstone growth | **ported** — `DripstoneYLoopMixin` targets `PointedDripstoneBlock` / `SpeleothemBlock` |
-| Build-limit message | **ported** — `LegacyBuildLimitMixin` before 26.1; 1.21.1 / 1.21.8 also remove the interaction gate itself (`LegacyBuildHeight1211Mixin` / `MidBuildHeight1218Mixin`), so the action is not rejected silently |
-| Seam placement | **ported** — `BlockPlaceContextYLoopMixin` treats the one row just outside the build height as replaceable, so the top face of the highest block places onto the bottom row; `LegacyBlockReachMixin` (1.20.5 – 1.21.10) measures reach against the periodic copy nearest the player, so the rendered bottom row can also be clicked from above instead of failing a 384-block distance check |
-| Client block prediction | **ported** — `ClientLevelDirtyMixin` is now in the legacy client config; its mirror-dirty half is inert without the renderer |
+| Seam placement | **ported** — `ServerGamePacketListenerMixin` folds packet positions to the canonical row before any check, `BlockPlaceContextYLoopMixin` opens the one row just outside the build height, and the reach target is folded back by `LegacyBlockReachMixin` (1.20.5 – 1.21.10) / `PlayerReachMixin` (1.21.11+) |
+| Build-limit message | **ported** — 26.1+ suppresses the misleading "too high" message on the may-not-interact branch (`ServerPlayerBuildLimitMixin`); older releases never reach the message because the packet position is already folded |
+| Client block prediction | **ported** — `ClientLevelDirtyMixin` is in the legacy client config; its mirror-dirty half is inert without the renderer |
 | Grass / bamboo / growing-plant growth | **covered indirectly** — 26.3 added explicit height guards; older code reaches the folded blocks through `LevelBlockAccessMixin`, so the 26.3 hooks have no target there |
 | Seam preload slider | **deferred with the renderer** — `VideoSettingsScreenMixin` / `OptionsSubScreenAccessor` only control the renderer's warm-up distance |
 
 ### Renderer port
 
-| Node | Renderer status |
-|---|---|
-| 26.3 | complete: OIT, terrain copies, section discovery, entities/block entities, beacons, clouds, preload slider |
-| 1.21.1 | terrain copies via `renderSectionLayer` replay, each copy filtered against its own frustum, exact source-section scan with reusable set and allocation-free frustum test, black sky disc and void-fog darkening suppressed, entity and block-entity layer folding, periodic beacon beams, cloud layer folded to the nearest periodic copy; no OIT |
-| 1.21.8 | terrain copies via `prepareChunkRenders` + `renderGroup` replay, each copy filtered against its own frustum, exact source-section scan with reusable set and allocation-free frustum test, black sky disc and void-fog darkening suppressed, entity and block-entity layer folding, periodic beacon beams, cloud layer folded to the nearest periodic copy; no OIT |
-| other legacy nodes | no renderer; gameplay loop only |
+| Node | Terrain copies | Sky / fog | Entities, block entities | Beacons | Clouds | OIT |
+|---|---|---|---|---|---|---|
+| 26.3 | yes | fixed | nearest layer | beams | folded | yes |
+| 1.21.1 | yes | fixed | nearest layer | beams | folded | no |
+| 1.21.8 | yes | fixed | nearest layer | beams | folded | no |
+| other legacy | — | — | — | — | — | — |
 
 The ported renderer classes are compiled only on their exact nodes. The grouped
 `1.20.5-1.21.1` and `1.21.5-1.21.10` jars are built from 1.20.5 and 1.21.5, so
-they do not contain the 1.21.1 / 1.21.8 renderer yet. Use the exact-node jar for
+they do not contain the 1.21.1 / 1.21.8 renderer. Use the exact-node jar for
 testing; moving the renderer into a group representative is a separate port.
 
 1.21.1 repeats the classic `renderSectionLayer` call with a shifted camera Y;
@@ -92,16 +98,57 @@ also repeat the beacon beam at whole periods; the beam still uses the vanilla
 2048-block stretch, so only the copies that fit the render distance are emitted
 (capped at eight per direction).
 
+Clouds are a single layer on every port. `CloudFold` moves it to the periodic
+copy nearest the eye before the layer is built (`DimensionSpecialEffects`
+on 1.21.1, `DimensionType.cloudHeight` on 1.21.8, `CloudRenderer.prepare` on
+26.3), so the layer the player sees is the one that belongs to their row.
+
 The 26.3 seam-preload slider remains 26.3-only. The draw-command cost model and
 the remaining performance ceiling are recorded in `PERFORMANCE.md`.
 
 Present on every port: the server loop (entity/block collisions, light, piston,
 TNT, falling blocks, minecarts, neighbour updates, packet positions), saved data
-and payload networking, reach (`LegacyReachMixin` before 26.1,
-`PlayerReachMixin`/`ServerPlayerGameModeMixin` from 26.1), beacons, effect
-broadcasts, dripstone, build-limit suppression, block prediction, and the
-door/tall-plant/vine/chorus growth hooks, and seam placement. The create-world GUI and the
-dimension-attribute screen are also present everywhere.
+and payload networking, reach (1.20.5 – 1.21.10 through `LegacyBlockReachMixin`,
+1.21.11+ through `PlayerReachMixin`; 1.20.4 keeps its inline check), beacons,
+effect broadcasts, dripstone,
+block prediction, the door/tall-plant/vine/chorus growth hooks and seam
+placement. The create-world GUI and the dimension-attribute screen are also
+present everywhere.
+
+## Not done
+
+1. **Renderer ports for the remaining legacy nodes.** 1.21.2 – 1.21.4 can follow
+   the 1.21.1 classic port; 1.21.5 – 1.21.7 share 1.21.8's pre-render-state
+   `LevelRenderer` but a different chunk scheduler, so the 1.21.8 port is the
+   working example; 1.21.9 – 1.21.11 use the render-state/submit pipeline with
+   26.x helper types. 1.20.4 needs the oldest `RenderChunk` shape.
+2. **The grouped jars do not carry the renderer.** `+1.20.5-1.21.1` is compiled
+   at 1.20.5 and `+1.21.5-1.21.10` at 1.21.5, so a 1.21.1 / 1.21.8 user who
+   installs the group artifact gets gameplay only. Either split those groups or
+   build the representative on the renderer node.
+3. **26.1 and 26.2 clients have no renderer.** The common jar is no-render and
+   the 26.3 renderer uses 26.3-only types (`DynamicGpuData`,
+   `ChunkSectionInfo`, indexed draws).
+4. **OIT and seam translucency are 26.3-only.** The legacy ports share one
+   compiled mesh across copies and do not re-sort water at the seam.
+5. **Cloud, entity and block-entity copies are intentionally single-layer.**
+   Terrain repeats; a mirrored mob or a second cloud deck is not drawn.
+6. **The seam-preload slider is 26.3-only.**
+7. **Legacy renderer performance.** 1.21.1 re-walks `renderSectionLayer` per
+   copy and 1.21.8 submits one render pass per non-empty copy; neither batches
+   or instances copies yet.
+8. **Filtered builds relax `defaultRequire` to 0 on every node, including
+   26.3.** A hook that loses its target is therefore silent. Restoring strict
+   injection checking on 26.3 (and keeping the export-based check in the test
+   procedure) is pending.
+9. **Runtime smoke tests.** Only 26.3, 1.21.1 and 1.21.8 have been launched and
+   played. 1.20.4, 1.20.5, 1.21.2, 1.21.5, 1.21.11 and 26.1/26.2 are
+   build-tested only.
+10. **Voxy / far-LOD bridge.** Far-LOD renderers bypass vanilla `ViewArea` /
+    `LevelRenderer`, so the seam scan never sees their sections.
+11. **1.20.4 seam reach.** That node has an inline `Vec3.distanceToSqr` reach
+    check and no `Player.canInteractWithBlock`; it is not folded. Invisible
+    today because the node has no renderer.
 
 ## Build layout
 
@@ -189,6 +236,8 @@ The range crosses three external boundaries before the game code is considered:
 
 The render-state/submit renderer is present but the seam code uses 26.x helper
 types. Expect import and accessor changes; `Identifier` starts in 1.21.11.
+`Player.canInteractWithBlock` is gone from 1.21.11; reach goes through
+`isWithinBlockInteractionRange`.
 
 ### 1.21.5 – 1.21.8
 
@@ -223,20 +272,3 @@ types. Expect import and accessor changes; `Identifier` starts in 1.21.11.
 - `ClientboundLevelParticlesPacket` has the old 10-argument constructor.
 - Beacon internals use `BeaconBeamSection` and no `BeaconBeamOwner`.
 - The client renderer needs a separate implementation.
-
-## What a complete port needs
-
-1. The shared `Compat` + version scopes now cover identifiers, saved data,
-   payload registration, permissions and the height accessors; the remaining
-   server mixins are the ones listed as disabled above.
-2. A legacy client renderer for 1.20.4 / 1.21.1 / 1.21.8 (the current
-   `LevelRenderer` hooks are 26.3-only), then re-enable the client-side
-   interaction hooks that were excluded with `PlayerReachMixin`
-3. Client renderer implementations:
-   - 1.21.9 – 26.3: adapt the current draw-group renderer;
-   - 1.21.2 – 1.21.8: classic `LevelRenderer` section layers;
-   - 1.20.4 – 1.21.1: classic `LevelRenderer` / `RenderChunk`.
-4. Mixin configs filtered per era so an absent target class does not crash the
-   game; `require = 0` on optional hooks.
-5. Runtime smoke tests per release (client + dedicated server), which the build
-   matrix alone cannot provide.

@@ -16,7 +16,8 @@ That keeps memory flat, but it does not make the extra layers free.
   most three.
 - **Entities and block entities:** one copy, at the periodic layer nearest the camera.
 - **Beacon beams:** at most `MAX_COPIES` (8) per direction, because a beam spans the period.
-- **Clouds:** one folded layer.
+- **Clouds:** one layer, folded to the periodic copy nearest the camera; the cloud mesh is
+  built once per frame, not once per copy.
 - **Source discovery:** every loaded source section is tested against the period offsets that
   can reach the render distance; sections that are already visible are skipped. The scan
   reuses its buffers and does not allocate an AABB per candidate.
@@ -51,6 +52,8 @@ test.
 - Allocation-free seam frustum tests (six doubles instead of a temporary AABB).
 - A reused presence set for the far-seam scan.
 - The cached per-level looping flag on entity, block-entity, beacon and cloud paths.
+- Cloud folding is one height rewrite per frame (`CloudFold`) on all three renderer ports,
+  not a second cloud mesh.
 - Exact period-offset scanning for short worlds. The old nearest-image gate could drop copies
   3, 4, ... of a height-16 world.
 - Per-copy frustum filtering on 1.21.1 and 1.21.8: the visible-section list is filtered once per

@@ -13,10 +13,18 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Reach checks in 1.20.4 - 1.21.11 compare the eye position with
- * {@code Vec3.atCenterOf(pos)}. Folding that centre to the periodic copy
- * nearest the player makes a block on the far side of the seam reachable
- * without changing the coordinate the rest of the action uses.
+ * Folds the position handed to block-break enchantment effects onto the
+ * periodic copy nearest the player.
+ *
+ * ServerGamePacketListenerMixin folds the packet position to the canonical row,
+ * so a break started on the rendered copy of the bottom row is processed at
+ * y = -64 while the player stands at the top. Passing the unfurled centre to
+ * EnchantmentHelper.onHitBlock would place its effects a whole world height away
+ * from the block the player actually hit; this hook moves the centre back to the
+ * copy the player can see.
+ *
+ * The reach check itself is not here: Player.canInteractWithBlock is folded by
+ * LegacyBlockReachMixin.
  */
 @Mixin(ServerPlayerGameMode.class)
 public abstract class LegacyReachMixin {
@@ -28,7 +36,7 @@ public abstract class LegacyReachMixin {
             method = "handleBlockBreakAction",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/phys/Vec3;atCenterOf(Lnet/minecraft/core/Vec3i;)Lnet/minecraft/world/phys/Vec3;"))
-    private Vec3 biblioteca$foldReachCentre(Vec3i pos, Operation<Vec3> original) {
+    private Vec3 biblioteca$foldEffectCentre(Vec3i pos, Operation<Vec3> original) {
         Vec3 centre = original.call(pos);
 
         ServerLevel level = this.level;

@@ -121,25 +121,19 @@ java {
 // the inapplicable one. The generated mixin config is filtered to match, because
 // Mixin would otherwise fail to load the class.
 val excludedServerMixins = buildSet {
-    // The two build-height hooks only exist for the nodes whose renderer port
-    // also lets the player stand above a short world's top row.
-    if (sc.current.version != "1.21.1") add("LegacyBuildHeight1211Mixin")
-    if (sc.current.version != "1.21.8") add("MidBuildHeight1218Mixin")
     // Player.canInteractWithBlock exists from 1.20.5 through 1.21.10; outside
     // that window the reach check has a different shape and the hook has no
     // target method to attach to.
     if (sc.current.parsed < "1.20.5" || sc.current.parsed >= "1.21.11") add("LegacyBlockReachMixin")
-    if (sc.current.parsed < "26.1") {
-        addAll(listOf(
-            // Before 26.1 the reach check is inline in ServerPlayerGameMode and
-            // the dedicated build-limit message helper does not exist yet;
-            // LegacyReachMixin covers the inline check.
-            "PlayerReachMixin",
-            "ServerPlayerGameModeMixin",
-            "ServerPlayerBuildLimitMixin",
-        ))
-    } else {
-        add("LegacyBuildLimitMixin")
+    // Before 26.1 the dedicated build-limit message helper does not exist yet.
+    if (sc.current.parsed < "26.1") add("ServerPlayerBuildLimitMixin")
+    if (sc.current.parsed < "1.21.11") {
+        // Player.isWithinBlockInteractionRange does not exist yet; the reach
+        // check is Player.canInteractWithBlock, which LegacyBlockReachMixin
+        // folds instead.
+        add("PlayerReachMixin")
+    }
+    if (sc.current.parsed >= "26.1") {
         add("LegacyReachMixin")
     }
     if (sc.current.parsed < "1.21.5") {

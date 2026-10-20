@@ -21,6 +21,10 @@ import org.spongepowered.asm.mixin.injection.At;
  * The client legitimately names rows beyond the world here: it clicks the block it can see, and the
  * renderer draws the row across the seam where it belongs. Folding at the checks keeps those
  * packets valid without asking the client to send a coordinate it never displayed.
+ *
+ * Reach is the other half. Once the position is folded, a distance check against the player is a
+ * whole world height off, so each era folds the reach target back to the copy the player clicked:
+ * LegacyBlockReachMixin on 1.20.5 - 1.21.10, PlayerReachMixin from 1.21.11.
  */
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class ServerGamePacketListenerMixin {

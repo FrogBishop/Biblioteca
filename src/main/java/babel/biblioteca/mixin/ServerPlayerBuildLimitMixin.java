@@ -6,10 +6,13 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 
 /**
- * In a Y-looping dimension, suppress the "build limit exceeded" message so
- * the player can place blocks at Y=320 (which folds to Y=-64).
- * The server-side LevelBlockAccessMixin already folds the BlockPos before
- * the actual block placement, so the block goes to the correct position.
+ * Suppresses the build-limit message in 26.1+ looping dimensions.
+ *
+ * The packet handler folds the clicked position before any check runs, so the
+ * height branches that raise this message never see an out-of-range Y. The one
+ * remaining caller is the "may not interact" branch (world border or spawn
+ * protection), where "too high" is simply the wrong explanation; dropping it is
+ * better than showing a message that does not describe the failure.
  */
 @Mixin(ServerPlayer.class)
 public abstract class ServerPlayerBuildLimitMixin {

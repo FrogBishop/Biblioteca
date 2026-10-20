@@ -32,9 +32,10 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  * block entity, so there is no argument to fold. Block entities created through
  * setBlock are placed at the folded position by the chunk itself.
  *
- * Every hook below is mandatory: the mixin config sets defaultRequire to 1, so a silently
- * unmatched injection is impossible. That is deliberate - a silently unmatched injection is
- * exactly how this family ended up half covered in the first place.
+ * Every hook below is meant to be mandatory. The filtered builds relax
+ * defaultRequire to 0 (26.3 included) so a partially ported node still boots,
+ * which also means a hook that loses its target fails silently: check the
+ * transformed class instead of trusting a clean startup.
  */
 @Mixin(Level.class)
 public abstract class LevelBlockAccessMixin {
