@@ -7,7 +7,9 @@ That keeps memory flat, but it does not make the extra layers free.
 ## Cost model
 
 - **Terrain:** each visible section layer gets one `ChunkSectionInfo` and one draw command per
-  periodic copy. The compiled mesh is shared by every copy.
+  periodic copy. The compiled mesh is shared by every copy. A copy is first tested against the
+  cull frustum, so the source-section union produced by the seam scan is not submitted wholesale
+  at every offset.
 - **Layer count:** a copy is submitted while its section centre is within the render distance.
   With a height of 16 blocks, render distance 12 (192 blocks) gives up to 25 terrain copies,
   and render distance 32 (512 blocks) gives up to 65. A normal 384-block dimension gives at
@@ -31,6 +33,11 @@ The current renderer does **not** instance or merge copies. That is deliberate: 
 and allocation behaviour were fixed first. If profiling shows command submission or GPU
 vertex work dominates, batching several copies into one instanced draw is the next step.
 
+The legacy ports are further from that goal than 26.3. 1.21.1 re-runs the classic
+`renderSectionLayer` walk once per copy (one draw per visible section and layer), and 1.21.8
+submits one `ChunkSectionsToRender` - one render pass - per non-empty copy. 26.3's
+draw-command duplication is the cheapest shape of the three.
+
 Voxy and other far-LOD renderers do not use the vanilla `ViewArea` / `LevelRenderer`
 extraction path. Biblioteca's seam discovery therefore does not see their LOD sections;
 Voxy compatibility needs a separate renderer bridge, not another constant in the frustum
@@ -46,6 +53,12 @@ test.
 - The cached per-level looping flag on entity, block-entity, beacon and cloud paths.
 - Exact period-offset scanning for short worlds. The old nearest-image gate could drop copies
   3, 4, ... of a height-16 world.
+- Per-copy frustum filtering on 1.21.1 and 1.21.8: the visible-section list is filtered once per
+  frame into one reusable list per offset, so a section seen through a row overhead is not drawn
+  at the feet (and vice versa), and an empty row skips the layer call / render pass.
+- The 1.21.8 copy lists are built by re-entering `prepareChunkRenders`, not by wrapping the
+  `addMainPass` call: the vanilla call is in a synthetic lambda, where a wrap silently missed.
+  Copies were therefore not submitted at all before that fix.
 
 ## How to measure
 

@@ -188,23 +188,30 @@ val legacyClientMixins = listOf(
 // node until the other legacy releases have their own renderer variants.
 val legacy1211RendererMixins = listOf(
     "LegacyLevelRendererYLoopMixin",
+    "LegacyLevelRendererAccessor",
     "LegacySectionOcclusionGraphLoopMixin",
     "LegacyViewAreaAccessor",
     "LegacyEntityRender1211YLoopMixin",
     "LegacyBeaconBeam1211YLoopMixin",
     "LegacyFrustumInvoker",
+    "LegacySky1211Mixin",
+    "LegacyFog1211Mixin",
 )
 
 // 1.21.8 has the new frame-graph chunk renderer. Its terrain copies are built by
 // calling prepareChunkRenders once per period; the chunk render mixin replays them.
 val legacy1218RendererMixins = listOf(
     "MidLevelRendererYLoopMixin",
+    "MidLevelRendererAccessor",
+    "MidLevelRendererInvoker",
     "MidChunkSectionsToRenderMixin",
     "MidViewAreaAccessor",
     "MidSectionOcclusionGraphLoopMixin",
     "LegacyEntityRender1218YLoopMixin",
     "LegacyBeaconBeam1218YLoopMixin",
     "MidFrustumInvoker",
+    "MidSky1218Mixin",
+    "MidFog1218Mixin",
 )
 val legacy1218ClientClasses = listOf("MidChunkCopyStore")
 

@@ -50,8 +50,8 @@ still out.
 | Node | Renderer status |
 |---|---|
 | 26.3 | complete: OIT, terrain copies, section discovery, entities/block entities, beacons, clouds, preload slider |
-| 1.21.1 | terrain copies via `renderSectionLayer` replay, exact source-section scan with reusable set and allocation-free frustum test, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
-| 1.21.8 | terrain copies via `prepareChunkRenders` + `renderGroup` replay, exact source-section scan with reusable set and allocation-free frustum test, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
+| 1.21.1 | terrain copies via `renderSectionLayer` replay, each copy filtered against its own frustum, exact source-section scan with reusable set and allocation-free frustum test, black sky disc and void-fog darkening suppressed, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
+| 1.21.8 | terrain copies via `prepareChunkRenders` + `renderGroup` replay, each copy filtered against its own frustum, exact source-section scan with reusable set and allocation-free frustum test, black sky disc and void-fog darkening suppressed, entity and block-entity layer folding, periodic beacon beams; no cloud folding or OIT |
 | other legacy nodes | no renderer; gameplay loop only |
 
 The ported renderer classes are compiled only on their exact nodes. The grouped
@@ -61,11 +61,35 @@ testing; moving the renderer into a group representative is a separate port.
 
 1.21.1 repeats the classic `renderSectionLayer` call with a shifted camera Y;
 1.21.8 builds one `ChunkSectionsToRender` per period and replays the extra
-lists at the original `renderGroup` call. Neither copies a compiled mesh. The
-1.21.8 replay currently creates one render pass per copy, which is correct but
-not the final performance shape. Both nodes also repeat the beacon beam at whole
-periods; the beam still uses the vanilla 2048-block stretch, so only the copies
-that fit the render distance are emitted (capped at eight per direction).
+lists at the original `renderGroup` call. Neither copies a compiled mesh.
+
+Both nodes filter each copy against its own box before submitting it. The
+section graph fills `visibleSections` with every source section that is visible
+in *some* periodic row, so replaying that whole list at every offset used to draw
+a section seen overhead at the player's feet (and the other way round). The
+copy lists are rebuilt once per frame, reused across the five terrain render
+types, and an empty list skips the layer / pass entirely. Rows at the source
+position keep vanilla's list because the section graph already culled them
+against the slightly wider offset frustum.
+
+The classic sky problems are fixed on both nodes with the same two rules as
+26.3: the hard-coded black lower sky disc is suppressed (`getHorizonHeight` is
+folded far below the world on 1.21.1, where the disc is inline;
+`shouldRenderDarkDisc` is answered `false` on 1.21.8), and the fog colour no
+longer receives the void-darkening factor (`setupColor` on 1.21.1,
+`computeFogColor` on 1.21.8). The fog colour is also the frame's clear colour, so
+both halves of the old black lower sky are covered.
+
+The 1.21.8 hook is on `prepareChunkRenders` itself, not on `addMainPass`: the
+vanilla call lives in the synthetic frame-graph lambda, so a `@WrapOperation`
+aimed at `addMainPass` found no target and, with the legacy config's
+`defaultRequire` of 0, silently produced no copies. The port now re-enters
+`prepareChunkRenders` through `MidLevelRendererInvoker` with a recursion guard,
+which is independent of the synthetic name. The replay still creates one render
+pass per copy, which is correct but not the final performance shape. Both nodes
+also repeat the beacon beam at whole periods; the beam still uses the vanilla
+2048-block stretch, so only the copies that fit the render distance are emitted
+(capped at eight per direction).
 
 The 26.3 seam-preload slider remains 26.3-only. The draw-command cost model and
 the remaining performance ceiling are recorded in `PERFORMANCE.md`.
