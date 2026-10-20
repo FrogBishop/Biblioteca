@@ -5,10 +5,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.Level;
-
-import java.util.Set;
 
 /**
  * Builds the "Dimension Attributes…" button for the world-creation screen.
@@ -34,19 +30,13 @@ public final class CreateWorldScreenInjector {
     }
 
     private static void openConfig(CreateWorldScreen parent) {
-        Set<ResourceKey<Level>> looping = PendingLoopingConfig.hasPending()
-                ? PendingLoopingConfig.getPendingLooping()
-                : Set.of();
-        Set<ResourceKey<Level>> beaconIgnoresSky = PendingLoopingConfig.hasPending()
-                ? PendingLoopingConfig.getPendingBeaconIgnoresSky()
-                : Set.of();
-        Set<ResourceKey<Level>> voidFog = PendingLoopingConfig.hasPending()
-                ? PendingLoopingConfig.getPendingVoidFog()
-                : Set.of();
-        Set<ResourceKey<Level>> skyLight = PendingLoopingConfig.hasPending()
-                ? PendingLoopingConfig.getPendingSkyLight()
-                : Set.of();
-        Minecraft.getInstance().setScreenAndShow(
-                new LoopingConfigScreen(parent, looping, beaconIgnoresSky, voidFog, skyLight));
+        // The getters are empty until the screen has been confirmed once, so a fresh world opens
+        // every toggle off without a separate "nothing pending" branch.
+        Minecraft.getInstance().setScreenAndShow(new LoopingConfigScreen(
+                parent,
+                PendingLoopingConfig.getPendingLooping(),
+                PendingLoopingConfig.getPendingBeaconIgnoresSky(),
+                PendingLoopingConfig.getPendingVoidFog(),
+                PendingLoopingConfig.getPendingSkyLight()));
     }
 }

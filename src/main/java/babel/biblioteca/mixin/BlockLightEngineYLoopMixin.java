@@ -28,7 +28,8 @@ import org.spongepowered.asm.mixin.injection.At;
  * around the loop terminates on its own because each step loses at least one level.
  *
  * Applied to both directions of the walk: increases spread a new source, decreases retract one.
- * Sky light is not folded; it is switched off entirely in a looping dimension.
+ * The sky-light channel is handled by LightEngineYLoopMixin instead: it is zeroed by default and
+ * can be kept per dimension with the sky_light attribute.
  */
 @Mixin(BlockLightEngine.class)
 public abstract class BlockLightEngineYLoopMixin {

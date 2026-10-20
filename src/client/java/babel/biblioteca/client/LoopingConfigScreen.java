@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -33,9 +34,8 @@ public class LoopingConfigScreen extends Screen {
     private static final int TEXT_COLOR = 0xFFFFFFFF;
     private static final int NOTE_COLOR = 0xFFAAAAAA;
 
-    private static final ResourceKey<Level>[] DIMENSIONS = new ResourceKey[]{
-            Level.OVERWORLD, Level.NETHER, Level.END
-    };
+    private static final List<ResourceKey<Level>> DIMENSIONS = List.of(
+            Level.OVERWORLD, Level.NETHER, Level.END);
     private static final String[] DIMENSION_KEYS = {
             "biblioteca.gui.looping_config.overworld",
             "biblioteca.gui.looping_config.nether",
@@ -58,7 +58,7 @@ public class LoopingConfigScreen extends Screen {
     private final Screen parent;
 
     /** [dimension][attribute], in the order of DIMENSIONS and HEADER_KEYS. */
-    private final boolean[][] values = new boolean[DIMENSIONS.length][COLUMNS];
+    private final boolean[][] values = new boolean[DIMENSIONS.size()][COLUMNS];
 
     public LoopingConfigScreen(
             Screen parent,
@@ -68,8 +68,8 @@ public class LoopingConfigScreen extends Screen {
             Set<ResourceKey<Level>> initialSkyLight) {
         super(TITLE);
         this.parent = parent;
-        for (int row = 0; row < DIMENSIONS.length; row++) {
-            ResourceKey<Level> dimension = DIMENSIONS[row];
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
+            ResourceKey<Level> dimension = DIMENSIONS.get(row);
             values[row][0] = initialLooping.contains(dimension);
             values[row][1] = initialBeaconIgnoresSky.contains(dimension);
             values[row][2] = initialVoidFog.contains(dimension);
@@ -95,7 +95,7 @@ public class LoopingConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        for (int row = 0; row < DIMENSIONS.length; row++) {
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
             for (int column = 0; column < COLUMNS; column++) {
                 final int r = row;
                 final int c = column;
@@ -107,7 +107,7 @@ public class LoopingConfigScreen extends Screen {
         }
 
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> applyAndClose())
-                .bounds(width / 2 - 75, rowY(DIMENSIONS.length) + 10, 150, 20).build());
+                .bounds(width / 2 - 75, rowY(DIMENSIONS.size()) + 10, 150, 20).build());
     }
 
     private Component stateLabel(boolean value) {
@@ -120,8 +120,8 @@ public class LoopingConfigScreen extends Screen {
         Set<ResourceKey<Level>> voidFog = new HashSet<>();
         Set<ResourceKey<Level>> skyLight = new HashSet<>();
 
-        for (int row = 0; row < DIMENSIONS.length; row++) {
-            ResourceKey<Level> dimension = DIMENSIONS[row];
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
+            ResourceKey<Level> dimension = DIMENSIONS.get(row);
             if (values[row][0]) looping.add(dimension);
             if (values[row][1]) beaconIgnoresSky.add(dimension);
             if (values[row][2]) voidFog.add(dimension);
@@ -149,7 +149,7 @@ public class LoopingConfigScreen extends Screen {
                     buttonX(column) + BUTTON_W / 2, rowY(0) - 18, TEXT_COLOR);
         }
 
-        for (int row = 0; row < DIMENSIONS.length; row++) {
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
             Component name = Component.translatable(DIMENSION_KEYS[row]);
             graphics.text(font, name,
                     gridX() + LABEL_W - 10 - font.width(name),
@@ -158,6 +158,6 @@ public class LoopingConfigScreen extends Screen {
 
         graphics.centeredText(font,
                 Component.translatable("biblioteca.gui.looping_config.note"),
-                width / 2, rowY(DIMENSIONS.length) + 40, NOTE_COLOR);
+                width / 2, rowY(DIMENSIONS.size()) + 40, NOTE_COLOR);
     }
 }

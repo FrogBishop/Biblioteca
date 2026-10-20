@@ -1,7 +1,7 @@
 package babel.biblioteca;
 
-import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -32,11 +32,6 @@ public final class SeamEffects {
 
     private SeamEffects() {}
 
-    /** The copy of {@code y} closest to a listener at {@code listenerY}. */
-    public static double foldToward(double y, double listenerY, int period) {
-        return y + Math.round((listenerY - y) / period) * (double) period;
-    }
-
     /**
      * Radius broadcast, matching PlayerList.broadcast: sends to every listener in the same level
      * within {@code range} of the folded position.
@@ -65,7 +60,7 @@ public final class SeamEffects {
             ServerPlayer player = players.get(i);
             if (player == except || player.level() != level) continue;
 
-            double foldedY = foldToward(y, player.getY(), period);
+            double foldedY = SeamPositions.foldToward(y, player.getY(), period);
 
             double dx = x - player.getX();
             double dy = foldedY - player.getY();
@@ -116,7 +111,7 @@ public final class SeamEffects {
             ServerPlayer player = players.get(i);
             if (player.level() != level) continue;
 
-            double foldedY = foldToward(y, player.getY(), period);
+            double foldedY = SeamPositions.foldToward(y, player.getY(), period);
 
             BlockPos probe = player.blockPosition();
             if (!probe.closerToCenterThan(new Vec3(x, foldedY, z), range)) continue;

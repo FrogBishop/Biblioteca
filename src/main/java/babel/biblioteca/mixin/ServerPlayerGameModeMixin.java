@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.core.BlockPos;
@@ -35,21 +36,12 @@ public abstract class ServerPlayerGameModeMixin {
     private boolean biblioteca$wrapReachCheck(
             ServerPlayer player, BlockPos pos, double delta, Operation<Boolean> original) {
 
-        // Fold first, then ask once. The previous shape asked about the raw coordinate, and only
-        // when that failed asked again about the folded one - which spent the whole check on a
-        // coordinate that cannot be in reach by construction.
-        BlockPos target = pos;
-
+        // Fold first, then ask once. Asking about the raw coordinate first spent the whole check
+        // on a position that cannot be in reach by construction.
         ServerLevel level = this.level;
-        if (level != null && LoopingRegistry.isLooping(level)) {
-            int minY   = level.getMinY();
-            int height = level.getHeight();
-            int y      = pos.getY();
-
-            if (y < minY || y >= minY + height) {
-                target = new BlockPos(pos.getX(), Math.floorMod(y - minY, height) + minY, pos.getZ());
-            }
-        }
+        BlockPos target = level != null && LoopingRegistry.isLooping(level)
+                ? SeamPositions.foldBlockPos(level, pos)
+                : pos;
 
         return original.call(player, target, delta);
     }

@@ -12,7 +12,16 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Set;
+import java.util.function.BiConsumer;
 
+/**
+ * Hooks the server lifecycle: loads the per-world attributes when the world starts, applies the
+ * choices made on the create-world screen the first time a new world loads, and pushes the state to
+ * connected clients.
+ *
+ * The attributes live in the overworld's SavedData, which is only readable once the server has a
+ * level; that is why this is attached to loadLevel rather than to a static initializer.
+ */
 @Mixin(MinecraftServer.class)
 public class MinecraftServerMixin {
 
@@ -23,37 +32,22 @@ public class MinecraftServerMixin {
 
         // Apply world-creation GUI choices on first load of a brand-new world (singleplayer).
         if (PendingLoopingConfig.hasPending()) {
-            Set<ResourceKey<Level>> pendingLooping = PendingLoopingConfig.getPendingLooping();
-            for (ResourceKey<Level> dim : LoopingDimensionManager.getLoopingDimensions()) {
-                if (!pendingLooping.contains(dim)) LoopingDimensionManager.setLooping(dim, false);
-            }
-            for (ResourceKey<Level> dim : pendingLooping) {
-                LoopingDimensionManager.setLooping(dim, true);
-            }
-
-            Set<ResourceKey<Level>> pendingBeacon = PendingLoopingConfig.getPendingBeaconIgnoresSky();
-            for (ResourceKey<Level> dim : LoopingDimensionManager.getBeaconIgnoresSkyDimensions()) {
-                if (!pendingBeacon.contains(dim)) LoopingDimensionManager.setBeaconIgnoresSky(dim, false);
-            }
-            for (ResourceKey<Level> dim : pendingBeacon) {
-                LoopingDimensionManager.setBeaconIgnoresSky(dim, true);
-            }
-
-            Set<ResourceKey<Level>> pendingVoidFog = PendingLoopingConfig.getPendingVoidFog();
-            for (ResourceKey<Level> dim : LoopingDimensionManager.getVoidFogDimensions()) {
-                if (!pendingVoidFog.contains(dim)) LoopingDimensionManager.setVoidFog(dim, false);
-            }
-            for (ResourceKey<Level> dim : pendingVoidFog) {
-                LoopingDimensionManager.setVoidFog(dim, true);
-            }
-
-            Set<ResourceKey<Level>> pendingSkyLight = PendingLoopingConfig.getPendingSkyLight();
-            for (ResourceKey<Level> dim : LoopingDimensionManager.getSkyLightDimensions()) {
-                if (!pendingSkyLight.contains(dim)) LoopingDimensionManager.setSkyLight(dim, false);
-            }
-            for (ResourceKey<Level> dim : pendingSkyLight) {
-                LoopingDimensionManager.setSkyLight(dim, true);
-            }
+            biblioteca$applyPending(
+                    PendingLoopingConfig.getPendingLooping(),
+                    LoopingDimensionManager.getLoopingDimensions(),
+                    LoopingDimensionManager::setLooping);
+            biblioteca$applyPending(
+                    PendingLoopingConfig.getPendingBeaconIgnoresSky(),
+                    LoopingDimensionManager.getBeaconIgnoresSkyDimensions(),
+                    LoopingDimensionManager::setBeaconIgnoresSky);
+            biblioteca$applyPending(
+                    PendingLoopingConfig.getPendingVoidFog(),
+                    LoopingDimensionManager.getVoidFogDimensions(),
+                    LoopingDimensionManager::setVoidFog);
+            biblioteca$applyPending(
+                    PendingLoopingConfig.getPendingSkyLight(),
+                    LoopingDimensionManager.getSkyLightDimensions(),
+                    LoopingDimensionManager::setSkyLight);
 
             PendingLoopingConfig.consume();
         }
@@ -65,5 +59,22 @@ public class MinecraftServerMixin {
     @Inject(at = @At("HEAD"), method = "stopServer")
     private void biblioteca$onServerStop(CallbackInfo ci) {
         LoopingDimensionManager.onServerStopped();
+    }
+
+    /**
+     * Makes the stored set match the pending set. The pending set always wins, including removals:
+     * a dimension that was looping before must stop if the player left the toggle off.
+     */
+    private static void biblioteca$applyPending(
+            Set<ResourceKey<Level>> wanted,
+            Set<ResourceKey<Level>> current,
+            BiConsumer<ResourceKey<Level>, Boolean> setter) {
+
+        for (ResourceKey<Level> dimension : current) {
+            if (!wanted.contains(dimension)) setter.accept(dimension, false);
+        }
+        for (ResourceKey<Level> dimension : wanted) {
+            setter.accept(dimension, true);
+        }
     }
 }

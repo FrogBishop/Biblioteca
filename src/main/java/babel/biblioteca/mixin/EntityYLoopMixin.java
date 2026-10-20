@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,15 +38,9 @@ public abstract class EntityYLoopMixin {
         if (level == null) return y;
         if (!LoopingRegistry.isLooping(level)) return y;
 
-        int minY   = level.getMinY();
-        int height = level.getHeight();
-
         // Fast path: almost every position is already inside the world.
-        if (y >= minY && y < minY + height) return y;
-
-        double floored  = Math.floor(y);
-        double fraction = y - floored;
-        double folded   = Math.floorMod((int) floored - minY, height) + minY + fraction;
+        double folded = SeamPositions.foldY(level, y);
+        if (folded == y) return y;
 
         // A fold moves the position by a whole world height in a single step, and the renderer
         // interpolates from the previous tick's row. Moving that row by the same multiple of the

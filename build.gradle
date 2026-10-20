@@ -85,7 +85,7 @@ publishing {
 // ---------------------------------------------------------------------------
 // Every build emits a second jar next to the normal one: the same mod with the
 // client renderer hooks stripped out (no mirrored chunk sections, no frustum or
-// BFS workarounds, no cloud or fog tweaks, no OIT override). Server logic,
+// BFS workarounds, no cloud, fog or particle tweaks, no OIT override). Server logic,
 // networking, coordinate folding and block prediction are untouched.
 //
 // The variant is cut from the finished jar instead of a second source set, so the
@@ -109,6 +109,7 @@ def noRenderMixins = [
 		'FrustumYLoopMixin',
 		'ImprovedTransparencyYLoopMixin',
 		'LevelRendererYLoopMixin',
+		'ParticleYLoopMixin',
 		'RenderRegionCacheYLoopMixin',
 		'SectionOcclusionGraphLoopMixin',
 		'SkyRendererYLoopMixin',

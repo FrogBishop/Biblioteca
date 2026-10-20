@@ -117,7 +117,7 @@ In a looping dimension, vanilla's "the beacon must see the sky" rule can never b
 
 - Block collisions at the seam treat the row past `minY` as the top row and the row past `maxY` as the bottom row. The top of the world and the bottom of the world are the same plane.
 - Entity collisions are measured around the ring, so two entities on opposite sides of the seam collide as if adjacent.
-- Entity positions are folded when committed. Minecarts, falling blocks and primed TNT wrap as well, even though they override the normal entity tick.
+- Entity positions are folded at the single commit point every position write goes through, so minecarts, falling blocks and primed TNT wrap too; no per-tick correction is needed.
 - Camera interpolation stays continuous across the seam; the player is not teleported or snapped.
 
 ### Redstone, pistons and neighbours
@@ -158,7 +158,7 @@ In a looping dimension, vanilla's "the beacon must see the sky" rule can never b
 ### Statistics
 
 - Crossing the seam increments **Seam crossings** in the statistics screen (General tab). It is a vanilla custom stat: stored in the player's stats file, synced per player, and reset with the rest of the statistics.
-- The counter is bumped by the movement packet that actually crosses the seam, not by a per-tick scan.
+- Walking, flying or riding across counts. The counter is bumped by the movement packet that actually crosses the seam, not by a per-tick scan; teleports and respawns are not movement packets and do not count.
 
 ### Rendering
 
@@ -201,7 +201,7 @@ The build ships two jars:
 | `biblioteca-<version>.jar` | Client and server, with the full mirrored rendering. |
 | `biblioteca-<version>-norender.jar` | Dedicated servers. Same mod logic without the client renderer hooks. |
 
-The `-norender` jar is cut from the normal jar, so the two cannot drift apart. It keeps server logic, networking, coordinate folding, block prediction and the GUI; it removes the mirrored terrain, frustum/BFS workarounds, cloud and void-fog hooks, and the OIT override. It appears in the mod list with a `-norender` version suffix.
+The `-norender` jar is cut from the normal jar, so the two cannot drift apart. It keeps server logic, networking, coordinate folding, block prediction and the GUI; it removes the mirrored terrain, frustum/BFS workarounds, cloud, fog and particle hooks, and the OIT override. It appears in the mod list with a `-norender` version suffix.
 
 Clients still need the normal jar to see the ring. Do not install both jars in one instance.
 
@@ -223,7 +223,7 @@ Clients still need the normal jar to see the ring. Do not install both jars in o
 - **The `-norender` jar has no visual loop.** It is intended for servers, not for clients that want to see the ring.
 - **Render distance matters.** More visible copies mean more draw calls. A height-16 world at 32 chunks is the stress case; the renderer currently does not instance or merge copies. The seam preload setting trades compile work for fewer hitches, not for fewer draw commands.
 - **The loop period is the dimension's height.** The mod does not generate extra terrain above or below the world; it wraps the height the dimension already has.
-- **0.0.x.** The mod is young; internals and behaviour may change between releases.
+- **0.x.** The mod is young; internals and behaviour may change between releases. See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## FAQ
 

@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -39,14 +40,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(PistonBaseBlock.class)
 public abstract class PistonBaseBlockYLoopMixin {
 
-    private static BlockPos biblioteca$wrap(BlockPos pos, Level level) {
-        int y      = pos.getY();
-        int minY   = level.getMinY();
-        int height = level.getHeight();
-        if (y >= minY && y < minY + height) return pos;
-        return new BlockPos(pos.getX(), Math.floorMod(y - minY, height) + minY, pos.getZ());
-    }
-
     @Inject(method = "isPushable", at = @At("HEAD"), cancellable = true)
     private static void biblioteca$allowSeamRows(
             BlockState state, Level level, BlockPos pos, Direction direction,
@@ -62,7 +55,8 @@ public abstract class PistonBaseBlockYLoopMixin {
 
         if (y < minY || y > maxY) {
             cir.setReturnValue(PistonBaseBlock.isPushable(
-                    state, level, biblioteca$wrap(pos, level), direction, allowDestroyable, connectionDirection));
+                    state, level, SeamPositions.foldBlockPos(level, pos),
+                    direction, allowDestroyable, connectionDirection));
             return;
         }
 
@@ -90,10 +84,9 @@ public abstract class PistonBaseBlockYLoopMixin {
             boolean extending, boolean isSourcePiston, Operation<BlockEntity> original,
             @Local(argsOnly = true) Level level) {
 
-        BlockPos target = position;
-        if (LoopingRegistry.isLooping(level)) {
-            target = biblioteca$wrap(position, level);
-        }
+        BlockPos target = LoopingRegistry.isLooping(level)
+                ? SeamPositions.foldBlockPos(level, position)
+                : position;
         return original.call(target, blockState, movedState, direction, extending, isSourcePiston);
     }
 }

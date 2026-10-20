@@ -7,10 +7,13 @@ import net.minecraft.world.level.LevelAccessor;
 import java.util.function.Predicate;
 
 /**
- * Unified runtime check for the per-dimension attributes of this mod.
- * Server side: delegates to LoopingDimensionManager.
- * Client side: delegates to LoopingDimensionCache.
- * Both register their delegates at their respective initializers.
+ * Side-agnostic access to the four per-dimension attributes.
+ *
+ * <p>The server answers from {@link babel.biblioteca.world.LoopingDimensionManager}, the client
+ * from the client's {@code LoopingDimensionCache}; each registers its predicates at its
+ * own initializer. Code in a mixin can therefore ask one method without knowing which side it runs
+ * on, which is what lets the same block, collision and light hooks serve singleplayer, a client and
+ * a dedicated server.
  */
 public final class LoopingRegistry {
 
@@ -31,7 +34,12 @@ public final class LoopingRegistry {
 
     private LoopingRegistry() {}
 
-    /** The current attribute revision. A cached answer is valid while this does not change. */
+    /**
+     * The current attribute revision. A cached answer is valid while this does not change.
+     *
+     * <p>Incremented on every change, including the payload replacing the whole client cache, so a
+     * cache only has to compare one int.
+     */
     public static int revision() {
         return revision;
     }
@@ -72,7 +80,13 @@ public final class LoopingRegistry {
         clientSkyLightCheck = check;
     }
 
-    /** Picks the right delegate based on which side the level is on. */
+    /**
+     * Whether the Y axis of this level loops.
+     *
+     * <p>A Level answers this from its own revision-checked cache; anything that is not a Level
+     * (a bare LevelAccessor) falls back to the side's predicate. The cache is why this is cheap
+     * enough for every block-state access.
+     */
     public static boolean isLooping(Level level) {
         if (level instanceof LoopingLevel cached) {
             return cached.biblioteca$isLooping();
@@ -115,13 +129,5 @@ public final class LoopingRegistry {
         return level.isClientSide()
                 ? clientSkyLightCheck.test(level.dimension())
                 : serverSkyLightCheck.test(level.dimension());
-    }
-
-    public static boolean isLoopingClient(ResourceKey<Level> dim) {
-        return clientCheck.test(dim);
-    }
-
-    public static boolean beaconsIgnoreSkyClient(ResourceKey<Level> dim) {
-        return clientBeaconCheck.test(dim);
     }
 }

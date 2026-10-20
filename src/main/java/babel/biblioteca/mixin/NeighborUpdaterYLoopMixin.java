@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -40,17 +41,13 @@ public interface NeighborUpdaterYLoopMixin {
 
         if (!LoopingRegistry.isLooping(level)) return;
 
-        int minY   = level.getMinY();
-        int height = level.getHeight();
-        int y      = pos.getY();
-
         // Fast path: updates inside the world are by far the common case.
-        if (y >= minY && y < minY + height) return;
+        if (SeamPositions.isInside(level, pos.getY())) return;
 
         // The state was looked up through a folded getBlockState, so it is already the state of
         // the row this position folds to; only the position has to be brought back in range.
-        BlockPos folded = new BlockPos(pos.getX(), Math.floorMod(y - minY, height) + minY, pos.getZ());
-        NeighborUpdater.executeUpdate(level, state, folded, changedBlock, orientation, movedByPiston);
+        NeighborUpdater.executeUpdate(
+                level, state, SeamPositions.foldBlockPos(level, pos), changedBlock, orientation, movedByPiston);
         ci.cancel();
     }
 }

@@ -1,7 +1,7 @@
 package babel.biblioteca.client.mixin;
 
-import babel.biblioteca.client.LoopingClientSettings;
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.client.LoopingClientSettings;
 import babel.biblioteca.client.SeamCull;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;

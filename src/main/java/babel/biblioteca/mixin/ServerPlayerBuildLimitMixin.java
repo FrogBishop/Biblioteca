@@ -3,29 +3,23 @@ package babel.biblioteca.mixin;
 import babel.biblioteca.LoopingRegistry;
 import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * In a Y-looping dimension, suppress the "build limit exceeded" message so
- * the player can place blocks at Y=320 (which folds to Y=-64).
- * The server-side LevelBlockAccessMixin already folds the BlockPos before
- * the actual block placement, so the block goes to the correct position.
+ * Suppresses the "build limit exceeded" message in a looping dimension.
+ *
+ * The message is only a notification: the placement itself is folded by LevelBlockAccessMixin, so a
+ * block placed at y = 320 lands at y = -64. Vanilla would still tell the player they are above the
+ * build limit, which is not true in a ring.
  */
 @Mixin(ServerPlayer.class)
 public abstract class ServerPlayerBuildLimitMixin {
 
-    /**
-     * @author biblioteca
-     * @reason suppress build-limit message in Y-looping dimensions
-     */
-    @Overwrite
-    public void sendBuildLimitMessage(boolean tooHigh, int limit) {
+    @Inject(method = "sendBuildLimitMessage", at = @At("HEAD"), cancellable = true)
+    private void biblioteca$silenceAtTheSeam(boolean tooHigh, int limit, CallbackInfo ci) {
         ServerPlayer self = (ServerPlayer) (Object) this;
-        if (LoopingRegistry.isLooping(self.level())) return;
-        // Vanilla: send the translatable "build.tooHigh" / "build.tooLow" message.
-        net.minecraft.network.chat.Component msg = tooHigh
-                ? net.minecraft.network.chat.Component.translatable("build.tooHigh", limit)
-                : net.minecraft.network.chat.Component.translatable("build.tooLow", limit);
-        self.sendSystemMessage(msg);
+        if (LoopingRegistry.isLooping(self.level())) ci.cancel();
     }
 }

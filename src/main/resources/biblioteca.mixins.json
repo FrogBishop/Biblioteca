@@ -3,7 +3,6 @@
   "package": "babel.biblioteca.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "AbstractMinecartYLoopMixin",
     "BambooStalkBlockYLoopMixin",
     "BeaconBlockEntityAccessor",
     "BeaconBlockEntityYLoopMixin",
@@ -14,7 +13,6 @@
     "DoublePlantBlockYLoopMixin",
     "EntityGetterYLoopMixin",
     "EntityYLoopMixin",
-    "FallingBlockEntityYLoopMixin",
     "GrassBlockYLoopMixin",
     "GrowingPlantHeadBlockYLoopMixin",
     "LevelBlockAccessMixin",
@@ -25,7 +23,6 @@
     "NeighborUpdaterYLoopMixin",
     "PistonBaseBlockYLoopMixin",
     "PlayerReachMixin",
-    "PrimedTntYLoopMixin",
     "ServerGamePacketListenerMixin",
     "ServerLevelEffectsYLoopMixin",
     "ServerPlayerBuildLimitMixin",

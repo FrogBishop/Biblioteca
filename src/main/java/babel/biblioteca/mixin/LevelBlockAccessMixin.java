@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -11,14 +12,13 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 /**
  * Makes the whole Level accessor family treat the Y axis as periodic.
  *
- * Every out-of-range lookup in Level funnels through one guard, isInValidBounds(),
- * which answers "outside the world" for rows above minY + height and below minY.
- * Folding the BlockPos before that guard is what lets the seam behave like the ring
- * it is supposed to be, and it has to be done per accessor: a block that asks for
- * something other than a BlockState would still see the void.
+ * Every out-of-range lookup in Level funnels through one guard, isInValidBounds(), which answers
+ * "outside the world" for rows above minY + height and below minY. Folding the BlockPos before that
+ * guard is what lets the seam behave like the ring it is supposed to be, and it has to be done per
+ * accessor: a block that asks for something other than a BlockState would still see the void.
  *
- * Blocks with bespoke rules reach for these accessors directly, which is why a
- * partially covered family shows up as unrelated sounding bugs:
+ * Blocks with bespoke rules reach for these accessors directly, which is why a partially covered
+ * family shows up as unrelated sounding bugs:
  *
  *   getBlockState / setBlock / removeBlock   pistons, redstone, chests, rails, ...
  *   getFluidState                            waterlogged blocks, fluid mixing, swimming
@@ -28,9 +28,9 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  *                                            row that reads as unloaded is dropped)
  *   loadedAndEntityCanStandOnFace            entity support checks
  *
- * setBlockEntity(BlockEntity) is deliberately absent: it derives its position from the
- * block entity, so there is no argument to fold. Block entities created through
- * setBlock are placed at the folded position by the chunk itself.
+ * setBlockEntity(BlockEntity) is deliberately absent: it derives its position from the block
+ * entity, so there is no argument to fold. Block entities created through setBlock are placed at
+ * the folded position by the chunk itself.
  *
  * Every hook below is mandatory: the mixin config sets defaultRequire to 1, so a silently
  * unmatched injection is impossible. That is deliberate - a silently unmatched injection is
@@ -39,19 +39,14 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 @Mixin(Level.class)
 public abstract class LevelBlockAccessMixin {
 
-    private static BlockPos biblioteca$wrap(BlockPos pos, Level level) {
-        int y      = pos.getY();
-        int minY   = level.getMinY();
-        int height = level.getHeight();
-        if (y >= minY && y < minY + height) return pos;
-        return new BlockPos(pos.getX(), Math.floorMod(y - minY, height) + minY, pos.getZ());
+    private BlockPos biblioteca$fold(BlockPos pos) {
+        Level self = (Level) (Object) this;
+        return LoopingRegistry.isLooping(self) ? SeamPositions.foldBlockPos(self, pos) : pos;
     }
 
     @ModifyVariable(method = "getBlockState", at = @At("HEAD"), argsOnly = true)
     private BlockPos biblioteca$wrapGetBlockState(BlockPos pos) {
-        Level self = (Level) (Object) this;
-        if (!LoopingRegistry.isLooping(self)) return pos;
-        return biblioteca$wrap(pos, self);
+        return biblioteca$fold(pos);
     }
 
     // MC 26.3: Level.setBlock has only the 4-argument form (BlockPos, BlockState, int, int)
@@ -59,9 +54,7 @@ public abstract class LevelBlockAccessMixin {
             method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$wrapSetBlock(BlockPos pos) {
-        Level self = (Level) (Object) this;
-        if (!LoopingRegistry.isLooping(self)) return pos;
-        return biblioteca$wrap(pos, self);
+        return biblioteca$fold(pos);
     }
 
     // MC 26.3: Level.removeBlock(BlockPos, boolean)
@@ -69,43 +62,31 @@ public abstract class LevelBlockAccessMixin {
             method = "removeBlock(Lnet/minecraft/core/BlockPos;Z)Z",
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$wrapRemoveBlock(BlockPos pos) {
-        Level self = (Level) (Object) this;
-        if (!LoopingRegistry.isLooping(self)) return pos;
-        return biblioteca$wrap(pos, self);
+        return biblioteca$fold(pos);
     }
 
     @ModifyVariable(method = "getFluidState", at = @At("HEAD"), argsOnly = true)
     private BlockPos biblioteca$wrapGetFluidState(BlockPos pos) {
-        Level self = (Level) (Object) this;
-        if (!LoopingRegistry.isLooping(self)) return pos;
-        return biblioteca$wrap(pos, self);
+        return biblioteca$fold(pos);
     }
 
     @ModifyVariable(method = "getBlockEntity", at = @At("HEAD"), argsOnly = true)
     private BlockPos biblioteca$wrapGetBlockEntity(BlockPos pos) {
-        Level self = (Level) (Object) this;
-        if (!LoopingRegistry.isLooping(self)) return pos;
-        return biblioteca$wrap(pos, self);
+        return biblioteca$fold(pos);
     }
 
     @ModifyVariable(method = "removeBlockEntity", at = @At("HEAD"), argsOnly = true)
     private BlockPos biblioteca$wrapRemoveBlockEntity(BlockPos pos) {
-        Level self = (Level) (Object) this;
-        if (!LoopingRegistry.isLooping(self)) return pos;
-        return biblioteca$wrap(pos, self);
+        return biblioteca$fold(pos);
     }
 
     @ModifyVariable(method = "isLoaded", at = @At("HEAD"), argsOnly = true)
     private BlockPos biblioteca$wrapIsLoaded(BlockPos pos) {
-        Level self = (Level) (Object) this;
-        if (!LoopingRegistry.isLooping(self)) return pos;
-        return biblioteca$wrap(pos, self);
+        return biblioteca$fold(pos);
     }
 
     @ModifyVariable(method = "loadedAndEntityCanStandOnFace", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$wrapLoadedAndEntityCanStandOnFace(BlockPos pos) {
-        Level self = (Level) (Object) this;
-        if (!LoopingRegistry.isLooping(self)) return pos;
-        return biblioteca$wrap(pos, self);
+        return biblioteca$fold(pos);
     }
 }

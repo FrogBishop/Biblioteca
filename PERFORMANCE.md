@@ -19,6 +19,14 @@ That keeps memory flat, but it does not make the extra layers free.
   can reach the render distance; sections that are already visible are skipped. The scan
   reuses its buffers and does not allocate an AABB per candidate.
 
+## Server cost
+
+The server keeps one period and does not scan for seam events. Coordinate folding is a
+`floorMod` applied where a coordinate enters the world model (block access, collisions, light
+nodes, movement packets), and entity positions are folded at their single commit point. The
+`Seam crossings` statistic is awarded from the movement packet that changes the ring copy, so
+there is no per-tick check for it and none for entities either.
+
 ## Known ceiling
 
 The remaining ceiling is **draw-command submission**, not mesh memory. Every visible copy is

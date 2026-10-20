@@ -6,19 +6,19 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
+/**
+ * Client entrypoint: receives the per-dimension attributes and wires them into
+ * {@link LoopingRegistry}, the shared side-agnostic facade the mixins call.
+ */
 public class BibliotecaClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        // Receive S2C looping-state packet and populate the client-side cache.
         ClientPlayNetworking.registerGlobalReceiver(
                 LoopingStatePayload.TYPE,
                 (payload, context) -> context.client().execute(
-                        () -> LoopingDimensionCache.applyPayload(payload)
-                )
-        );
+                        () -> LoopingDimensionCache.applyPayload(payload)));
 
-        // Wire the client checkers into the shared LoopingRegistry.
         LoopingRegistry.setClientChecker(LoopingDimensionCache::isLooping);
         LoopingRegistry.setClientBeaconChecker(LoopingDimensionCache::beaconsIgnoreSky);
         LoopingRegistry.setClientVoidFogChecker(LoopingDimensionCache::showsVoidFog);

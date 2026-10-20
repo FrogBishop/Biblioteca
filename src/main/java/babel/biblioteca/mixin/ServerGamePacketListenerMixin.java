@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
 import babel.biblioteca.SeamStats;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -20,28 +21,33 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
- * Folds out-of-bounds Y coordinates in incoming player action and block-placement packets, so the
- * server's range and height checks see the row the block actually lives at.
+ * Makes incoming player packets agree with the ring.
  *
- * The client legitimately names rows beyond the world here: it clicks the block it can see, and the
- * renderer draws the row across the seam where it belongs. Folding at the checks keeps those
- * packets valid without asking the client to send a coordinate it never displayed.
+ * The client legitimately names rows beyond the world: it clicks the block it can see, and the
+ * renderer draws the row across the seam where it belongs. The action and block-placement handlers
+ * therefore fold the position before the range and height checks, and the movement handlers fold
+ * the requested Y onto the ring copy nearest the player before the "moved too quickly" test.
+ * Without that fold a guest crossing the seam would arrive as a whole-period jump and be dragged
+ * back; the host only escaped it because vanilla disables the check for the single-player owner.
+ *
+ * The movement step is also the one place where a seam crossing is observed, so it is where the
+ * statistic is awarded. Folding here changes only the coordinate the handler validates - the
+ * position that is finally committed is folded independently by EntityYLoopMixin.
  */
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class ServerGamePacketListenerMixin {
 
     @Shadow public ServerPlayer player;
 
-
-    private BlockPos biblioteca$fold(BlockPos pos, ServerLevel level) {
-        int y      = pos.getY();
-        int minY   = level.getMinY();
-        int height = level.getHeight();
-        if (y >= minY && y < minY + height) return pos;
-        return new BlockPos(pos.getX(), Math.floorMod(y - minY, height) + minY, pos.getZ());
+    private ServerLevel biblioteca$level() {
+        return player.level() instanceof ServerLevel level ? level : null;
     }
 
-    // --- handlePlayerAction: fold the BlockPos before distance + height checks ---
+    private BlockPos biblioteca$fold(ServerLevel level, BlockPos pos) {
+        return LoopingRegistry.isLooping(level) ? SeamPositions.foldBlockPos(level, pos) : pos;
+    }
+
+    // --- handlePlayerAction: fold the BlockPos before the distance and height checks ---
 
     @WrapOperation(
             method = "handlePlayerAction",
@@ -50,10 +56,9 @@ public abstract class ServerGamePacketListenerMixin {
                     ordinal = 0))
     private BlockPos biblioteca$foldActionPos(
             ServerboundPlayerActionPacket packet, Operation<BlockPos> original) {
-        BlockPos pos  = original.call(packet);
-        ServerLevel l = player.level() instanceof ServerLevel sl ? sl : null;
-        if (l == null || !LoopingRegistry.isLooping(l)) return pos;
-        return biblioteca$fold(pos, l);
+        BlockPos pos = original.call(packet);
+        ServerLevel level = biblioteca$level();
+        return level == null ? pos : biblioteca$fold(level, pos);
     }
 
     // --- handleUseItemOn: fold both the BlockPos and the Vec3 hit location ---
@@ -65,10 +70,9 @@ public abstract class ServerGamePacketListenerMixin {
                     ordinal = 0))
     private BlockPos biblioteca$foldUseItemBlockPos(
             BlockHitResult hit, Operation<BlockPos> original) {
-        BlockPos pos  = original.call(hit);
-        ServerLevel l = player.level() instanceof ServerLevel sl ? sl : null;
-        if (l == null || !LoopingRegistry.isLooping(l)) return pos;
-        return biblioteca$fold(pos, l);
+        BlockPos pos = original.call(hit);
+        ServerLevel level = biblioteca$level();
+        return level == null ? pos : biblioteca$fold(level, pos);
     }
 
     // --- handlePlayerPositionChange: fold the requested Y before the movement check ---
@@ -78,11 +82,7 @@ public abstract class ServerGamePacketListenerMixin {
      *
      * Crossing the seam changes the committed position by a whole world height in one step: the
      * client commits y = 320.0 and therefore sends the folded y = -64.0 (or the other way round).
-     * The server would read that as a 384-block jump. The vanilla "moved too quickly" test is
-     * disabled for the single-player owner, which is why the host can cross and guests are
-     * teleported back; shifting the packet by whole periods first keeps the delta a normal step
-     * on every connection. The position that is committed is still folded into the world by
-     * EntityYLoopMixin.
+     * The server would read that as a 384-block jump.
      */
     @ModifyVariable(
             method = "handlePlayerPositionChange",
@@ -96,34 +96,24 @@ public abstract class ServerGamePacketListenerMixin {
         int period = level.getHeight();
         if (period <= 0) return requestedY;
 
-        double currentY = player.getY();
-        double delta = currentY - requestedY;
-        double half = period * 0.5;
-
-        // Fast path: rows within half a period are the same ring copy.
-        //
         // "Both rows are inside the world" is NOT a valid fast path here. The client folds its own
-        // position in EntityYLoopMixin, so a crossing arrives as an in-range row on the opposite
-        // edge - 384 blocks away, with both values inside the world. Skipping that case both
-        // dropped the statistic and left the movement check with the full-period jump.
-        if (delta > -half && delta < half) return requestedY;
-
-        long layer = Math.round(delta / period);
+        // position before sending, so a crossing arrives as an in-range row on the opposite edge, a
+        // whole period away from the player's current row. Skipping that case both dropped the
+        // statistic and left the movement check with the full-period jump.
+        long layer = SeamPositions.layer(requestedY, player.getY(), period);
         if (layer == 0L) return requestedY;
 
         SeamStats.awardCrossing(player);
         return requestedY + (double) layer * period;
     }
 
-    // --- handleMoveVehicle: same fold for the vehicle position packet ---
+    // --- handleMoveVehicle: the same fold for the vehicle position packet ---
 
     /**
      * Folds the vehicle's requested position the same way as the player's.
      *
-     * A guest riding through the seam has the identical 384-block jump in this packet, and the
-     * vehicle branch of the movement check carries the same single-player-owner exemption for the
-     * host. Folding here keeps the delta one period smaller for every connection; the committed
-     * position is folded into the world by EntityYLoopMixin.
+     * A guest riding through the seam has the identical whole-period jump in this packet, and the
+     * vehicle branch of the movement check carries the same single-player-owner exemption.
      */
     @ModifyExpressionValue(
             method = "handleMoveVehicle",
@@ -141,11 +131,7 @@ public abstract class ServerGamePacketListenerMixin {
         double referenceY = vehicle != player ? vehicle.getY() : player.getY();
         Vec3 pos = movingTo.position();
 
-        double delta = referenceY - pos.y;
-        double half = period * 0.5;
-        if (delta > -half && delta < half) return movingTo;
-
-        long layer = Math.round(delta / period);
+        long layer = SeamPositions.layer(pos.y, referenceY, period);
         if (layer == 0L) return movingTo;
 
         SeamStats.awardCrossing(player);
@@ -154,6 +140,10 @@ public abstract class ServerGamePacketListenerMixin {
                 movingTo.yRot(), movingTo.xRot());
     }
 
+    /**
+     * The hit location is a point on the clicked block face, and the server checks it against the
+     * block centre. Moving it by the same whole period as the block keeps that offset intact.
+     */
     @WrapOperation(
             method = "handleUseItemOn",
             at = @At(value = "INVOKE",
@@ -161,14 +151,14 @@ public abstract class ServerGamePacketListenerMixin {
                     ordinal = 0))
     private Vec3 biblioteca$foldUseItemLocationSubtract(
             Vec3 loc, Vec3 center, Operation<Vec3> original) {
-        ServerLevel l = player.level() instanceof ServerLevel sl ? sl : null;
-        if (l == null || !LoopingRegistry.isLooping(l)) {
+        ServerLevel level = biblioteca$level();
+        if (level == null || !LoopingRegistry.isLooping(level)) {
             return original.call(loc, center);
         }
-        double centerY    = center.y;
+
+        double centerY = center.y;
         double fracOffset = loc.y - Math.floor(loc.y) - 0.5;
-        Vec3 foldedLoc    = new Vec3(loc.x, centerY + fracOffset, loc.z);
+        Vec3 foldedLoc = new Vec3(loc.x, centerY + fracOffset, loc.z);
         return original.call(foldedLoc, center);
     }
 }
-

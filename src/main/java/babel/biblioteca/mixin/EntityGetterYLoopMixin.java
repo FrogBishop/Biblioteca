@@ -43,20 +43,18 @@ public interface EntityGetterYLoopMixin {
         if (!(this instanceof Level level) || !LoopingRegistry.isLooping(level)) return;
 
         int minY = level.getMinY();
-        double seamBottom = minY;
-        double seamTop = minY + level.getHeight();
-        double period = level.getHeight();
+        int height = level.getHeight();
         double reach = SeamEntityCollisions.REACH;
 
         List<VoxelShape> extra = null;
 
-        if (testArea.minY < seamBottom + reach) {
+        if (testArea.minY < minY + reach) {
             extra = new ArrayList<>(4);
-            SeamEntityCollisions.collect(level, source, testArea, period, extra);
+            SeamEntityCollisions.collect(level, source, testArea, height, extra);
         }
-        if (testArea.maxY > seamTop - reach) {
+        if (testArea.maxY > minY + height - reach) {
             if (extra == null) extra = new ArrayList<>(4);
-            SeamEntityCollisions.collect(level, source, testArea, -period, extra);
+            SeamEntityCollisions.collect(level, source, testArea, -height, extra);
         }
 
         if (extra == null || extra.isEmpty()) return;

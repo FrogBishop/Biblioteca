@@ -80,10 +80,6 @@ public class LoopingWorldData extends SavedData {
             null
     );
 
-    public boolean isLooping(ResourceKey<Level> dimension) {
-        return loopingDimensions.contains(dimension);
-    }
-
     public void setLooping(ResourceKey<Level> dimension, boolean enabled) {
         if (enabled) loopingDimensions.add(dimension);
         else loopingDimensions.remove(dimension);
@@ -92,10 +88,6 @@ public class LoopingWorldData extends SavedData {
 
     public Set<ResourceKey<Level>> getLoopingDimensions() {
         return Set.copyOf(loopingDimensions);
-    }
-
-    public boolean beaconIgnoresSky(ResourceKey<Level> dimension) {
-        return beaconIgnoresSky.contains(dimension);
     }
 
     public void setBeaconIgnoresSky(ResourceKey<Level> dimension, boolean ignored) {
@@ -108,10 +100,6 @@ public class LoopingWorldData extends SavedData {
         return Set.copyOf(beaconIgnoresSky);
     }
 
-    public boolean showsVoidFog(ResourceKey<Level> dimension) {
-        return voidFog.contains(dimension);
-    }
-
     public void setVoidFog(ResourceKey<Level> dimension, boolean shown) {
         if (shown) voidFog.add(dimension);
         else voidFog.remove(dimension);
@@ -120,10 +108,6 @@ public class LoopingWorldData extends SavedData {
 
     public Set<ResourceKey<Level>> getVoidFogDimensions() {
         return Set.copyOf(voidFog);
-    }
-
-    public boolean keepsSkyLight(ResourceKey<Level> dimension) {
-        return skyLight.contains(dimension);
     }
 
     public void setSkyLight(ResourceKey<Level> dimension, boolean kept) {

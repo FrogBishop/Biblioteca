@@ -11,8 +11,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Client-side mirror of the server's LoopingWorldData.
- * Populated by LoopingStatePayload S2C packets.
+ * Client-side mirror of the server's {@code LoopingWorldData}, populated by
+ * {@link LoopingStatePayload}.
+ *
+ * <p>The client only ever asks whether a dimension has an attribute, never which dimensions have
+ * it, so only the predicates are exposed. The cache starts empty, is replaced as a whole by each
+ * payload, and is cleared on disconnect so the next server's attributes are not mixed with the
+ * previous server's.
  */
 public final class LoopingDimensionCache {
 
@@ -23,6 +28,7 @@ public final class LoopingDimensionCache {
 
     private LoopingDimensionCache() {}
 
+    /** Replaces every set with the server's current snapshot. */
     public static void applyPayload(LoopingStatePayload payload) {
         fill(loopingDimensions, payload.loopingDimensions());
         fill(beaconIgnoresSky, payload.beaconIgnoresSky());
@@ -31,13 +37,7 @@ public final class LoopingDimensionCache {
         LoopingRegistry.bumpRevision();
     }
 
-    /**
-     * Drops what the last server said.
-     *
-     * The client keeps one cache for whichever server it is connected to, so leaving a looping
-     * world and joining a plain one would otherwise run on the previous server's attributes until
-     * the new payload arrives.
-     */
+    /** Drops what the last server said; called on disconnect. */
     public static void clear() {
         loopingDimensions.clear();
         beaconIgnoresSky.clear();
@@ -57,31 +57,15 @@ public final class LoopingDimensionCache {
         return loopingDimensions.contains(dimension);
     }
 
-    public static Set<ResourceKey<Level>> getLoopingDimensions() {
-        return Set.copyOf(loopingDimensions);
-    }
-
     public static boolean beaconsIgnoreSky(ResourceKey<Level> dimension) {
         return beaconIgnoresSky.contains(dimension);
-    }
-
-    public static Set<ResourceKey<Level>> getBeaconIgnoresSky() {
-        return Set.copyOf(beaconIgnoresSky);
     }
 
     public static boolean showsVoidFog(ResourceKey<Level> dimension) {
         return voidFog.contains(dimension);
     }
 
-    public static Set<ResourceKey<Level>> getVoidFogDimensions() {
-        return Set.copyOf(voidFog);
-    }
-
     public static boolean keepsSkyLight(ResourceKey<Level> dimension) {
         return skyLight.contains(dimension);
-    }
-
-    public static Set<ResourceKey<Level>> getSkyLightDimensions() {
-        return Set.copyOf(skyLight);
     }
 }

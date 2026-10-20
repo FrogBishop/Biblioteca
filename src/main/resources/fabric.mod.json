@@ -3,7 +3,7 @@
   "id": "biblioteca",
   "version": "${version}",
   "name": "Biblioteca",
-  "description": "Adds per-dimension period to Y-axis",
+  "description": "Turns a dimension's Y axis into a periodic ring: no floor, no ceiling, no teleport.",
   "authors": [
     "FrogBishop"
   ],
