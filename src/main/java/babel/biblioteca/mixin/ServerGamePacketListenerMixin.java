@@ -96,16 +96,19 @@ public abstract class ServerGamePacketListenerMixin {
         int period = level.getHeight();
         if (period <= 0) return requestedY;
 
-        int minY = level.getMinY();
         double currentY = player.getY();
+        double delta = currentY - requestedY;
+        double half = period * 0.5;
 
-        // Fast path: both rows are already inside the world, so this packet cannot be a crossing.
-        if (requestedY >= minY && requestedY < minY + period
-                && currentY >= minY && currentY < minY + period) {
-            return requestedY;
-        }
+        // Fast path: rows within half a period are the same ring copy.
+        //
+        // "Both rows are inside the world" is NOT a valid fast path here. The client folds its own
+        // position in EntityYLoopMixin, so a crossing arrives as an in-range row on the opposite
+        // edge - 384 blocks away, with both values inside the world. Skipping that case both
+        // dropped the statistic and left the movement check with the full-period jump.
+        if (delta > -half && delta < half) return requestedY;
 
-        long layer = Math.round((currentY - requestedY) / period);
+        long layer = Math.round(delta / period);
         if (layer == 0L) return requestedY;
 
         SeamStats.awardCrossing(player);
@@ -138,13 +141,11 @@ public abstract class ServerGamePacketListenerMixin {
         double referenceY = vehicle != player ? vehicle.getY() : player.getY();
         Vec3 pos = movingTo.position();
 
-        int minY = level.getMinY();
-        if (pos.y >= minY && pos.y < minY + period
-                && referenceY >= minY && referenceY < minY + period) {
-            return movingTo;
-        }
+        double delta = referenceY - pos.y;
+        double half = period * 0.5;
+        if (delta > -half && delta < half) return movingTo;
 
-        long layer = Math.round((referenceY - pos.y) / period);
+        long layer = Math.round(delta / period);
         if (layer == 0L) return movingTo;
 
         SeamStats.awardCrossing(player);

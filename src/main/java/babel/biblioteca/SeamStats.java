@@ -29,6 +29,7 @@ public final class SeamStats {
     public static void init() {
         Registry.register(BuiltInRegistries.CUSTOM_STAT, SEAM_CROSSINGS_ID, SEAM_CROSSINGS_ID);
         seamCrossings = Stats.CUSTOM.get(SEAM_CROSSINGS_ID, StatFormatter.DEFAULT);
+        Biblioteca.LOGGER.info("[Biblioteca] Registered statistic {}", SEAM_CROSSINGS_ID);
     }
 
     /** Counts one seam crossing for the player. */
