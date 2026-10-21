@@ -41,18 +41,18 @@ public class MinecraftServerMixin {
                     LoopingDimensionManager.getBeaconIgnoresSkyDimensions(),
                     LoopingDimensionManager::setBeaconIgnoresSky);
             biblioteca$applyPending(
-                    PendingLoopingConfig.getPendingVoidFog(),
-                    LoopingDimensionManager.getVoidFogDimensions(),
-                    LoopingDimensionManager::setVoidFog);
+                    PendingLoopingConfig.getPendingNoVoidFog(),
+                    LoopingDimensionManager.getNoVoidFogDimensions(),
+                    LoopingDimensionManager::setNoVoidFog);
             biblioteca$applyPending(
-                    PendingLoopingConfig.getPendingSkyLight(),
-                    LoopingDimensionManager.getSkyLightDimensions(),
-                    LoopingDimensionManager::setSkyLight);
+                    PendingLoopingConfig.getPendingNoSkyLight(),
+                    LoopingDimensionManager.getNoSkyLightDimensions(),
+                    LoopingDimensionManager::setNoSkyLight);
 
             PendingLoopingConfig.consume();
         }
 
-        // Push the snapshot to any players already connected (e.g. after /reload).
+        // Send the loaded snapshot to any players already connected at this lifecycle point.
         Biblioteca.broadcastState(server);
     }
 

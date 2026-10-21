@@ -17,12 +17,8 @@ import org.spongepowered.asm.mixin.injection.At;
  * the Y seam (a player at y=319 targeting the row at y=-64, which the ring puts right above
  * them) passes.
  *
- * The original call is left untouched for the ordinary case; only a coordinate that is out of
- * range and lands back near the player once folded is retried.
- *
- * The handler takes the receiver first. MixinExtras derives the expected handler signature from
- * the wrapped call and insists on the receiver for an instance method, and the receiver is then
- * also the first argument of Operation.call.
+ * Normalize the target in looping dimensions, then run the original reach check once.
+ * PlayerReachMixin supplies the periodic distance calculation used by that check.
  */
 @Mixin(ServerPlayerGameMode.class)
 public abstract class ServerPlayerGameModeMixin {
@@ -36,8 +32,6 @@ public abstract class ServerPlayerGameModeMixin {
     private boolean biblioteca$wrapReachCheck(
             ServerPlayer player, BlockPos pos, double delta, Operation<Boolean> original) {
 
-        // Fold first, then ask once. Asking about the raw coordinate first spent the whole check
-        // on a position that cannot be in reach by construction.
         ServerLevel level = this.level;
         BlockPos target = level != null && LoopingRegistry.isLooping(level)
                 ? SeamPositions.foldBlockPos(level, pos)

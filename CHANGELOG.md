@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.67.0
+
+### Fixed
+
+- Rain and snow are visible across the boundary where the world's top and bottom meet. Weather
+  columns now repeat by world height within the normal weather radius, using each source layer's
+  biome and lighting and stopping at its terrain surface instead of extending into the ground.
+- Rain impacts can be heard across the boundary, including the sheltered rain sound. Splash
+  particles and smoke where rain hits lava, magma or lit campfires use the same nearby surface.
+- Local and entity-bound sounds use periodic distance and direction, including thunder, ambient
+  block sounds, distance-delayed playback and sounds already playing when the listener crosses
+  the boundary. Sound subtitles use the matching audible range and direction arrows.
+- Entity-bound sound broadcasts, global event directions and particle effects sent to an individual
+  player now account for the boundary on the server too.
+
+### Changed
+
+- Version is now `0.67.0`.
+- Removed the forced OIT override in looping dimensions. The vanilla **Improved Transparency**
+  setting now selects the render path, including on GPUs where OIT is available.
+- Added conventional translucent terrain rendering when OIT is off: each visible periodic copy
+  has its own sorted indices, and quad orders are merged across sections and copies from far to
+  near. Vertex meshes stay shared; both direct and indirect draws are supported. Turn Improved
+  Transparency off to test this path on an OIT-capable GPU.
+- Renamed the lighting attributes, commands and saved-data keys to `no_void_fog` and
+  `no_sky_light`, and inverted their meaning. Both default to `false`, keeping vanilla void
+  fog and sky light in looping dimensions; `true` disables the corresponding effect.
+- Updated the create-world labels and buttons: **No void fog** switches between **Keep fog**
+  and **Disable fog**, and **No sky light** between **Keep skylight** and **Disable skylight**.
+  Chinese labels and the player guide follow the same meaning.
+- Recommend enabling OIT on newer supported GPUs for better performance. The Modrinth
+  description now focuses on player setup and settings; the GitHub README documents the
+  toolchain, architecture, rendering contracts and development checks.
+- Removed redundant draw-group accessors, unused helpers and raw collection casts. Corrected
+  outdated comments about coordinate folding, frustum results, beacon copies and render data.
+- Track the version and removed-Mixin list as inputs when generating the no-render manifest,
+  so incremental builds refresh the variant metadata when either changes.
+
+### Manual migration
+
+Old `void_fog` / `sky_light` saved settings are not converted automatically. The new attributes
+start at `false` when their keys are absent. To preserve an existing world's appearance, stand
+in each affected looping dimension and run the new command with the **opposite** boolean:
+
+| Previous setting | New command for the same effect |
+|---|---|
+| `/biblioteca voidfog false` (old default: fog hidden) | `/biblioteca no_void_fog true` |
+| `/biblioteca voidfog true` (fog shown) | `/biblioteca no_void_fog false` |
+| `/biblioteca skylight false` (old default: sky light removed) | `/biblioteca no_sky_light true` |
+| `/biblioteca skylight true` (sky light kept) | `/biblioteca no_sky_light false` |
+
+The commands save the new settings with the world. To keep the old defaults, set both new
+attributes to `true` in every looping dimension. Simply renaming the old saved-data keys would
+reverse the effects, because the stored dimension lists now identify where effects are disabled.
+
 ## 0.6.7
 
 ### Fixed

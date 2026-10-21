@@ -20,11 +20,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * (also at y = -64) does not match the pending prediction keyed to y = 320, the prediction times
  * out, and the placed block is rolled back visually.
  *
- * <p>2. After {@code setBlocksDirty} notifies LevelRenderer about the real block change, the mirror
- * sections one world height away are marked dirty as well, so the looping renderer rebuilds the
- * copies. Only indices inside the level's section range are dirtied: an out-of-range index would
- * throw inside vanilla's section array lookup and stop the renderer from even hearing about the
- * original change.
+ * <p>2. After {@code setBlocksDirty} notifies LevelExtractor, notifications expressed in an
+ * adjacent period also dirty their stored counterpart. The range checks admit only real section
+ * rows. Periodic terrain copies share the source mesh; they do not have separate meshes to rebuild.
  */
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelDirtyMixin {

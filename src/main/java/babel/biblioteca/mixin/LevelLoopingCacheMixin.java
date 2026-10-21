@@ -9,15 +9,12 @@ import org.spongepowered.asm.mixin.Unique;
 /**
  * Caches the per-dimension "does the Y axis loop" answer on the level itself.
  *
- * LoopingRegistry answered this with a set lookup on a ResourceKey, and LevelBlockAccessMixin asks
- * it on every single block state access. The server makes hundreds of thousands of those per tick,
- * so the lookup alone was a measurable share of the tick - it is the reason server ticks in a
- * looping world were running at 50 to 250 ms, which the seam trace caught.
+ * Block access, collision and rendering paths ask this frequently. A per-level cache avoids
+ * repeatedly querying the dimension set until its revision changes.
  *
  * The cache is a single volatile reference to an immutable pair (revision, answer). Reading it is
- * a reference read plus a compare, and a stale pair can never be observed: the reference is
- * replaced atomically, so the revision and the answer always belong to each other. Whenever an
- * attribute changes, the revision moves and the next reader recomputes.
+ * a reference read plus a compare. Replacing the pair atomically keeps its revision and answer
+ * together; observing a newer attribute revision causes the next lookup to recompute.
  */
 @Mixin(Level.class)
 public abstract class LevelLoopingCacheMixin implements LoopingLevel {

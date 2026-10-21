@@ -24,10 +24,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * 1. PistonBaseBlock.isPushable refuses any row outside [minY, maxY], and refuses to
  *    push down from the bottom row / up from the top row. In a ring none of those rows
  *    is special, so a piston at the bottom row simply would not push anything, which is
- *    why slime blocks could never be pushed across the border. The seam cases are
- *    answered by asking the same question about the same block one period away, where
- *    those guards do not fire; the method only inspects the pushed block itself, so the
- *    answer is identical.
+ *    why slime blocks could not be pushed across the boundary. Out-of-range positions are
+ *    normalized. At an exact edge, the check is retried at an interior row that avoids the
+ *    vertical height guard, retaining the supplied block state and push parameters.
  *
  * 2. moveBlocks places the moving-piston placeholder at the *target* position, which is
  *    out of range at the seam. Level.setBlock folds that position, but the block entity

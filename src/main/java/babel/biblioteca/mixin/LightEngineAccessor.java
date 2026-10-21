@@ -8,9 +8,8 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 /**
  * Exposes LightEngine's chunk source to mixins that target its subclasses.
  *
- * The field is declared on LightEngine, and a @Shadow in a mixin targeting BlockLightEngine or
- * SkyLightEngine cannot reach it: @Shadow only resolves members declared in the target class
- * itself. An accessor declared on the owning class always resolves.
+ * Declaring the accessor on the field's owning class lets the BlockLightEngine mixin use it
+ * without duplicating access to an inherited field.
  */
 @Mixin(LightEngine.class)
 public interface LightEngineAccessor {

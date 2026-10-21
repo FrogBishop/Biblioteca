@@ -23,11 +23,11 @@ public final class LoopingRegistry {
     private static Predicate<ResourceKey<Level>> serverBeaconCheck = dim -> false;
     private static Predicate<ResourceKey<Level>> clientBeaconCheck = dim -> false;
 
-    private static Predicate<ResourceKey<Level>> serverVoidFogCheck = dim -> false;
-    private static Predicate<ResourceKey<Level>> clientVoidFogCheck = dim -> false;
+    private static Predicate<ResourceKey<Level>> serverNoVoidFogCheck = dim -> false;
+    private static Predicate<ResourceKey<Level>> clientNoVoidFogCheck = dim -> false;
 
-    private static Predicate<ResourceKey<Level>> serverSkyLightCheck = dim -> false;
-    private static Predicate<ResourceKey<Level>> clientSkyLightCheck = dim -> false;
+    private static Predicate<ResourceKey<Level>> serverNoSkyLightCheck = dim -> false;
+    private static Predicate<ResourceKey<Level>> clientNoSkyLightCheck = dim -> false;
 
     /** Bumped whenever a dimension attribute changes. Lets hot paths cache the answer. */
     private static volatile int revision;
@@ -64,28 +64,28 @@ public final class LoopingRegistry {
         clientBeaconCheck = check;
     }
 
-    public static void setServerVoidFogChecker(Predicate<ResourceKey<Level>> check) {
-        serverVoidFogCheck = check;
+    public static void setServerNoVoidFogChecker(Predicate<ResourceKey<Level>> check) {
+        serverNoVoidFogCheck = check;
     }
 
-    public static void setClientVoidFogChecker(Predicate<ResourceKey<Level>> check) {
-        clientVoidFogCheck = check;
+    public static void setClientNoVoidFogChecker(Predicate<ResourceKey<Level>> check) {
+        clientNoVoidFogCheck = check;
     }
 
-    public static void setServerSkyLightChecker(Predicate<ResourceKey<Level>> check) {
-        serverSkyLightCheck = check;
+    public static void setServerNoSkyLightChecker(Predicate<ResourceKey<Level>> check) {
+        serverNoSkyLightCheck = check;
     }
 
-    public static void setClientSkyLightChecker(Predicate<ResourceKey<Level>> check) {
-        clientSkyLightCheck = check;
+    public static void setClientNoSkyLightChecker(Predicate<ResourceKey<Level>> check) {
+        clientNoSkyLightCheck = check;
     }
 
     /**
      * Whether the Y axis of this level loops.
      *
-     * <p>A Level answers this from its own revision-checked cache; anything that is not a Level
-     * (a bare LevelAccessor) falls back to the side's predicate. The cache is why this is cheap
-     * enough for every block-state access.
+     * <p>A Level normally answers from its revision-checked cache. A Level without the mixin
+     * falls back to the side's predicate. The LevelAccessor overload only accepts accessors
+     * that are also Levels.
      */
     public static boolean isLooping(Level level) {
         if (level instanceof LoopingLevel cached) {
@@ -117,17 +117,17 @@ public final class LoopingRegistry {
                 : serverBeaconCheck.test(level.dimension());
     }
 
-    /** Should the vanilla void-fog darkening be shown in this dimension? */
-    public static boolean showsVoidFog(Level level) {
+    /** Should the vanilla void-fog darkening be disabled in this dimension? */
+    public static boolean hasNoVoidFog(Level level) {
         return level.isClientSide()
-                ? clientVoidFogCheck.test(level.dimension())
-                : serverVoidFogCheck.test(level.dimension());
+                ? clientNoVoidFogCheck.test(level.dimension())
+                : serverNoVoidFogCheck.test(level.dimension());
     }
 
-    /** Should the vanilla sky-light channel be kept in this dimension? */
-    public static boolean keepsSkyLight(Level level) {
+    /** Should the vanilla sky-light channel be disabled in this dimension? */
+    public static boolean hasNoSkyLight(Level level) {
         return level.isClientSide()
-                ? clientSkyLightCheck.test(level.dimension())
-                : serverSkyLightCheck.test(level.dimension());
+                ? clientNoSkyLightCheck.test(level.dimension())
+                : serverNoSkyLightCheck.test(level.dimension());
     }
 }

@@ -1,0 +1,5 @@
+accessWidener v2 official
+
+# Build ordered terrain batches using vanilla's buffer bindings and draw submission paths.
+accessible class net/minecraft/client/renderer/LevelRenderer$ChunkDrawGroup
+accessible method net/minecraft/client/renderer/LevelRenderer$ChunkDrawGroup <init> (Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;Lcom/mojang/renderpearl/api/pipeline/IndexType;Ljava/util/List;)V

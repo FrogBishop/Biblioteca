@@ -18,9 +18,8 @@ import java.util.Set;
  * World-creation sub-screen for the per-dimension attributes of this mod.
  *
  * One row per vanilla dimension and one column per attribute. Every attribute is off for a new
- * dimension; the two lighting columns describe the vanilla phenomenon, so turning one on restores
- * that effect for that dimension only (the ring suppresses void fog and removes sky light by
- * default, which is what keeps the two halves of the seam evenly lit).
+ * dimension. The two lighting columns are "No void fog" and "No sky light": false preserves the
+ * vanilla effect and true disables it. Their buttons name the resulting behaviour directly.
  *
  * Opens from the "Dimension Attributes…" button injected into CreateWorldScreen.
  */
@@ -44,8 +43,8 @@ public class LoopingConfigScreen extends Screen {
     private static final String[] HEADER_KEYS = {
             "biblioteca.gui.looping_config.header_looping",
             "biblioteca.gui.looping_config.header_beacon",
-            "biblioteca.gui.looping_config.header_void_fog",
-            "biblioteca.gui.looping_config.header_sky_light"
+            "biblioteca.gui.looping_config.header_no_void_fog",
+            "biblioteca.gui.looping_config.header_no_sky_light"
     };
 
     private static final int COLUMNS = HEADER_KEYS.length;
@@ -64,16 +63,16 @@ public class LoopingConfigScreen extends Screen {
             Screen parent,
             Set<ResourceKey<Level>> initialLooping,
             Set<ResourceKey<Level>> initialBeaconIgnoresSky,
-            Set<ResourceKey<Level>> initialVoidFog,
-            Set<ResourceKey<Level>> initialSkyLight) {
+            Set<ResourceKey<Level>> initialNoVoidFog,
+            Set<ResourceKey<Level>> initialNoSkyLight) {
         super(TITLE);
         this.parent = parent;
         for (int row = 0; row < DIMENSIONS.size(); row++) {
             ResourceKey<Level> dimension = DIMENSIONS.get(row);
             values[row][0] = initialLooping.contains(dimension);
             values[row][1] = initialBeaconIgnoresSky.contains(dimension);
-            values[row][2] = initialVoidFog.contains(dimension);
-            values[row][3] = initialSkyLight.contains(dimension);
+            values[row][2] = initialNoVoidFog.contains(dimension);
+            values[row][3] = initialNoSkyLight.contains(dimension);
         }
     }
 
@@ -99,9 +98,9 @@ public class LoopingConfigScreen extends Screen {
             for (int column = 0; column < COLUMNS; column++) {
                 final int r = row;
                 final int c = column;
-                addRenderableWidget(Button.builder(stateLabel(values[r][c]), button -> {
+                addRenderableWidget(Button.builder(stateLabel(c, values[r][c]), button -> {
                     values[r][c] = !values[r][c];
-                    button.setMessage(stateLabel(values[r][c]));
+                    button.setMessage(stateLabel(c, values[r][c]));
                 }).bounds(buttonX(column), rowY(row), BUTTON_W, BUTTON_H).build());
             }
         }
@@ -110,25 +109,33 @@ public class LoopingConfigScreen extends Screen {
                 .bounds(width / 2 - 75, rowY(DIMENSIONS.size()) + 10, 150, 20).build());
     }
 
-    private Component stateLabel(boolean value) {
-        return value ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
+    private Component stateLabel(int column, boolean value) {
+        return switch (column) {
+            case 2 -> Component.translatable(value
+                    ? "biblioteca.gui.looping_config.no_void_fog_on"
+                    : "biblioteca.gui.looping_config.no_void_fog_off");
+            case 3 -> Component.translatable(value
+                    ? "biblioteca.gui.looping_config.no_sky_light_on"
+                    : "biblioteca.gui.looping_config.no_sky_light_off");
+            default -> value ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
+        };
     }
 
     private void applyAndClose() {
         Set<ResourceKey<Level>> looping = new HashSet<>();
         Set<ResourceKey<Level>> beaconIgnoresSky = new HashSet<>();
-        Set<ResourceKey<Level>> voidFog = new HashSet<>();
-        Set<ResourceKey<Level>> skyLight = new HashSet<>();
+        Set<ResourceKey<Level>> noVoidFog = new HashSet<>();
+        Set<ResourceKey<Level>> noSkyLight = new HashSet<>();
 
         for (int row = 0; row < DIMENSIONS.size(); row++) {
             ResourceKey<Level> dimension = DIMENSIONS.get(row);
             if (values[row][0]) looping.add(dimension);
             if (values[row][1]) beaconIgnoresSky.add(dimension);
-            if (values[row][2]) voidFog.add(dimension);
-            if (values[row][3]) skyLight.add(dimension);
+            if (values[row][2]) noVoidFog.add(dimension);
+            if (values[row][3]) noSkyLight.add(dimension);
         }
 
-        PendingLoopingConfig.set(looping, beaconIgnoresSky, voidFog, skyLight);
+        PendingLoopingConfig.set(looping, beaconIgnoresSky, noVoidFog, noSkyLight);
         onClose();
     }
 

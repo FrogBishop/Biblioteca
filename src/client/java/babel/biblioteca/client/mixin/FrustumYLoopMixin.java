@@ -35,10 +35,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *
  * The test runs whenever the plain test rejected the box, which is what the return value has
  * to be read for. JOML's FrustumIntersection.intersectAab returns -2 for a box fully inside,
- * -1 for one that intersects, and an outside box reports 0 when the first plane culled it and
- * 1 when any later plane did. So "rejected" is result >= 0, not result == 0: reading only 0
- * would silently drop every box culled by anything but the left plane, which is most of them
- * at most angles.
+ * -1 for one that intersects, and a nonnegative plane index for a rejected box. Every nonnegative
+ * result needs the periodic test, regardless of which plane rejected the original box.
  */
 @Mixin(value = Frustum.class, priority = 900)
 public abstract class FrustumYLoopMixin {

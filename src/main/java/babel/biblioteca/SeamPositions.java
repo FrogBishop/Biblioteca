@@ -4,12 +4,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
 /**
- * Coordinate folding for the vertical seam.
+ * Coordinate folding for the boundary between the world's top and bottom.
  *
  * A looping dimension is a ring of {@code level.getHeight()} rows: the row at {@code minY} and the
  * row at {@code minY + height} are the same row, and every row outside the world has a periodic
- * equivalent inside it. This class is the single implementation of that arithmetic, so the level
- * hooks, the collision and light hooks and the packet handlers cannot disagree about it.
+ * equivalent inside it. These helpers are shared by world access, movement and positional effects.
  *
  * Two different folds are needed:
  *
@@ -20,8 +19,8 @@ import net.minecraft.world.level.Level;
  *       which is how a packet or a render state stays at the copy the receiver is looking at.</li>
  * </ul>
  *
- * Both folds are no-ops for a position that is already in range, so callers that are not sure
- * whether a coordinate crossed the seam can always call them.
+ * Canonical folds leave coordinates already inside the world unchanged. A nearest-copy query can
+ * move an in-range coordinate by a whole period when its reference point is across the boundary.
  */
 public final class SeamPositions {
 

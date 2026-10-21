@@ -13,16 +13,16 @@ import java.util.Set;
  *
  *   loopingDimensions   dimensions whose Y axis wraps around
  *   beaconIgnoresSky    dimensions whose beacon beams skip the sky check
- *   voidFog             dimensions that show the vanilla void-fog darkening
- *   skyLight            dimensions that keep the vanilla sky-light channel
+ *   noVoidFog           dimensions that disable the vanilla void-fog darkening
+ *   noSkyLight          dimensions that disable the vanilla sky-light channel
  *
  * Sent on login and whenever an operator changes a dimension's attributes.
  */
 public record LoopingStatePayload(
         Set<String> loopingDimensions,
         Set<String> beaconIgnoresSky,
-        Set<String> voidFog,
-        Set<String> skyLight) implements CustomPacketPayload {
+        Set<String> noVoidFog,
+        Set<String> noSkyLight) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<LoopingStatePayload> TYPE =
             new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("biblioteca", "looping_state"));
@@ -32,8 +32,8 @@ public record LoopingStatePayload(
                     (buf, payload) -> {
                         writeSet(buf, payload.loopingDimensions());
                         writeSet(buf, payload.beaconIgnoresSky());
-                        writeSet(buf, payload.voidFog());
-                        writeSet(buf, payload.skyLight());
+                        writeSet(buf, payload.noVoidFog());
+                        writeSet(buf, payload.noSkyLight());
                     },
                     buf -> new LoopingStatePayload(readSet(buf), readSet(buf), readSet(buf), readSet(buf))
             );

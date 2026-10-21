@@ -1,8 +1,14 @@
 package babel.biblioteca.client.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.client.LoopingTranslucency;
 import babel.biblioteca.client.SeamCull;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.DynamicGpuData;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -11,6 +17,9 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.state.BeaconRenderState;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.chunk.CompiledSectionMesh;
+import net.minecraft.client.renderer.chunk.SectionMesh;
+import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
@@ -33,9 +42,8 @@ import java.util.Map;
  *
  * extractSectionDrawGroups turns the visible sections into one ChunkSectionInfo plus a set of draw
  * commands per layer, with the section index carried in the draw's instance base. A copy of a
- * section is therefore just one more ChunkSectionInfo at a periodic height plus duplicated draws
- * pointing at it, so showing many stacked layers costs draw commands and nothing else - the compiled
- * mesh is shared.
+ * section is therefore one more ChunkSectionInfo at a periodic height plus draws pointing at it.
+ * The compiled vertex mesh is shared; the sorted transparency path gives each copy its own indices.
  *
  * Every periodic row within the render distance is submitted, not only the nearest one: with enough
  * render distance the player should see the world repeating, the way an endless vertical ring would
@@ -44,18 +52,14 @@ import java.util.Map;
  * answers for a box's periodic twin as well, which would let copies far beyond anything loaded
  * through.
  *
- * The cost is command count, not mesh memory: every copy is one ChunkSectionInfo plus one draw per
- * section layer. A height-16 world at 32 chunks can produce about 65 copies of every visible
- * section. If profiling shows command submission or GPU vertex work dominates, batch copies into
- * instanced draws; do not grow another cache around the command list.
+ * Opaque terrain and OIT add one draw per section layer per copy. Ordered transparency also needs
+ * index storage and may split a section into multiple draws when its faces interleave with other
+ * sections. A height-16 world at 32 chunks can produce about 65 copies of every visible section.
  *
- * Translucency is not sorted here, and that is deliberate. A compiled section mesh carries one quad
- * order baked for one viewpoint; the same mesh is drawn at several periodic heights, so sorting it
- * for one copy breaks every other copy, and no amount of re-sorting the shared mesh can satisfy
- * them all. ImprovedTransparencyYLoopMixin switches a looping dimension to the order-independent
- * path instead, where the shared mesh is correct at every height. This is what fixes water at the
- * seam: the bottom row's water and the mirrored copy of the top row's water meet there, and the
- * copy's quads were ordered for the source row's camera.
+ * OIT follows the vanilla Improved Transparency setting. When it is off, LoopingTranslucency builds
+ * an independent quad order for each visible copy and merges all sections' orders back to front.
+ * Changing one copy's indices therefore cannot corrupt another copy's order. Both the direct and
+ * indirect vanilla draw paths consume the same sorted groups.
  *
  * A copy also starts at full visibility. ChunkSectionInfo.visibility is the source section's chunk
  * fade-in and feeds terrain.fsh's mix toward FogColor; reusing it tinted a copy for the fade
@@ -76,23 +80,52 @@ public abstract class LevelRendererYLoopMixin {
     // was pure allocation pressure once a short world produced dozens of periodic rows.
     @Unique private int[] biblioteca$copyIndices = new int[0];
     @Unique private boolean[] biblioteca$copyVisible = new boolean[0];
+    @Unique private final LoopingTranslucency biblioteca$translucency = new LoopingTranslucency();
+    @Unique private final Long2ObjectMap<MeshData.SortState> biblioteca$translucentSources = new Long2ObjectOpenHashMap<>();
+    @Unique private boolean biblioteca$sortTranslucency;
 
     @Shadow private LevelRenderState levelRenderState;
     @Shadow @Final private BlockEntityRenderDispatcher blockEntityRenderDispatcher;
 
+    @Inject(method = "extractSectionDrawGroups", at = @At("HEAD"))
+    private void biblioteca$prepareTranslucency(
+            boolean respectTranslucentOrder, List<DynamicGpuData.ChunkSectionInfo> sectionInfos,
+            Map<ChunkSectionLayer, List<LevelRenderer.ChunkDrawGroup>> drawGroups,
+            CallbackInfoReturnable<Integer> cir) {
+        Minecraft minecraft = Minecraft.getInstance();
+        this.biblioteca$sortTranslucency = respectTranslucentOrder && minecraft.level != null
+                && LoopingRegistry.isLooping(minecraft.level);
+        this.biblioteca$translucentSources.clear();
+        if (!this.biblioteca$sortTranslucency) this.biblioteca$translucency.close();
+    }
+
+    /** Capture the exact mesh used for each draw while vanilla holds the dispatcher's buffer lock. */
+    @WrapOperation(method = "extractSectionDrawGroups", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/chunk/SectionRenderDispatcher$RenderSection;getSectionMesh()Lnet/minecraft/client/renderer/chunk/SectionMesh;"))
+    private SectionMesh biblioteca$captureTranslucentSource(
+            SectionRenderDispatcher.RenderSection section, Operation<SectionMesh> original) {
+        SectionMesh mesh = original.call(section);
+        if (this.biblioteca$sortTranslucency && mesh instanceof CompiledSectionMesh compiled
+                && compiled.getTransparencyState() != null) {
+            this.biblioteca$translucentSources.put(section.getSectionNode(), compiled.getTransparencyState());
+        }
+        return mesh;
+    }
+
+    @Inject(method = "endFrame", at = @At("TAIL"))
+    private void biblioteca$finishTranslucencyFrame(CallbackInfo ci) {
+        this.biblioteca$translucency.endFrame();
+    }
+
+    @Inject(method = {"resetLevelRenderData", "invalidateCompiledGeometry"}, at = @At("HEAD"))
+    private void biblioteca$releaseTranslucency(CallbackInfo ci) {
+        this.biblioteca$translucency.close();
+        this.biblioteca$translucentSources.clear();
+    }
+
     /**
-     * Draws block entities at the ring layer nearest the camera, the same way
-     * EntityRenderYLoopMixin handles entities.
-     *
-     * A block entity render state carries the absolute block position, and submitBlockEntities
-     * translates by exactly that position. A beacon on the far side of the seam therefore draws
-     * its beam a whole world height away: the beacon's block overhead is the mirrored terrain, so
-     * the block is there, but the beam is drawn relative to the block entity and the block entity
-     * itself is never mirrored. That is why the beacon shows up and its beam does not.
-     *
-     * Folding the translation by whole world heights puts the beam back on top of its block, and
-     * only the nearest layer is drawn - one copy, matching the entities, because a second copy of
-     * a vertical beam is the same beam again.
+     * Draws ordinary block entities at the layer nearest the camera. Beacon states retain their
+     * source position because BeaconBeamRenderYLoopMixin draws the beam's periodic copies itself.
      */
     @Inject(method = "submitBlockEntities", at = @At("HEAD"), cancellable = true)
     private void biblioteca$submitBlockEntitiesAtNearestLayer(
@@ -132,18 +165,16 @@ public abstract class LevelRendererYLoopMixin {
         ci.cancel();
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     @Inject(
             method = "extractSectionDrawGroups(ZLjava/util/List;Ljava/util/Map;)I",
             at = @At("TAIL"))
     private void biblioteca$addSeamCopies(
             boolean respectTranslucentOrder,
-            List sectionInfos,
-            Map drawGroups,
+            List<DynamicGpuData.ChunkSectionInfo> sectionInfos,
+            Map<ChunkSectionLayer, List<LevelRenderer.ChunkDrawGroup>> drawGroups,
             CallbackInfoReturnable<Integer> cir) {
 
-        // respectTranslucentOrder belongs to the vanilla signature; the copy path only duplicates
-        // draws and never reorders them. Translucency is handled by ImprovedTransparencyYLoopMixin.
+        // Start with shared-mesh copies. The ordered path replaces their translucent indices below.
         LevelRenderState renderState = this.levelRenderState;
         if (renderState == null || renderState.cameraRenderState == null) return;
         Frustum frustum = renderState.cameraRenderState.cullFrustum;
@@ -157,6 +188,7 @@ public abstract class LevelRendererYLoopMixin {
         if (sourceCount == 0) return;
 
         int period = minecraft.level.getHeight();
+        if (period <= 0) return;
         double cameraY = renderState.cameraRenderState.pos.y;
         double viewDistanceBlocks = minecraft.options.getEffectiveRenderDistance() * 16.0;
 
@@ -184,8 +216,7 @@ public abstract class LevelRendererYLoopMixin {
         // Pass 1: decide which copies are in view. No section info and no draw is created yet, so
         // the second pass only pays for copies that actually produce geometry.
         for (int i = 0; i < sourceCount; i++) {
-            DynamicGpuData.ChunkSectionInfo info =
-                    (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(i);
+            DynamicGpuData.ChunkSectionInfo info = sectionInfos.get(i);
             int base = i * stride;
 
             for (int step = -maxSteps; step <= maxSteps; step++) {
@@ -205,12 +236,11 @@ public abstract class LevelRendererYLoopMixin {
         // later layers reuse it through biblioteca$copyIndices.
         ChunkSectionLayer[] layers = ChunkSectionLayer.values();
         for (ChunkSectionLayer layer : layers) {
-            List<?> groups = (List<?>) drawGroups.get(layer);
+            List<LevelRenderer.ChunkDrawGroup> groups = drawGroups.get(layer);
             if (groups == null) continue;
 
             for (int g = 0; g < groups.size(); g++) {
-                ChunkDrawGroupAccessor group = (ChunkDrawGroupAccessor) groups.get(g);
-                List<DynamicGpuData.IndexedDraw> draws = group.biblioteca$getDraws();
+                List<DynamicGpuData.IndexedDraw> draws = groups.get(g).draws();
                 int originalDrawCount = draws.size();
 
                 for (int d = 0; d < originalDrawCount; d++) {
@@ -218,8 +248,7 @@ public abstract class LevelRendererYLoopMixin {
                     int sourceIndex = original.baseInstance();
                     if (sourceIndex < 0 || sourceIndex >= sourceCount) continue;
 
-                    DynamicGpuData.ChunkSectionInfo info =
-                            (DynamicGpuData.ChunkSectionInfo) sectionInfos.get(sourceIndex);
+                    DynamicGpuData.ChunkSectionInfo info = sectionInfos.get(sourceIndex);
                     int base = sourceIndex * stride;
 
                     for (int step = -maxSteps; step <= maxSteps; step++) {
@@ -251,21 +280,23 @@ public abstract class LevelRendererYLoopMixin {
                 }
             }
         }
+
+        if (this.biblioteca$sortTranslucency) {
+            List<LevelRenderer.ChunkDrawGroup> translucent = drawGroups.get(ChunkSectionLayer.TRANSLUCENT);
+            if (translucent != null) {
+                this.biblioteca$translucency.rebuild(sectionInfos, translucent, this.biblioteca$translucentSources,
+                        minecraft.level.getMinY(), period, renderState.cameraRenderState.pos,
+                        info -> biblioteca$worthDrawing(frustum, info.x(), info.y(), info.z(), cameraY, viewDistanceBlocks));
+            }
+        }
     }
 
     /**
      * True when this row is inside the frustum and close enough to be seen at all.
      *
-     * Both halves matter, and the second is easy to forget: the cull frustum's far plane reaches
-     * several times the render distance, so geometry well past the point where fog closes in still
-     * tests as inside the frustum. Drawing a periodic copy there puts rows on screen that vanilla
-     * would never show - standing at y=70 and looking up, a cave from below reappears forty chunks
-     * overhead while the boundary layer that ought to be in front of it is too far away to be drawn
-     * at all. The copy path already had this clamp; the path that relocates a section onto its twin
-     * did not, and that is what produced the floating caves.
-     *
-     * The plain frustum test is deliberate: the ring-aware one answers yes whenever the box's twin
-     * is in view, and a copy's twin is the section being copied, visible by construction.
+     * The frustum can extend beyond the configured terrain range, so its result also needs the
+     * vertical distance limit. Test this copy's actual box: a ring-aware test could accept it just
+     * because a different periodic copy is visible.
      */
     private static boolean biblioteca$worthDrawing(
             Frustum frustum, int x, int y, int z,

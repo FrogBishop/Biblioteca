@@ -2,88 +2,185 @@
 
 **A periodic Y axis for Minecraft dimensions.**
 
-> *"La biblioteca es ilimitada y periódica."* — Jorge Luis Borges, *Ficciones* (1944)
+Biblioteca **0.67.0** is a Fabric mod for Minecraft 26.3. It makes a dimension's vertical
+coordinate periodic: the boundary at `minY` is the same place as `minY + height`. The server
+stores one period, and the client renders visible copies above and below it.
 
-Biblioteca is a Fabric mod for **Minecraft 26.3** that turns the Y axis of a dimension into a
-ring: the lowest row and the highest row become neighbours. There is no floor to fall out of
-and no ceiling to hit; moving past either edge simply continues on the other side, without a
-teleport or a command.
+The mod adds no blocks, items, dimensions or world-generation presets. Looping is an opt-in
+attribute of an existing dimension. Terrain generation, including bedrock, is retained.
 
-The name comes from Borges' *The Library of Babel* — a library that is unlimited and periodic.
-Biblioteca makes the vertical axis of a world the same kind of thing.
+This README covers the implementation and development workflow. [modrinth.md](modrinth.md)
+contains the player-facing project description, setup instructions and command reference.
 
-The mod adds no blocks, items, biomes or world types. It is a per-dimension, opt-in attribute
-that also works with existing worlds.
+## Toolchain
 
-## Features
+| Component | Project configuration |
+|---|---|
+| Minecraft | 26.3 |
+| Java | 25 or newer; compiled with `--release 25` |
+| Fabric Loader | 0.19.5 or newer |
+| Fabric API | 0.162.0+26.3 |
+| Fabric Loom | 1.18-SNAPSHOT |
+| Gradle | 9.7.1, via the wrapper |
 
-- **A true vertical ring.** Block access, collisions, entity movement, neighbour updates,
-  pistons, fluids, plant growth, light and effects all fold across the seam.
-- **Per dimension, opt-in.** The Overworld, The Nether, The End or any modded dimension can
-  loop independently. Everything is off by default.
-- **A visual ring.** The client mirrors visible terrain above and below, draws entities and
-  block entities at the nearest layer, repeats beacon beams and folds the cloud layer.
-- **Correct translucency.** Looping dimensions use Minecraft's order-independent transparency
-  path, so mirrored water, glass and slime blend correctly.
-- **Server ready.** A `-norender` jar ships next to the normal jar for dedicated servers.
-- **A statistic.** Every seam crossing is counted in the vanilla statistics screen.
+Dependency and mod versions are declared in [gradle.properties](gradle.properties).
+Loom separates common code in `src/main` from client code in `src/client`.
 
-## Requirements
+## Build and run
 
-- Minecraft **26.3** (Fabric)
-- Fabric Loader **0.19.5** or newer
-- Fabric API for 26.3
-- Java **25** or newer
+With Java 25 available to Gradle, run these commands from the repository root:
 
-Install on both the client and the server for the full experience. Dedicated servers may use
-the `-norender` jar, but clients still need the normal jar to see the loop.
+```powershell
+.\gradlew.bat build
+.\gradlew.bat runClient
+.\gradlew.bat runServer
+```
 
-## Installation
+On Linux or macOS, use `./gradlew` for the same tasks. `build` compiles both environments,
+validates the access widener and creates these artifacts in `build/libs`:
 
-1. Install Fabric Loader for Minecraft 26.3.
-2. Put Fabric API and `biblioteca-<version>.jar` in the `mods` folder.
-3. Do not install both jars in the same instance: they share the same mod ID.
+| Artifact | Purpose |
+|---|---|
+| `biblioteca-0.67.0.jar` | Complete mod for clients and servers |
+| `biblioteca-0.67.0-norender.jar` | Variant intended for dedicated servers |
+| `biblioteca-0.67.0-sources.jar` | Common and client source code |
 
-## Getting started
+The no-render variant is derived from the primary JAR by removing the visual Mixin hooks and
+rewriting its manifest. It retains server logic, networking, client prediction, audio and
+configuration UI. Both variants have the same mod ID: install only one per game instance.
+Clients need the complete mod to see the periodic world. Use matching mod versions on both sides.
 
-For a new singleplayer world, open **Create New World → More → Dimension Attributes** and pick
-the dimensions and attributes you want. For an existing world or a server, use:
+For local deployment:
+
+```powershell
+.\gradlew.bat deployMod "-PmodsDir=D:/Minecraft/TestInstance/mods"
+```
+
+Without `modsDir`, the destination is
+`%APPDATA%/.minecraft/versions/26.3-Fabric 0.19.5/mods` on Windows. `deployMod` builds and copies
+the normal JAR, removing older `biblioteca-*.jar` files from that destination.
+
+## Coordinate model
+
+Stored block rows occupy `[minY, minY + height)`. For the normal Overworld, the stored rows
+are `-64` through `319`; the boundary identifies the planes at `y = -64` and `y = 320`.
+
+Two operations serve different purposes:
+
+```text
+canonical row = floorMod(y - minY, height) + minY
+nearest copy  = y + round((referenceY - y) / height) * height
+```
+
+Canonical folding keeps block access and committed entity positions inside the stored period.
+Nearest-copy selection places movement requests, rendered objects and effects beside their
+observer. A coordinate already inside the world can still need the second operation when the
+observer is across the boundary. Shared helpers live in
+[SeamPositions.java](src/main/java/babel/biblioteca/SeamPositions.java).
+
+`EntityYLoopMixin` folds positions at `Entity.setPosRaw` and shifts previous positions by the
+same period for interpolation. Movement packet handlers separately select the nearest copy
+before vanilla validates movement. Block access, collisions, reach, neighbour updates, pistons,
+plant checks and block-light propagation have their own hooks where vanilla assumes a world edge.
+
+## Source map
+
+| Area | Main code |
+|---|---|
+| Initialization, commands and state broadcasts | [Biblioteca](src/main/java/babel/biblioteca/Biblioteca.java) |
+| Attribute queries and per-level cache invalidation | [LoopingRegistry](src/main/java/babel/biblioteca/LoopingRegistry.java), [LevelLoopingCacheMixin](src/main/java/babel/biblioteca/mixin/LevelLoopingCacheMixin.java) |
+| World persistence and server snapshots | [world package](src/main/java/babel/biblioteca/world) |
+| State payload and client cache | [LoopingStatePayload](src/main/java/babel/biblioteca/network/LoopingStatePayload.java), [LoopingDimensionCache](src/client/java/babel/biblioteca/client/LoopingDimensionCache.java) |
+| World-creation choices | [PendingLoopingConfig](src/main/java/babel/biblioteca/PendingLoopingConfig.java), [LoopingConfigScreen](src/client/java/babel/biblioteca/client/LoopingConfigScreen.java) |
+| Terrain source discovery and copies | [SectionOcclusionGraphLoopMixin](src/client/java/babel/biblioteca/client/mixin/SectionOcclusionGraphLoopMixin.java), [LevelRendererYLoopMixin](src/client/java/babel/biblioteca/client/mixin/LevelRendererYLoopMixin.java) |
+| Transparency without OIT | [LoopingTranslucency](src/client/java/babel/biblioteca/client/LoopingTranslucency.java), [TranslucentQuadOrder](src/client/java/babel/biblioteca/client/TranslucentQuadOrder.java) |
+| Weather geometry and impacts | [LoopingWeather](src/client/java/babel/biblioteca/client/LoopingWeather.java), [WeatherEffectRendererYLoopMixin](src/client/java/babel/biblioteca/client/mixin/WeatherEffectRendererYLoopMixin.java), [ClientLevelWeatherYLoopMixin](src/client/java/babel/biblioteca/client/mixin/ClientLevelWeatherYLoopMixin.java) |
+| Sound, particles and subtitles | [SeamEffects](src/main/java/babel/biblioteca/SeamEffects.java), [ServerLevelEffectsYLoopMixin](src/main/java/babel/biblioteca/mixin/ServerLevelEffectsYLoopMixin.java), [LoopingSounds](src/client/java/babel/biblioteca/client/LoopingSounds.java) |
+
+## Attributes and persistence
+
+Attributes are dimension-key sets in the overworld's `SavedData`, stored at
+`<world>/data/biblioteca/looping.dat`. Absence from a set means `false`.
+
+| Saved key | Meaning when `true` | Default |
+|---|---|---|
+| `looping` | Make the dimension's Y axis periodic | `false` |
+| `beacon_ignores_sky` | Allow the looping dimension's beacons to use a periodic beam scan | `false` |
+| `no_void_fog` | Suppress vanilla void-fog darkening in a looping dimension | `false` |
+| `no_sky_light` | Suppress the vanilla sky-light channel in a looping dimension | `false` |
+
+The server sends all four sets on player join and after command changes. Clients clear their
+cache on disconnect. `LoopingRegistry` routes queries to the appropriate side and publishes a
+revision for cached looping-state checks. The world-creation screen passes its choices through
+`PendingLoopingConfig` to the integrated server on world load.
+
+Commands require permission level 2. A minimal development setup is:
 
 ```text
 /biblioteca looping set minecraft:overworld true
 /biblioteca beacon true
-/biblioteca voidfog true
-/biblioteca skylight true
 ```
 
-`/biblioteca beacon`, `/biblioteca voidfog` and `/biblioteca skylight` act on the
-dimension you are standing in. See the player guide for the full command table, the four
-attributes and what each one changes.
+The GUI lists the three vanilla dimensions; commands also accept modded dimension IDs.
+The lighting attributes use the inverse of the old `void_fog` / `sky_light` meaning. See the
+[0.67.0 migration notes](CHANGELOG.md#manual-migration) before comparing older saves.
 
-## Building from source
+## Rendering
 
-```bash
-./gradlew build          # normal jar and -norender jar in build/libs
-./gradlew runClient      # development client
-./gradlew runServer      # development dedicated server
-./gradlew deployMod      # copy the normal jar into the configured Minecraft instance
-```
+Terrain copies share the source section's vertex mesh. The section graph supplies source
+sections whose periodic copies are visible, and copy submission tests their actual bounds
+against the frustum and render distance. Ordinary entities, block entities and clouds use the
+nearest copy. Beacon beams repeat by period, with a bounded copy count. Weather columns are
+split at the boundary and use source coordinates for terrain, biome and light sampling.
 
-The deploy task defaults to the 26.3 Fabric instance on Windows and can be pointed elsewhere
-with `-PmodsDir=<path>`. The project targets Java 25; Loom 1.18 and Gradle 9.7 are used.
+The vanilla **Improved Transparency** option controls OIT. **On newer GPUs that support OIT,
+we recommend enabling it for better performance.** Biblioteca never forces the option.
 
-## Documentation
+When OIT is off, each visible translucent copy has its own quad order. Orders are merged across
+sections and periods, and consecutive compatible draws are grouped. Vertex buffers stay shared;
+16-bit and 32-bit indices are written into rotating, fenced buffers. The direct and indirect
+submission paths consume the same ordering.
 
-- [modrinth.md](modrinth.md) — player guide: commands, attributes, gameplay effects, rendering,
-  storage, limitations and FAQ.
-- [PERFORMANCE.md](PERFORMANCE.md) — render-cost model, the current draw-command ceiling and
-  how to measure it.
-- [CHANGELOG.md](CHANGELOG.md) — release history.
+Ordering details that matter when changing the renderer:
 
-## Credits and license
+- Capture the source `SortState` while vanilla holds the section dispatcher's buffer lock.
+- Sort against the camera relative to the displayed copy, not the source section's original row.
+- Vanilla reverses translucent groups and their draw lists. The replacement containers must be
+  near-first while each draw's index range remains far-first.
+- Rotate index buffers after frame submission and release them when the world/render data resets
+  or the ordered path stops being used.
 
-- Author: **FrogBishop**
-- Inspired by Jorge Luis Borges' *The Library of Babel*
-- Bug fixes and rendering work: DeepSeek-v4.1-flash
-- License: **GPLv3**
-- Source: [github.com/FrogBishop/Biblioteca](https://github.com/FrogBishop/Biblioteca)
+[biblioteca.accesswidener](src/main/resources/biblioteca.accesswidener) exposes the vanilla
+draw-group type and constructor needed to build those batches. The renderer targets Minecraft
+26.3's official class names and signatures. Sorted transparency retains the limitations of
+polygon sorting for intersecting faces and cyclic overlap.
+
+See [PERFORMANCE.md](PERFORMANCE.md) for costs, buffer ownership and profiling scenarios.
+The mod uses vanilla renderer internals; replacement renderers and far-LOD systems may need a
+separate integration. Shader packs have not been comprehensively tested.
+
+## Development checks
+
+Mixin configs are required and use `defaultRequire: 1`. A build validates compilation and the
+access widener; launch a development client and server to check injection compatibility after
+changing Minecraft targets. Useful regression scenarios include:
+
+- Enter and leave a looping dimension, toggle its attributes and reconnect as a guest.
+- Walk, fly and ride through both sides of the boundary; place and break blocks there.
+- Check fluid surfaces, light sources, pistons, plants and beacons at the boundary.
+- Compare water, stained glass and slime with Improved Transparency on and off, including a
+  short dimension with several periods visible at once.
+- Check rain/snow, rain impacts, local and entity sounds, subtitles and particle effects while
+  standing near the boundary and while crossing it.
+- Inspect both JAR variants: every registered Mixin must have its class, and the no-render
+  variant must omit the visual hooks listed in `build.gradle`.
+
+## Documentation and license
+
+- [Modrinth project-page text](modrinth.md) — player-facing features, settings and commands.
+- [Performance notes](PERFORMANCE.md) — renderer costs and profiling guidance.
+- [Changelog](CHANGELOG.md) — releases and manual migration instructions.
+- [Issue tracker](https://github.com/FrogBishop/Biblioteca/issues).
+
+Author: **FrogBishop**. Inspired by Jorge Luis Borges' *The Library of Babel*.
+Bug fixes and rendering work: DeepSeek-v4.1-flash. Licensed under [GPLv3](LICENSE).

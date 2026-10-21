@@ -28,8 +28,8 @@ public final class LoopingDimensionManager {
      */
     private static volatile Set<ResourceKey<Level>> loopingSnapshot = Set.of();
     private static volatile Set<ResourceKey<Level>> beaconIgnoresSkySnapshot = Set.of();
-    private static volatile Set<ResourceKey<Level>> voidFogSnapshot = Set.of();
-    private static volatile Set<ResourceKey<Level>> skyLightSnapshot = Set.of();
+    private static volatile Set<ResourceKey<Level>> noVoidFogSnapshot = Set.of();
+    private static volatile Set<ResourceKey<Level>> noSkyLightSnapshot = Set.of();
 
     private LoopingDimensionManager() {}
 
@@ -45,8 +45,8 @@ public final class LoopingDimensionManager {
 
         Biblioteca.LOGGER.info("[Biblioteca] Looping dimensions: {}", loopingSnapshot);
         Biblioteca.LOGGER.info("[Biblioteca] Beacon ignores sky: {}", beaconIgnoresSkySnapshot);
-        Biblioteca.LOGGER.info("[Biblioteca] Void fog: {}", voidFogSnapshot);
-        Biblioteca.LOGGER.info("[Biblioteca] Sky light: {}", skyLightSnapshot);
+        Biblioteca.LOGGER.info("[Biblioteca] No void fog: {}", noVoidFogSnapshot);
+        Biblioteca.LOGGER.info("[Biblioteca] No sky light: {}", noSkyLightSnapshot);
 
         // The data only became readable now, so anything cached before this point is stale.
         LoopingRegistry.bumpRevision();
@@ -62,8 +62,8 @@ public final class LoopingDimensionManager {
         LoopingWorldData data = serverData;
         loopingSnapshot = data == null ? Set.of() : data.getLoopingDimensions();
         beaconIgnoresSkySnapshot = data == null ? Set.of() : data.getBeaconIgnoresSky();
-        voidFogSnapshot = data == null ? Set.of() : data.getVoidFogDimensions();
-        skyLightSnapshot = data == null ? Set.of() : data.getSkyLightDimensions();
+        noVoidFogSnapshot = data == null ? Set.of() : data.getNoVoidFogDimensions();
+        noSkyLightSnapshot = data == null ? Set.of() : data.getNoSkyLightDimensions();
     }
 
     public static boolean isLooping(ResourceKey<Level> dimension) {
@@ -98,35 +98,35 @@ public final class LoopingDimensionManager {
         return beaconIgnoresSkySnapshot;
     }
 
-    public static boolean showsVoidFog(ResourceKey<Level> dimension) {
-        return voidFogSnapshot.contains(dimension);
+    public static boolean hasNoVoidFog(ResourceKey<Level> dimension) {
+        return noVoidFogSnapshot.contains(dimension);
     }
 
-    public static void setVoidFog(ResourceKey<Level> dimension, boolean shown) {
+    public static void setNoVoidFog(ResourceKey<Level> dimension, boolean disabled) {
         if (serverData != null) {
-            serverData.setVoidFog(dimension, shown);
+            serverData.setNoVoidFog(dimension, disabled);
             republishSnapshots();
             LoopingRegistry.bumpRevision();
         }
     }
 
-    public static Set<ResourceKey<Level>> getVoidFogDimensions() {
-        return voidFogSnapshot;
+    public static Set<ResourceKey<Level>> getNoVoidFogDimensions() {
+        return noVoidFogSnapshot;
     }
 
-    public static boolean keepsSkyLight(ResourceKey<Level> dimension) {
-        return skyLightSnapshot.contains(dimension);
+    public static boolean hasNoSkyLight(ResourceKey<Level> dimension) {
+        return noSkyLightSnapshot.contains(dimension);
     }
 
-    public static void setSkyLight(ResourceKey<Level> dimension, boolean kept) {
+    public static void setNoSkyLight(ResourceKey<Level> dimension, boolean disabled) {
         if (serverData != null) {
-            serverData.setSkyLight(dimension, kept);
+            serverData.setNoSkyLight(dimension, disabled);
             republishSnapshots();
             LoopingRegistry.bumpRevision();
         }
     }
 
-    public static Set<ResourceKey<Level>> getSkyLightDimensions() {
-        return skyLightSnapshot;
+    public static Set<ResourceKey<Level>> getNoSkyLightDimensions() {
+        return noSkyLightSnapshot;
     }
 }

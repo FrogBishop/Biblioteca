@@ -39,11 +39,8 @@ public abstract class ServerGamePacketListenerMixin {
 
     @Shadow public ServerPlayer player;
 
-    private ServerLevel biblioteca$level() {
-        return player.level() instanceof ServerLevel level ? level : null;
-    }
-
-    private BlockPos biblioteca$fold(ServerLevel level, BlockPos pos) {
+    private BlockPos biblioteca$fold(BlockPos pos) {
+        ServerLevel level = player.level();
         return LoopingRegistry.isLooping(level) ? SeamPositions.foldBlockPos(level, pos) : pos;
     }
 
@@ -56,9 +53,7 @@ public abstract class ServerGamePacketListenerMixin {
                     ordinal = 0))
     private BlockPos biblioteca$foldActionPos(
             ServerboundPlayerActionPacket packet, Operation<BlockPos> original) {
-        BlockPos pos = original.call(packet);
-        ServerLevel level = biblioteca$level();
-        return level == null ? pos : biblioteca$fold(level, pos);
+        return biblioteca$fold(original.call(packet));
     }
 
     // --- handleUseItemOn: fold both the BlockPos and the Vec3 hit location ---
@@ -70,9 +65,7 @@ public abstract class ServerGamePacketListenerMixin {
                     ordinal = 0))
     private BlockPos biblioteca$foldUseItemBlockPos(
             BlockHitResult hit, Operation<BlockPos> original) {
-        BlockPos pos = original.call(hit);
-        ServerLevel level = biblioteca$level();
-        return level == null ? pos : biblioteca$fold(level, pos);
+        return biblioteca$fold(original.call(hit));
     }
 
     // --- handlePlayerPositionChange: fold the requested Y before the movement check ---
@@ -141,8 +134,8 @@ public abstract class ServerGamePacketListenerMixin {
     }
 
     /**
-     * The hit location is a point on the clicked block face, and the server checks it against the
-     * block centre. Moving it by the same whole period as the block keeps that offset intact.
+     * Compare the hit's fractional Y against the folded block centre so this validation does not
+     * treat a periodic height difference as a distant hit. The packet's hit result is not rewritten.
      */
     @WrapOperation(
             method = "handleUseItemOn",
@@ -151,8 +144,8 @@ public abstract class ServerGamePacketListenerMixin {
                     ordinal = 0))
     private Vec3 biblioteca$foldUseItemLocationSubtract(
             Vec3 loc, Vec3 center, Operation<Vec3> original) {
-        ServerLevel level = biblioteca$level();
-        if (level == null || !LoopingRegistry.isLooping(level)) {
+        ServerLevel level = player.level();
+        if (!LoopingRegistry.isLooping(level)) {
             return original.call(loc, center);
         }
 

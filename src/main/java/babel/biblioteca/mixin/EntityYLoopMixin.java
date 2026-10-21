@@ -48,8 +48,8 @@ public abstract class EntityYLoopMixin {
         // reads as going from -64.1 to -64.0, the same movement at the same ring position.
         //
         // Collapsing the previous row to the new one instead - what a teleport does - would hold
-        // the camera still for one tick and then jump, which is the twitch this replaced. Only
-        // the interpolated position matters here; nothing else reads these two fields.
+        // the camera still for one tick and then jump. Shifting both previous-position fields
+        // preserves the short interpolation interval across the boundary.
         double shift = y - folded;
         this.yo -= shift;
         this.yOld -= shift;

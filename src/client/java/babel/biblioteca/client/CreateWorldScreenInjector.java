@@ -36,7 +36,7 @@ public final class CreateWorldScreenInjector {
                 parent,
                 PendingLoopingConfig.getPendingLooping(),
                 PendingLoopingConfig.getPendingBeaconIgnoresSky(),
-                PendingLoopingConfig.getPendingVoidFog(),
-                PendingLoopingConfig.getPendingSkyLight()));
+                PendingLoopingConfig.getPendingNoVoidFog(),
+                PendingLoopingConfig.getPendingNoSkyLight()));
     }
 }

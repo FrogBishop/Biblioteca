@@ -17,14 +17,13 @@ import java.util.Set;
 /**
  * Per-world record of the per-dimension attributes this mod adds:
  *
- *   looping              the Y axis wraps around, minY touching maxY
+ *   looping             the Y axis wraps around, identifying minY with minY + height
  *   beacon_ignores_sky   beacon beams skip the vanilla "must see the sky" rule
- *   void_fog             show the vanilla void-fog darkening (the ring suppresses it by default)
- *   sky_light            keep the vanilla sky-light channel (the ring removes it by default)
+ *   no_void_fog          disable the vanilla void-fog darkening in looping dimensions
+ *   no_sky_light         disable the vanilla sky-light channel in looping dimensions
  *
- * Every attribute is off for a new dimension. The void-fog and sky-light entries describe the
- * *vanilla phenomenon*, not the fix: with them off the ring keeps its uniform lighting, and turning
- * one on restores the vanilla effect for that dimension only.
+ * Every attribute defaults to false for a new dimension. The two lighting overrides therefore
+ * preserve vanilla effects by default; true disables the corresponding effect in that dimension.
  *
  * Stored in the overworld's data storage (saves/<world>/data/biblioteca/looping.dat).
  */
@@ -32,18 +31,18 @@ public class LoopingWorldData extends SavedData {
 
     private final Set<ResourceKey<Level>> loopingDimensions;
     private final Set<ResourceKey<Level>> beaconIgnoresSky;
-    private final Set<ResourceKey<Level>> voidFog;
-    private final Set<ResourceKey<Level>> skyLight;
+    private final Set<ResourceKey<Level>> noVoidFog;
+    private final Set<ResourceKey<Level>> noSkyLight;
 
     public LoopingWorldData(
             Set<ResourceKey<Level>> loopingDimensions,
             Set<ResourceKey<Level>> beaconIgnoresSky,
-            Set<ResourceKey<Level>> voidFog,
-            Set<ResourceKey<Level>> skyLight) {
+            Set<ResourceKey<Level>> noVoidFog,
+            Set<ResourceKey<Level>> noSkyLight) {
         this.loopingDimensions = new HashSet<>(loopingDimensions);
         this.beaconIgnoresSky = new HashSet<>(beaconIgnoresSky);
-        this.voidFog = new HashSet<>(voidFog);
-        this.skyLight = new HashSet<>(skyLight);
+        this.noVoidFog = new HashSet<>(noVoidFog);
+        this.noSkyLight = new HashSet<>(noSkyLight);
     }
 
     private static final Codec<LoopingWorldData> RECORD = RecordCodecBuilder.create(instance -> instance.group(
@@ -54,13 +53,13 @@ public class LoopingWorldData extends SavedData {
                     .optionalFieldOf("beacon_ignores_sky", List.of())
                     .forGetter(data -> List.copyOf(data.beaconIgnoresSky)),
             ResourceKey.codec(Registries.DIMENSION).listOf()
-                    .optionalFieldOf("void_fog", List.of())
-                    .forGetter(data -> List.copyOf(data.voidFog)),
+                    .optionalFieldOf("no_void_fog", List.of())
+                    .forGetter(data -> List.copyOf(data.noVoidFog)),
             ResourceKey.codec(Registries.DIMENSION).listOf()
-                    .optionalFieldOf("sky_light", List.of())
-                    .forGetter(data -> List.copyOf(data.skyLight))
-    ).apply(instance, (looping, beacon, voidFog, skyLight) -> new LoopingWorldData(
-            new HashSet<>(looping), new HashSet<>(beacon), new HashSet<>(voidFog), new HashSet<>(skyLight))));
+                    .optionalFieldOf("no_sky_light", List.of())
+                    .forGetter(data -> List.copyOf(data.noSkyLight))
+    ).apply(instance, (looping, beacon, noVoidFog, noSkyLight) -> new LoopingWorldData(
+            new HashSet<>(looping), new HashSet<>(beacon), new HashSet<>(noVoidFog), new HashSet<>(noSkyLight))));
 
     /** Worlds written before the later attributes existed hold a bare list of dimensions. */
     private static final Codec<LoopingWorldData> LEGACY = ResourceKey.codec(Registries.DIMENSION)
@@ -100,23 +99,23 @@ public class LoopingWorldData extends SavedData {
         return Set.copyOf(beaconIgnoresSky);
     }
 
-    public void setVoidFog(ResourceKey<Level> dimension, boolean shown) {
-        if (shown) voidFog.add(dimension);
-        else voidFog.remove(dimension);
+    public void setNoVoidFog(ResourceKey<Level> dimension, boolean disabled) {
+        if (disabled) noVoidFog.add(dimension);
+        else noVoidFog.remove(dimension);
         setDirty();
     }
 
-    public Set<ResourceKey<Level>> getVoidFogDimensions() {
-        return Set.copyOf(voidFog);
+    public Set<ResourceKey<Level>> getNoVoidFogDimensions() {
+        return Set.copyOf(noVoidFog);
     }
 
-    public void setSkyLight(ResourceKey<Level> dimension, boolean kept) {
-        if (kept) skyLight.add(dimension);
-        else skyLight.remove(dimension);
+    public void setNoSkyLight(ResourceKey<Level> dimension, boolean disabled) {
+        if (disabled) noSkyLight.add(dimension);
+        else noSkyLight.remove(dimension);
         setDirty();
     }
 
-    public Set<ResourceKey<Level>> getSkyLightDimensions() {
-        return Set.copyOf(skyLight);
+    public Set<ResourceKey<Level>> getNoSkyLightDimensions() {
+        return Set.copyOf(noSkyLight);
     }
 }

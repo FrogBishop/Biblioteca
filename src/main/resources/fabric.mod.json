@@ -14,6 +14,7 @@
   "license": "GPLv3",
   "icon": "assets/biblioteca/icon.png",
   "environment": "*",
+  "accessWidener": "biblioteca.accesswidener",
   "entrypoints": {
     "main": [
       "babel.biblioteca.Biblioteca"

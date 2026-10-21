@@ -1,279 +1,146 @@
 # Biblioteca
-**A periodic Y axis for Minecraft dimensions.**
+
+**Turn a dimension's vertical space into a loop.**
 
 > *"La biblioteca es ilimitada y periódica."* — Jorge Luis Borges, *Ficciones* (1944)
 
-Biblioteca is a Fabric mod for **Minecraft 26.3** that turns the Y axis of a dimension into a ring. The lowest layer and the highest layer become neighbours: there is no floor to fall out of and no ceiling to hit. It is a **per-dimension attribute**, opt-in, and it works with existing worlds.
+Travel past the top of the world and continue from the bottom, or fall through the bottom and
+arrive at the top. Biblioteca makes the two sides neighbours, with continuous movement and a
+repeating view of the world above and below you.
 
-The name comes from Borges' *The Library of Babel* — a library that is unlimited and periodic. Biblioteca makes the vertical axis of a world the same kind of thing.
+The place where the top and bottom meet is the **boundary**. In a normal Overworld, it joins
+`y = 320` to `y = -64`.
 
-The mod adds no blocks, items, biomes, or world types. It changes how the existing vertical space behaves.
+Looping is optional for each dimension and works with existing worlds. The mod keeps normal
+world generation and adds no blocks, items or world types. Existing terrain, including bedrock,
+stays in place, so solid blocks can still obstruct a passage through the boundary.
 
-## Highlights
+## What you can do
 
-- **A true vertical ring.** The world height becomes cyclic. Moving past the bottom continues at the top and vice versa; there is no teleport and no command involved.
-- **Per dimension, opt-in.** The Overworld, The Nether, The End, or any modded dimension can loop independently. Everything is off by default.
-- **Gameplay-aware seam.** Block access, collisions, entity movement, neighbour updates, pistons, fluids, plant growth, light and effects all fold across the seam.
-- **A visual ring.** The client mirrors visible terrain above and below, draws entities and block entities at the nearest layer, repeats beacon beams and folds the cloud layer.
-- **Correct translucency.** Looping dimensions use Minecraft's order-independent transparency path, so mirrored water, glass and slime blend correctly.
-- **Server ready.** A `-norender` jar ships next to the normal jar for dedicated servers.
-- **No new content.** Vanilla blocks, items and world generation; the loop is a coordinate and rendering behaviour.
+- Enable looping independently for the Overworld, Nether, End or a modded dimension.
+- Build and interact across the boundary, with block and entity collisions in the right places.
+- Use fluids, redstone, pistons and supported plant growth across the top and bottom.
+- See repeated terrain, nearby entities and block entities, periodic beacon beams and clouds.
+- See rain and snow across the boundary, with rain splashes, hot-surface smoke and impact sounds.
+- Hear positional sounds and see effects from the other side, with matching sound subtitles.
+- Track your crossings with **Seam crossings** in the vanilla statistics screen.
 
-## Requirements
+## Requirements and installation
 
-- **Minecraft 26.3** (Fabric)
-- **Fabric Loader 0.19.5** or newer
-- **Fabric API** for 26.3
-- **Java 25** or newer
-- Install on both the client and the server for the full experience.
+- **Minecraft 26.3**, using **Fabric Loader 0.19.5 or newer**.
+- **Fabric API** for Minecraft 26.3.
+- **Java 25 or newer**.
 
-Tested with Fabric Loader 0.19.5 and Fabric API 0.162.0+26.3 on Minecraft 26.3.
+Install Fabric API and the normal Biblioteca JAR in the client's `mods` folder. Multiplayer
+servers also need Biblioteca and Fabric API; use matching Biblioteca versions on both sides.
 
-## Installation
+Dedicated servers can use the `-norender` JAR. Clients need the normal JAR to see the looping
+world. Install only one Biblioteca JAR in each instance: both variants use the same mod ID.
 
-1. Install Fabric Loader for Minecraft 26.3.
-2. Put Fabric API in the `mods` folder.
-3. Put `biblioteca-<version>.jar` in `mods` on the client and on the server.
-4. On a dedicated server you can use `biblioteca-<version>-norender.jar` instead; it contains the server logic without the client renderer hooks. Clients still need the normal jar to see the loop.
-5. Do not install both jars in the same instance — they share the same mod ID.
+## Enable looping
 
-## Getting started
+For a new singleplayer world, open **Create New World → More → Dimension Attributes**. Choose
+the settings for the Overworld, Nether and End, press **Done**, and create the world.
 
-### New singleplayer world
-
-Create New World → **More** tab → **Dimension Attributes**
-
-The screen has one row per dimension and four toggle columns:
-
-- **Y-axis loops** — turn the ring on or off per dimension.
-- **Beacon ignores sky** — let beacon beams skip the vanilla sky check.
-- **Void fog** — show the vanilla void-fog darkening. Off by default: the ring hides it so the two halves of the seam stay evenly lit.
-- **Sky light** — keep the vanilla sky-light channel. Off by default: the ring removes it for the same reason.
-
-Choose the settings for the Overworld, The Nether and The End, press **Done**, and create the world. The choices are applied the first time the new world loads.
-
-The create-world screen is part of singleplayer world creation. Dedicated servers and existing worlds use the commands below.
-
-### Existing worlds and servers
-
-Everything is available through `/biblioteca`:
-
-```text
-/biblioteca looping list
-/biblioteca looping set minecraft:overworld true
-/biblioteca looping set minecraft:the_nether true
-/biblioteca looping set minecraft:the_end false
-/biblioteca beacon true
-/biblioteca voidfog true
-/biblioteca skylight true
-```
-
-`/biblioteca beacon`, `/biblioteca voidfog` and `/biblioteca skylight` act on the dimension you are currently in. `/biblioteca looping set` takes any dimension ID, including modded ones.
-
-## Commands
-
-| Command | Permission | Description |
-|---|---|---|
-| `/biblioteca looping list` | 2 (GAMEMASTERS) | List the dimensions whose Y axis loops. |
-| `/biblioteca looping set <dimension> <enabled>` | 2 (GAMEMASTERS) | Enable or disable the loop for a dimension. |
-| `/biblioteca beacon` | 2 (GAMEMASTERS) | Show whether beacons ignore the sky in the current dimension. |
-| `/biblioteca beacon <enabled>` | 2 (GAMEMASTERS) | Set that attribute for the current dimension. |
-| `/biblioteca voidfog` | 2 (GAMEMASTERS) | Show whether void fog is enabled in the current dimension. |
-| `/biblioteca voidfog <shown>` | 2 (GAMEMASTERS) | Show or hide the vanilla void-fog darkening there. |
-| `/biblioteca skylight` | 2 (GAMEMASTERS) | Show whether sky light is kept in the current dimension. |
-| `/biblioteca skylight <kept>` | 2 (GAMEMASTERS) | Keep or remove the vanilla sky-light channel there. |
-
-Examples:
+For an existing world, a server or a modded dimension, use commands. Cheats or operator
+permission level 2 are required:
 
 ```text
 /biblioteca looping set minecraft:overworld true
-/biblioteca looping set mymod:skylands true
-/biblioteca beacon false
 ```
 
-## Per-dimension attributes
+Replace `minecraft:overworld` with the dimension ID you want, such as `minecraft:the_nether`,
+`minecraft:the_end` or an ID added by another mod. To turn looping off again:
 
-| Attribute | Data key | Default | Effect |
-|---|---|---|---|
-| **Y-axis loops** | `looping` | Off | Wraps `minY` and `maxY`; the dimension becomes a ring. |
-| **Beacon ignores sky** | `beacon_ignores_sky` | Off | Beacon beams skip the vanilla sky check and scan around the ring. |
-| **Void fog** | `void_fog` | Off | Shows the vanilla void-fog darkening; off keeps the ring evenly lit. |
-| **Sky light** | `sky_light` | Off | Keeps the vanilla sky-light channel; off keeps the ring evenly lit. |
-
-All four attributes are stored with the world and synced to clients. Changing one takes effect immediately; no restart is needed.
-
-In a looping dimension, vanilla's "the beacon must see the sky" rule can never be satisfied, because the dimension has no sky. Without **Beacon ignores sky**, beacons stay dark. Enable it for every looping dimension where you want beacons to work.
-
-## What the loop affects
-
-### Building and interaction
-
-- Placing or breaking a block above `maxY` or below `minY` folds to the opposite edge of the ring.
-- The "build limit exceeded" message is suppressed in looping dimensions, so the placement is not rejected at the seam.
-- Interaction range uses the shortest distance around the ring; you can reach blocks across the seam.
-- Block entities, fluid states, block states and loaded checks fold the Y coordinate, so machines and containers behave normally at the edges.
-
-### Collisions and entities
-
-- Block collisions at the seam treat the row past `minY` as the top row and the row past `maxY` as the bottom row. The top of the world and the bottom of the world are the same plane.
-- Entity collisions are measured around the ring, so two entities on opposite sides of the seam collide as if adjacent.
-- Entity positions are folded at the single commit point every position write goes through, so minecarts, falling blocks and primed TNT wrap too; no per-tick correction is needed.
-- Camera interpolation stays continuous across the seam; the player is not teleported or snapped.
-
-### Redstone, pistons and neighbours
-
-- Neighbour updates are delivered at the folded row, so a piston at the top of the world can be powered by a block at the bottom and retract again.
-- Pistons can push and pull across the seam. Moving-piston block entities are placed at the folded position instead of being dropped outside the world.
-- Doors, observers, rails, redstone wire and other neighbour-driven blocks work through the seam.
-
-### Fluids
-
-- Water and lava flow, connect and spread across the seam.
-- Waterlogged blocks and fluid mixing work at the edges.
-- Placing or removing fluid at the build limit folds to the other side.
-
-### Plants and growth
-
-- Bamboo, chorus flowers, vines, double plants, grass bonemeal, dripstone, kelp and sugar cane can grow past the build height and continue at the other edge.
-- The growth checks that normally stop at `minY`/`maxY` are answered with "no edge" in looping dimensions.
-
-### Lighting
-
-- **Sky light is removed** in looping dimensions by default. A ring has no sky, so the sky-light channel is zero and both halves of the seam are lit the same way. Enable **Sky light** for a dimension if you want the vanilla bright-top/dark-bottom split back.
-- **Block light wraps around the seam**, so torches, lamps and other light sources illuminate the other side.
-- **Void fog is hidden** in looping dimensions by default. Enable **Void fog** to get the vanilla darkening at the seam back.
-- With sky light off, the world is lit by block light; bring light sources when you explore.
-
-### Beacons
-
-- Without **Beacon ignores sky**, beacons stay dark and provide no beam or effects, because the sky rule cannot pass.
-- With it, the beam scans the column around the ring, stops at the first light-damping block, and is drawn once per period.
-- The beacon pyramid and its effects work normally.
-
-### Sound, particles and level events
-
-- Block break and place sounds, particles and level events are sent to each listener at the copy of the position nearest to them.
-- An effect on the far side of the seam is therefore heard and seen in the right place, instead of being culled by distance.
-
-### Statistics
-
-- Crossing the seam increments **Seam crossings** in the statistics screen (General tab). It is a vanilla custom stat: stored in the player's stats file, synced per player, and reset with the rest of the statistics.
-- Walking, flying or riding across counts. The counter is bumped by the movement packet that actually crosses the seam, not by a per-tick scan; teleports and respawns are not movement packets and do not count.
-
-### Rendering
-
-- Visible sections are drawn again above and below at whole world-height offsets, so the world repeats visibly in both directions.
-- Entities and block entities are drawn once, at the periodic layer nearest the camera; they are not duplicated.
-- Beacon beams repeat once per period because a beam spans the whole ring.
-- Clouds are folded to the nearest periodic layer.
-
-## Rendering notes
-
-- A mirrored section is one more set of draw commands pointing at the **same compiled mesh**. The extra cost is draw calls, not extra mesh memory.
-- Copies are only submitted within the render distance and the camera frustum. The **Seam preload** setting keeps a configurable amount of extra slack warm.
-- The copy count scales with the render distance divided by the world height. A height-16 world at 12 chunks can show about 25 terrain layers; at 32 chunks it can show about 65. The current renderer submits one draw command per section layer per copy and does not instance or merge copies yet, so very short worlds at long render distances are draw-command bound. See `PERFORMANCE.md` in the source tree for the cost model and benchmark method.
-- Vanilla sorts a section's translucent quads once, for one viewpoint. A mirrored copy is the same mesh drawn at another height, so that baked order is wrong for the copy; re-sorting the shared mesh for one copy breaks the others. Looping dimensions therefore use **order-independent transparency (OIT)**, which resolves blending per fragment and is correct at every height. The vanilla "Improved Transparency" option may still read as off; Biblioteca forces the render path for the dimension.
-- If Minecraft's GPU warning list flags the GPU, the mod does not force OIT. Translucency at the seam may then not blend correctly.
-- OIT is not forced in the wireframe debug view, matching vanilla's own rule.
-
-## Client settings
-
-The only client-side setting is the seam preload.
-
-`config/biblioteca-client.json`:
-
-```json
-{
-  "seamPreloadSections": 0
-}
+```text
+/biblioteca looping set minecraft:overworld false
 ```
 
-- Range: **0–8**; each step is 16 blocks of slack around the far side of the seam.
-- `0` means "only preload what is already in view"; higher values compile mirrored sections further ahead of time and reduce hitches when crossing the seam, at the cost of more compile work.
-- The same value is available in **Options → Video Settings → Seam preload (sections)**.
+## Dimension settings
 
-## Server deployments
+All four settings default to `false`. The three additional attributes affect dimensions where
+Y-axis looping is enabled.
 
-The build ships two jars:
-
-| Jar | Use |
+| Setting | When enabled (`true`) |
 |---|---|
-| `biblioteca-<version>.jar` | Client and server, with the full mirrored rendering. |
-| `biblioteca-<version>-norender.jar` | Dedicated servers. Same mod logic without the client renderer hooks. |
+| **Y-axis loops** | Connect the world's top and bottom. |
+| **Beacon ignores sky** | Allow beacons to use beams that scan around the loop. Enable this to use beacons in a looping dimension. |
+| **No void fog** | Hide the vanilla darkening near the bottom of the world. |
+| **No sky light** | Remove sky light; the dimension then relies on block light sources. |
 
-The `-norender` jar is cut from the normal jar, so the two cannot drift apart. It keeps server logic, networking, coordinate folding, block prediction and the GUI; it removes the mirrored terrain, frustum/BFS workarounds, cloud, fog and particle hooks, and the OIT override. It appears in the mod list with a `-norender` version suffix.
+For **No void fog** and **No sky light**, `false` keeps the original effect and `true` disables
+it. The world-creation buttons show **Keep fog / Disable fog** and **Keep skylight / Disable
+skylight** to make the result clear. Keeping sky light does not add it to a dimension that
+normally has none.
 
-Clients still need the normal jar to see the ring. Do not install both jars in one instance.
+| Command | Action |
+|---|---|
+| `/biblioteca looping list` | List the dimensions with looping enabled. |
+| `/biblioteca looping set <dimension> <bool>` | Enable or disable looping for that dimension. |
+| `/biblioteca beacon <bool>` | Change Beacon ignores sky in the current dimension. |
+| `/biblioteca no_void_fog <bool>` | Change No void fog in the current dimension. |
+| `/biblioteca no_sky_light <bool>` | Change No sky light in the current dimension. |
 
-## Storage and synchronisation
+Use `true` or `false` for `<bool>`. Run `beacon`, `no_void_fog` or `no_sky_light` without a value
+to see its current setting. These three commands act on the dimension you are standing in.
 
-- World data: `saves/<world>/data/biblioteca/looping.dat` in singleplayer, or `<world>/data/biblioteca/looping.dat` on a server.
-- The file stores the sets of dimensions for every attribute: looping, beacon ignores sky, void fog and sky light.
-- On join, and after every change, the server sends the attribute sets to clients. The client clears its copy on disconnect.
-- Attributes persist with the world; they are not stored in the client options file.
+For example, to use beacons and hide void fog while keeping sky light:
 
-## Known limitations
+```text
+/biblioteca beacon true
+/biblioteca no_void_fog true
+/biblioteca no_sky_light false
+```
 
-- **No sky light by default.** Looping dimensions are lit by block light only. Enable **Sky light** for a dimension to restore the vanilla channel; caves and large builds will otherwise be darker than in a normal world.
-- **Beacons need the attribute.** Without **Beacon ignores sky**, beacons stay dark in a looping dimension.
-- **The mirror is visual.** The server stores one period. Terrain is drawn repeatedly, but there are no duplicate chunks, blocks or entities; entities and block entities are drawn at the nearest layer only.
-- **OIT is forced.** On a GPU flagged by Minecraft's warning list, the mod leaves the transparency path alone and seam translucency may look wrong.
-- **Mixin-based.** Biblioteca patches vanilla level, entity, collision, lighting and renderer code. Mods that rewrite the same internals can conflict. Shader packs are not officially tested.
-- **Create-world GUI is singleplayer only.** Existing worlds and dedicated servers use the commands.
-- **The `-norender` jar has no visual loop.** It is intended for servers, not for clients that want to see the ring.
-- **Render distance matters.** More visible copies mean more draw calls. A height-16 world at 32 chunks is the stress case; the renderer currently does not instance or merge copies. The seam preload setting trades compile work for fewer hitches, not for fewer draw commands.
-- **The loop period is the dimension's height.** The mod does not generate extra terrain above or below the world; it wraps the height the dimension already has.
-- **0.x.** The mod is young; internals and behaviour may change between releases. See [CHANGELOG.md](CHANGELOG.md) for release history.
+Settings are saved with the world and synchronized to connected players.
 
-## FAQ
+## Transparency and performance
 
-**Is this a new dimension or world type?**
-No. It is a per-dimension attribute. The dimension keeps its normal generation, height and biomes; only the Y axis becomes periodic.
+Biblioteca supports water, stained glass and other translucent terrain both with and without
+**Improved Transparency**, Minecraft's OIT option. The mod does not force that option on.
 
-**Does it generate infinite vertical terrain?**
-No. It wraps the dimension's existing height. The server still stores one period; the client draws periodic copies of it.
+**On newer GPUs that support OIT, we recommend enabling Improved Transparency for better
+performance.** Find it under **Options → Video Settings**.
 
-**Can I use it on an existing world?**
-Yes. Enable it with `/biblioteca looping set <dimension> true`. The setting is saved with the world.
+If OIT is unavailable, or you turn the option off, Biblioteca uses sorted transparency for the
+repeated terrain. You can switch it off on an OIT-capable GPU to compare the two paths. Sorting
+can cost more CPU time, and intersecting translucent faces can still show artifacts that OIT
+handles more accurately.
 
-**Why is everything so dark?**
-Sky light is zero in looping dimensions by design. Use torches, lanterns, glowstone or other block light (it wraps around the seam), or enable **Sky light** for that dimension: `/biblioteca skylight true` while standing in it. To bring the vanilla void darkening back, use `/biblioteca voidfog true`.
+A high render distance shows more repeated terrain and increases rendering work. Very short
+dimensions can be more demanding because many copies fit in view. Reduce render distance if
+needed.
 
-**Why are my beacons dark?**
-Enable **Beacon ignores sky** for that dimension: `/biblioteca beacon true` while standing in it, or the toggle in the create-world screen.
+**Seam preload (sections)**, also in Video Settings, ranges from **0 to 8**. Higher values prepare
+more terrain across the boundary ahead of time and can reduce loading hitches, at the cost of
+extra work. The default is `0`; each step adds 16 blocks of preload slack.
 
-**Do I need the mod on both the client and the server?**
-Yes for the full experience. The server needs it for the world logic and coordinate folding; the client needs it to render the ring. Dedicated servers can use the `-norender` jar.
+## Existing worlds and upgrading
 
-**Does it duplicate entities or blocks?**
-No. The server has one period. The client copies terrain draw calls, not entities; entities and block entities are drawn at the nearest layer.
+You can enable or disable looping in an existing world. It uses the dimension's existing height;
+it does not generate extra vertical terrain or duplicate your blocks and entities. Ordinary
+entities and block entities are shown at the copy nearest you.
 
-**Can I build above the build limit?**
-Yes. Placement above `maxY` folds to the bottom of the ring, and the build-limit message is suppressed in looping dimensions.
+In **0.67.0**, the old `void_fog` and `sky_light` settings were renamed and inverted. To preserve
+their previous effects, use the opposite boolean with `no_void_fog` and `no_sky_light`. For
+example, keeping the old defaults requires setting both new attributes to `true` in each looping
+dimension. See the [manual migration instructions](https://github.com/FrogBishop/Biblioteca/blob/main/CHANGELOG.md#manual-migration)
+for the complete command table.
 
-**Does it work with shaders?**
-Shader packs are not officially tested. Biblioteca changes vanilla rendering internals; if a shader pack conflicts, please open an issue with the log and the pack name.
+## Compatibility and feedback
 
-**Can I turn it off again?**
-Yes. `/biblioteca looping set <dimension> false`, or the create-world toggle for a new world. The change is saved and broadcast immediately.
+Biblioteca changes Minecraft's world and renderer internals. Mods that replace the same systems
+may need compatibility work. Shader packs have not been comprehensively tested. The no-render
+variant is intended for servers and does not provide the visual loop on a client.
 
-**Does it work in the Nether and the End?**
-Yes. Any dimension ID can be enabled. The Nether and the End have their own skyboxes; the loop still applies to blocks, entities, light and collisions.
+For a bug report, include your Minecraft/mod versions, other installed mods, the log and steps
+to reproduce it. For a rendering problem, also include your GPU, render distance, dimension
+height and whether Improved Transparency is enabled.
 
-**What is the "Seam preload" slider?**
-It controls how many extra sections (16 blocks each, 0–8) around the far side of the seam are compiled ahead of time. Higher values reduce hitches at the cost of more work.
+[Source and developer documentation](https://github.com/FrogBishop/Biblioteca) ·
+[Report an issue](https://github.com/FrogBishop/Biblioteca/issues) ·
+[Release history](https://github.com/FrogBishop/Biblioteca/blob/main/CHANGELOG.md)
 
-## Technical notes
-
-Biblioteca folds Y coordinates with `floorMod(y - minY, height) + minY` at the boundaries where vanilla assumes a floor and a ceiling: level block access, collisions, entity positions, neighbour updates, light nodes, packet coordinates and several block-specific growth checks.
-
-The server owns one period of the world. The client mirrors visible sections at whole-height offsets and shares the compiled mesh between copies. Attributes are stored as `SavedData` in the overworld and synchronized through a custom payload. Beacon beams scan one full period and are drawn once per period.
-
-## Credits and license
-
-- Author: **FrogBishop**
-- Inspired by Jorge Luis Borges' *The Library of Babel*
-- Bug fixes and rendering work: DeepSeek-v4.1-flash
-- License: **GPLv3**
-- Source: [github.com/FrogBishop/Biblioteca](https://github.com/FrogBishop/Biblioteca)
-- Issues: [github.com/FrogBishop/Biblioteca/issues](https://github.com/FrogBishop/Biblioteca/issues)
+Author: **FrogBishop**. Inspired by Jorge Luis Borges' *The Library of Babel*.
+Bug fixes and rendering work: DeepSeek-v4.1-flash. Licensed under
+[GPLv3](https://github.com/FrogBishop/Biblioteca/blob/main/LICENSE).

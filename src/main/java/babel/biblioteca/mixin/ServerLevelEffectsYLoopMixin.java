@@ -1,20 +1,30 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamEffects;
+import babel.biblioteca.SeamPositions;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Vec3i;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -28,11 +38,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * radius check dropped it - and had it been sent, the client would have played it out of earshot.
  *
  * Vanilla sends one packet to everyone, which cannot be correct here: the right copy of the
- * position depends on where the listener stands. Both funnels therefore loop over the listeners and
- * build a packet each, with the same radius rule vanilla uses. The two other sound overloads need
- * nothing: the entity-relative one takes its coordinates from an entity, whose position is always
- * inside the world, and globalLevelEvent is meant for every player in the dimension regardless of
- * distance.
+ * position depends on where the listener stands. Entity-bound sound packets also need a periodic
+ * broadcast radius even though they carry an entity ID; the client's sound engine then follows
+ * that entity's nearest copy. Global events keep their vanilla audience and 32-block placement,
+ * but choose the direction toward the nearest periodic copy of the event.
  */
 @Mixin(ServerLevel.class)
 public abstract class ServerLevelEffectsYLoopMixin {
@@ -54,6 +63,43 @@ public abstract class ServerLevelEffectsYLoopMixin {
                         false));
 
         if (handled) ci.cancel();
+    }
+
+    /** An entity ID does not make the server's broadcast-distance check periodic by itself. */
+    @Inject(method = "playSeededSound(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/Entity;"
+            + "Lnet/minecraft/core/Holder;Lnet/minecraft/sounds/SoundSource;FFJ)V",
+            at = @At("HEAD"), cancellable = true)
+    private void biblioteca$entitySoundAcrossBoundary(
+            Entity except, Entity sourceEntity, Holder<SoundEvent> sound, SoundSource source,
+            float volume, float pitch, long seed, CallbackInfo ci) {
+        ServerLevel level = (ServerLevel) (Object) this;
+        if (!LoopingRegistry.isLooping(level)) return;
+        ClientboundSoundEntityPacket packet =
+                new ClientboundSoundEntityPacket(sound, source, sourceEntity, volume, pitch, seed);
+        boolean handled = SeamEffects.broadcastPerListener(level, except instanceof Player player ? player : null,
+                sourceEntity.getX(), sourceEntity.getY(), sourceEntity.getZ(), sound.value().getRange(volume),
+                y -> packet);
+        if (handled) ci.cancel();
+    }
+
+    @WrapOperation(method = "lambda$globalLevelEvent$0", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/phys/Vec3;atCenterOf(Lnet/minecraft/core/Vec3i;)Lnet/minecraft/world/phys/Vec3;"))
+    private Vec3 biblioteca$nearestGlobalEvent(
+            Vec3i pos, Operation<Vec3> original,
+            @Local(argsOnly = true) ServerPlayer player) {
+        Vec3 source = original.call(pos);
+        ServerLevel level = (ServerLevel) (Object) this;
+        if (!LoopingRegistry.isLooping(level)) return source;
+        return new Vec3(source.x, SeamPositions.foldToward(source.y, player.getY(), level.getHeight()), source.z);
+    }
+
+    /** The client folds particle positions; the single-recipient server range check must agree. */
+    @ModifyVariable(method = "sendParticles(Lnet/minecraft/server/level/ServerPlayer;ZDDD"
+            + "Lnet/minecraft/network/protocol/Packet;)Z", at = @At("HEAD"), argsOnly = true, ordinal = 1)
+    private double biblioteca$targetedParticleY(double y, @Local(argsOnly = true) ServerPlayer player) {
+        ServerLevel level = (ServerLevel) (Object) this;
+        return LoopingRegistry.isLooping(level)
+                ? SeamPositions.foldToward(y, player.blockPosition().getY() + 0.5, level.getHeight()) : y;
     }
 
     /** Positional sounds: place sounds, block sounds, entity sounds routed through the level. */

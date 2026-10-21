@@ -33,9 +33,9 @@ import java.util.stream.Collectors;
  * {@code /biblioteca} command tree.
  *
  * <p>Four attributes exist per dimension: whether the Y axis loops, whether beacon beams ignore the
- * sky, whether the vanilla void fog is shown, and whether the vanilla sky-light channel is kept.
- * The two lighting attributes describe the vanilla phenomenon and default to off, which is what
- * keeps a looping dimension evenly lit; turning one on restores that effect for one dimension.
+ * sky, whether vanilla void fog is disabled, and whether the vanilla sky-light channel is disabled.
+ * The two lighting overrides default to false, preserving vanilla effects. Turning one on disables
+ * that effect in the looping dimension.
  */
 public class Biblioteca implements ModInitializer {
 
@@ -46,8 +46,8 @@ public class Biblioteca implements ModInitializer {
     public void onInitialize() {
         LoopingRegistry.setServerChecker(LoopingDimensionManager::isLooping);
         LoopingRegistry.setServerBeaconChecker(LoopingDimensionManager::beaconIgnoresSky);
-        LoopingRegistry.setServerVoidFogChecker(LoopingDimensionManager::showsVoidFog);
-        LoopingRegistry.setServerSkyLightChecker(LoopingDimensionManager::keepsSkyLight);
+        LoopingRegistry.setServerNoVoidFogChecker(LoopingDimensionManager::hasNoVoidFog);
+        LoopingRegistry.setServerNoSkyLightChecker(LoopingDimensionManager::hasNoSkyLight);
 
         SeamStats.init();
 
@@ -65,8 +65,8 @@ public class Biblioteca implements ModInitializer {
         return new LoopingStatePayload(
                 keysOf(LoopingDimensionManager.getLoopingDimensions()),
                 keysOf(LoopingDimensionManager.getBeaconIgnoresSkyDimensions()),
-                keysOf(LoopingDimensionManager.getVoidFogDimensions()),
-                keysOf(LoopingDimensionManager.getSkyLightDimensions()));
+                keysOf(LoopingDimensionManager.getNoVoidFogDimensions()),
+                keysOf(LoopingDimensionManager.getNoSkyLightDimensions()));
     }
 
     private static Set<String> keysOf(Set<ResourceKey<Level>> dimensions) {
@@ -93,12 +93,12 @@ public class Biblioteca implements ModInitializer {
                                 .then(dimensionAttribute("beacon", "ignoresSky", "Beacon ignores sky",
                                         LoopingDimensionManager::beaconIgnoresSky,
                                         LoopingDimensionManager::setBeaconIgnoresSky))
-                                .then(dimensionAttribute("voidfog", "shown", "Void fog",
-                                        LoopingDimensionManager::showsVoidFog,
-                                        LoopingDimensionManager::setVoidFog))
-                                .then(dimensionAttribute("skylight", "kept", "Sky light",
-                                        LoopingDimensionManager::keepsSkyLight,
-                                        LoopingDimensionManager::setSkyLight))));
+                                .then(dimensionAttribute("no_void_fog", "disabled", "No void fog",
+                                        LoopingDimensionManager::hasNoVoidFog,
+                                        LoopingDimensionManager::setNoVoidFog))
+                                .then(dimensionAttribute("no_sky_light", "disabled", "No sky light",
+                                        LoopingDimensionManager::hasNoSkyLight,
+                                        LoopingDimensionManager::setNoSkyLight))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> loopingCommand() {

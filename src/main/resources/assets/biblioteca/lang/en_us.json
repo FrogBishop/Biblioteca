@@ -6,9 +6,13 @@
   "biblioteca.gui.looping_config.end": "The End",
   "biblioteca.gui.looping_config.header_looping": "Y-axis loops",
   "biblioteca.gui.looping_config.header_beacon": "Beacon ignores sky",
-  "biblioteca.gui.looping_config.header_void_fog": "Void fog",
-  "biblioteca.gui.looping_config.header_sky_light": "Sky light",
-  "biblioteca.gui.looping_config.note": "In game: /biblioteca looping set <dimension> <bool>; /biblioteca beacon|voidfog|skylight <bool> for the current dimension. Lighting columns are off by default; ON restores the vanilla effect.",
+  "biblioteca.gui.looping_config.header_no_void_fog": "No void fog",
+  "biblioteca.gui.looping_config.header_no_sky_light": "No sky light",
+  "biblioteca.gui.looping_config.no_void_fog_on": "Disable fog",
+  "biblioteca.gui.looping_config.no_void_fog_off": "Keep fog",
+  "biblioteca.gui.looping_config.no_sky_light_on": "Disable skylight",
+  "biblioteca.gui.looping_config.no_sky_light_off": "Keep skylight",
+  "biblioteca.gui.looping_config.note": "Fog and skylight: false keeps vanilla effects; true disables them. Default: false.",
   "biblioteca.options.preload": "Seam preload (sections)",
   "stat.biblioteca.seam_crossings": "Seam crossings"
 }

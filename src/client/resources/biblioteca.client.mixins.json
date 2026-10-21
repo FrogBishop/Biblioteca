@@ -5,24 +5,28 @@
   "client": [
     "BeaconBeamRenderYLoopMixin",
     "BlockEntityRenderRangeYLoopMixin",
-    "ChunkDrawGroupAccessor",
     "ClientLevelDirtyMixin",
+    "ClientLevelSoundYLoopMixin",
+    "ClientLevelWeatherYLoopMixin",
     "CloudRendererLoopMixin",
     "CreateWorldScreenMoreTabMixin",
     "EntityRenderYLoopMixin",
     "EntityShouldRenderYLoopMixin",
     "FrustumInvoker",
     "FrustumYLoopMixin",
-    "ImprovedTransparencyYLoopMixin",
     "LevelRendererYLoopMixin",
     "OptionsSubScreenAccessor",
     "ParticleYLoopMixin",
     "RenderRegionCacheYLoopMixin",
     "SectionOcclusionGraphLoopMixin",
     "SkyRendererYLoopMixin",
+    "SoundEngineYLoopMixin",
+    "SubtitleDirectionYLoopMixin",
+    "SubtitleDistanceYLoopMixin",
     "ViewAreaAccessor",
     "VideoSettingsScreenMixin",
-    "VoidFogMixin"
+    "VoidFogMixin",
+    "WeatherEffectRendererYLoopMixin"
   ],
   "injectors": {
     "defaultRequire": 1

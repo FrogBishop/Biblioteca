@@ -3,15 +3,8 @@ plugins {
 	id 'maven-publish'
 }
 
-repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
-}
-
 loom {
+	accessWidenerPath = file('src/main/resources/biblioteca.accesswidener')
 	splitEnvironmentSourceSets()
 
 	mods {
@@ -45,9 +38,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 java {
-	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-	// if it is present.
-	// If you remove this line, sources will not be generated.
+	// Loom includes the common and client source sets in the source archive.
 	withSourcesJar()
 
 	sourceCompatibility = JavaVersion.VERSION_25
@@ -63,20 +54,11 @@ jar {
 	}
 }
 
-// configure the maven publication
 publishing {
 	publications {
 		create("mavenJava", MavenPublication) {
 			from components.java
 		}
-	}
-
-	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-	repositories {
-		// Add repositories to publish to here.
-		// Notice: This block does NOT have the same function as the block in the top level.
-		// The repositories here will be used for publishing your artifact, not for
-		// retrieving dependencies.
 	}
 }
 
@@ -84,9 +66,8 @@ publishing {
 // No-render variant jar
 // ---------------------------------------------------------------------------
 // Every build emits a second jar next to the normal one: the same mod with the
-// client renderer hooks stripped out (no mirrored chunk sections, no frustum or
-// BFS workarounds, no cloud, fog or particle tweaks, no OIT override). Server logic,
-// networking, coordinate folding and block prediction are untouched.
+// client terrain, weather and visual-effect hooks stripped out. Server logic,
+// networking, coordinate folding, block prediction, audio and configuration UI are retained.
 //
 // The variant is cut from the finished jar instead of a second source set, so the
 // two jars cannot drift apart. Only the mixin config and the mod metadata inside
@@ -101,13 +82,12 @@ publishing {
 def noRenderMixins = [
 		'BeaconBeamRenderYLoopMixin',
 		'BlockEntityRenderRangeYLoopMixin',
-		'ChunkDrawGroupAccessor',
+		'ClientLevelWeatherYLoopMixin',
 		'CloudRendererLoopMixin',
 		'EntityRenderYLoopMixin',
 		'EntityShouldRenderYLoopMixin',
 		'FrustumInvoker',
 		'FrustumYLoopMixin',
-		'ImprovedTransparencyYLoopMixin',
 		'LevelRendererYLoopMixin',
 		'ParticleYLoopMixin',
 		'RenderRegionCacheYLoopMixin',
@@ -115,6 +95,7 @@ def noRenderMixins = [
 		'SkyRendererYLoopMixin',
 		'ViewAreaAccessor',
 		'VoidFogMixin',
+		'WeatherEffectRendererYLoopMixin',
 ]
 
 def noRenderGeneratedDir = layout.buildDirectory.dir('generated/noRender')
@@ -129,6 +110,8 @@ def prepareNoRenderResources = tasks.register('prepareNoRenderResources') {
 	def outputDir = noRenderGeneratedDir.get().asFile
 
 	inputs.files(mixinConfigFile, metadataFile).withPropertyName('manifestSources')
+	inputs.property('modVersion', modVersion)
+	inputs.property('removedMixins', noRenderMixins)
 	outputs.dir(noRenderGeneratedDir).withPropertyName('rewrittenResources')
 
 	doLast {
@@ -158,11 +141,9 @@ def prepareNoRenderResources = tasks.register('prepareNoRenderResources') {
 
 def noRenderJar = tasks.register('noRenderJar') {
 	group = 'build'
-	description = 'Assembles the no-render variant jar from the remapped jar.'
+	description = 'Assembles the no-render variant from the primary mod jar.'
 
-	// Loom 1.18 has no remapJar task: `jar` emits the deliverable mod jar directly
-	// (verified with `gradle tasks`). If a future loom reintroduces a remap step,
-	// this is the line that has to point at it instead.
+	// In this Loom setup, `jar` is the deliverable artifact; there is no remapJar step.
 	def primaryJar = tasks.named('jar').flatMap { it.archiveFile }.map { it.asFile }
 	// Lands next to the primary jar, whichever directory that task writes to.
 	def variantJar = primaryJar.map { primary ->

@@ -23,11 +23,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>Sky light: a ring has no sky, but sky light is not a property of the sky in this code - it is
  * a channel that starts at 15 at the top of the world and falls off as it is blocked on the way
  * down. The top rows therefore end up at 15 and the bottom rows, a whole world height of rock away
- * from the sky, at 0; where the two halves meet, the seam is a hard bright-over-dark line. Since
- * nothing in a ring can see the sky, the default is zero. Doing it at getLightValue - the single
- * method every sky-light query funnels through - means baked section vertices, entity and block
- * entity lighting, mob spawning and canSeeSky all agree, with no per-caller special cases. The
- * sky_light attribute can keep the vanilla channel for a dimension that wants it.
+ * from the sky, at 0; where the two halves meet, the seam is a hard bright-over-dark line. The
+ * no_sky_light attribute can remove this channel. It defaults to false, keeping vanilla lighting.
+ * When enabled, zeroing getLightValue - the single method every sky-light query funnels through -
+ * means baked section vertices, entity and block entity lighting, mob spawning and canSeeSky all
+ * agree, with no per-caller special cases.
  *
  * <p>Block light is left alone as a channel and folded at the query boundary instead: a face is lit
  * by the cell it faces into, so the top face of the topmost block samples the cell above the world.
@@ -48,9 +48,8 @@ public abstract class LightEngineYLoopMixin {
     private void biblioteca$noSkyLight(BlockPos pos, CallbackInfoReturnable<Integer> cir) {
         if (!((Object) this instanceof SkyLightEngine)) return;
         if (!biblioteca$looping()) return;
-        // The sky_light attribute describes the vanilla channel: on keeps it (with the vanilla
-        // bright-top/dark-bottom split), off (the default) keeps the ring uniform.
-        if (LoopingRegistry.keepsSkyLight(this.biblioteca$level)) return;
+        // false (the default) keeps vanilla sky light; true disables the channel.
+        if (!LoopingRegistry.hasNoSkyLight(this.biblioteca$level)) return;
         cir.setReturnValue(0);
     }
 

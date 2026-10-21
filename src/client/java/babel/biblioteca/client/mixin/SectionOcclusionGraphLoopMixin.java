@@ -164,15 +164,10 @@ public abstract class SectionOcclusionGraphLoopMixin {
      * class comment), so the set is completed here instead, from the sections the camera can
      * actually see through the ring.
      *
-     * "Can see" is asked with the ordinary frustum test, which FrustumYLoopMixin answers for
-     * a box's periodic twin as well as for the box itself. The same question that keeps a
-     * row near the camera therefore also keeps the row on the other end of the ring, which is
-     * exactly the source set the mirror needs.
+     * Each candidate copy is tested with SeamCull's plain frustum query, bypassing the periodic
+     * fallback in FrustumYLoopMixin. A source is appended when one of its actual copies is visible.
      *
-     * Only rows whose copy could reach the frustum are scanned: a copy is drawn at some whole
-     * multiple of the world height away, and the scan band is limited to the render distance
-     * (plus the preload slack) around the camera, so a row outside that band cannot produce
-     * anything visible however many periods it is shifted by.
+     * The candidate period offsets are bounded by the render distance plus preload slack.
      */
     @Inject(method = "addSectionsInFrustum", at = @At("TAIL"))
     private void biblioteca$includeFarSeamSources(
@@ -186,7 +181,7 @@ public abstract class SectionOcclusionGraphLoopMixin {
     /**
      * Adds the source sections whose periodic copies are visible.
      *
-     * There is exactly one source section per world row; every row above or below it is a copy.
+     * Each loaded column has one source section per stored section row; other periods are copies.
      * For each source section, the copies that can be within reach are a contiguous range of
      * period offsets. Testing that range directly is exact for any world height and render
      * distance: a height-16 world gets every copy that fits, not just the two nearest ones.
