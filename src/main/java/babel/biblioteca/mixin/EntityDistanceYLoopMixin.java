@@ -28,21 +28,25 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  * </ul>
  *
  * <p>The fix is to compare with the copy of the other point nearest this entity, which is the same
- * "nearest copy" rule used for packets and rendering. It is a no-op for any two points that are
- * already on the same side, including every query in a dimension that does not loop.
+ * "nearest copy" rule used for packets and rendering. Nothing changes unless the two rows are
+ * closer around the ring than in absolute space, so ordinary queries and every dimension that does
+ * not loop keep the vanilla answer.
  *
- * <p>Wide search boxes are a different matter: those are built in absolute coordinates by the
- * caller and are not corrected here, only the distance that filters their results.
+ * <p>Search areas are the other half of the same problem: a box built in absolute coordinates
+ * cannot contain the far side, so a distance that is right never gets a chance to be asked.
+ * {@code EntitySearchYLoopMixin} widens those boxes near a seam and filters the result through the
+ * same nearest-copy rule.
  */
 @Mixin(Entity.class)
 public abstract class EntityDistanceYLoopMixin {
 
     @ModifyVariable(method = "distanceToSqr(DDD)D", at = @At("HEAD"), argsOnly = true, ordinal = 1)
     private double biblioteca$foldDistanceY(double y) {
-        Level level = ((Entity) (Object) this).level();
+        Entity self = (Entity) (Object) this;
+        Level level = self.level();
         if (level == null || !LoopingRegistry.isLooping(level)) return y;
 
-        return SeamPositions.foldForDistance(level, y, ((Entity) (Object) this).getY());
+        return SeamPositions.foldForDistance(level, y, self.getY());
     }
 
     @ModifyVariable(

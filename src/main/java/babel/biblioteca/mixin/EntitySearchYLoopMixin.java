@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * Lets an entity search find the entities that are beside it on the ring, not only the ones that are
@@ -32,9 +33,9 @@ import java.util.function.Predicate;
  * the entity's real position, which is why {@code EntityGetterYLoopMixin} continues to provide the
  * folded collision shapes.
  *
- * <p>Boxes that stay at least {@link #SEAM_MARGIN} rows away from both seams are not widened at all:
- * no entity stored in one period, and no copy of it, can reach such a box. That keeps the hot path
- * of ordinary AI and collision queries on the original code.
+ * <p>Boxes that stay at least {@link #biblioteca$SEAM_MARGIN} rows away from both seams are not
+ * widened at all: no entity stored in one period, and no copy of it, can reach such a box. That
+ * keeps the hot path of ordinary AI and collision queries on the original code.
  */
 @Mixin(Level.class)
 public abstract class EntitySearchYLoopMixin {
@@ -44,10 +45,10 @@ public abstract class EntitySearchYLoopMixin {
      * bounding box an entity can have, because a body that pokes out of the world also pokes into
      * the opposite period.
      */
-    private static final double SEAM_MARGIN = 16.0;
+    private static final double biblioteca$SEAM_MARGIN = 16.0;
 
     /** Guards against widening an already-widened box when one search delegates to another. */
-    private static final ThreadLocal<Boolean> IN_SEARCH = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final ThreadLocal<Boolean> biblioteca$IN_SEARCH = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     @WrapMethod(method = "getEntities(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;"
             + "Ljava/util/function/Predicate;)Ljava/util/List;")
@@ -58,7 +59,8 @@ public abstract class EntitySearchYLoopMixin {
         AABB search = biblioteca$widen(level, box);
         if (search == box) return original.call(except, box, selector);
 
-        return biblioteca$keepRingIntersections(level, box, biblioteca$bounded(() -> original.call(except, search, selector)));
+        List<Entity> found = biblioteca$bounded(() -> original.call(except, search, selector));
+        return biblioteca$keepRingIntersections(level, box, found);
     }
 
     @WrapMethod(method = "getEntities(Lnet/minecraft/world/level/entity/EntityTypeTest;"
@@ -71,7 +73,8 @@ public abstract class EntitySearchYLoopMixin {
         AABB search = biblioteca$widen(level, box);
         if (search == box) return original.call(type, box, selector);
 
-        return biblioteca$keepRingIntersections(level, box, biblioteca$bounded(() -> original.call(type, search, selector)));
+        List<T> found = biblioteca$bounded(() -> original.call(type, search, selector));
+        return biblioteca$keepRingIntersections(level, box, found);
     }
 
     /**
@@ -93,10 +96,7 @@ public abstract class EntitySearchYLoopMixin {
         }
 
         int start = output.size();
-        biblioteca$bounded(() -> {
-            original.call(type, search, selector, output, Integer.MAX_VALUE);
-            return null;
-        });
+        biblioteca$boundedRun(() -> original.call(type, search, selector, output, Integer.MAX_VALUE));
 
         for (int i = output.size() - 1; i >= start; i--) {
             Entity entity = (Entity) output.get(i);
@@ -106,25 +106,34 @@ public abstract class EntitySearchYLoopMixin {
         }
     }
 
-    private static <T> T biblioteca$bounded(java.util.function.Supplier<T> action) {
-        IN_SEARCH.set(Boolean.TRUE);
+    private static <T> T biblioteca$bounded(Supplier<T> action) {
+        biblioteca$IN_SEARCH.set(Boolean.TRUE);
         try {
             return action.get();
         } finally {
-            IN_SEARCH.set(Boolean.FALSE);
+            biblioteca$IN_SEARCH.set(Boolean.FALSE);
+        }
+    }
+
+    private static void biblioteca$boundedRun(Runnable action) {
+        biblioteca$IN_SEARCH.set(Boolean.TRUE);
+        try {
+            action.run();
+        } finally {
+            biblioteca$IN_SEARCH.set(Boolean.FALSE);
         }
     }
 
     private static AABB biblioteca$widen(Level level, AABB box) {
         if (box == null || !LoopingRegistry.isLooping(level)) return box;
-        if (IN_SEARCH.get()) return box;
+        if (biblioteca$IN_SEARCH.get()) return box;
 
         int period = level.getHeight();
         if (period <= 0) return box;
 
         int minY = level.getMinY();
         int maxY = level.getMaxY();
-        if (box.minY >= minY + SEAM_MARGIN && box.maxY <= maxY - SEAM_MARGIN) return box;
+        if (box.minY >= minY + biblioteca$SEAM_MARGIN && box.maxY <= maxY - biblioteca$SEAM_MARGIN) return box;
 
         return box.inflate(0.0, period, 0.0);
     }

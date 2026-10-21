@@ -21,6 +21,8 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 - Build and interact across the boundary, with block and entity collisions in the right places.
 - Use fluids, redstone, pistons and supported plant growth across the top and bottom.
 - See repeated terrain, nearby entities and block entities, periodic beacon beams and clouds.
+- Fight mobs and trade with villagers on the other side: they see you, path to you and hit you
+  across the boundary.
 - See rain and snow across the boundary, with rain splashes, hot-surface smoke and impact sounds.
 - Hear positional sounds and see effects from the other side, with matching sound subtitles.
 - Track your crossings with **Seam crossings** in the vanilla statistics screen.

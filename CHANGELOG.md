@@ -21,9 +21,10 @@
   it, and the "too far to interpolate" test uses the ring distance.
 - The locator bar draws each waypoint at its ring distance and pitch, so dot size and up/down
   arrows are correct across the boundary.
-- Mobs can pathfind across the boundary. The pathfinding snapshot now answers out-of-range rows
-  from their periodic rows instead of air, path nodes and look targets are placed on the copy
-  nearest the mob, and ground navigation folds its destination before the surface search.
+- Mobs can pathfind across the boundary. The pathfinding snapshot now answers rows outside the
+  stored period from the rows the ring puts there instead of air, path nodes and look targets are
+  placed on the copy nearest the mob, and ground navigation folds its destination before the
+  surface search.
 - Mobs can see across the boundary: line of sight measures eye rows around the ring.
 - A spawn egg used on the top face of the top row places the mob on the ring row above instead of
   inside the block. Entity spawning now folds the spawn position before the surface search.
@@ -44,14 +45,12 @@
 
 ### Notes
 
-- New hooks live beside the existing ones: `EntityInterpolationYLoopMixin`,
-  `EntityTypeSpawnYLoopMixin`, `FallingBlockEntityYLoopMixin`, `HangingEntityYLoopMixin`,
-  `LivingEntitySightYLoopMixin`, `LookControlYLoopMixin`, `PathNavigationRegionYLoopMixin`,
-  `PathNavigationYLoopMixin`, `PathYLoopMixin`, `GroundPathNavigationYLoopMixin`,
-  `PlayerEntityInteractionMixin`, `PlayerInteractionLocationYLoopMixin`,
-  `AttackRangeYLoopMixin`, `SaplingBlockYLoopMixin`, `TreeFeatureYLoopMixin` (common), and
-  `ClientPacketListenerYLoopMixin`, `EntityRenderDispatcherYLoopMixin`,
-  `ProjectileUtilYLoopMixin`, `TrackedWaypointYLoopMixin` (client).
+- The fixes are additional Mixins beside the existing ones; each hook documents the vanilla
+  assumption it removes. `SeamPositions` gained nearest-copy helpers for points, boxes and
+  distances, and `Level.getEntities` is now the single place where a search area is widened, so
+  new code can keep using ordinary vanilla queries and still see the ring.
+- Entity searches are only widened within 16 rows of a seam, and distance queries only fold when
+  the two rows are closer around the ring, so code away from the boundary runs unchanged.
 
 ## 0.67.0
 

@@ -5,9 +5,9 @@ import babel.biblioteca.SeamPositions;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PostSpawnProcessor;
-import net.minecraft.world.entity.EntitySpawnReason;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -31,7 +31,10 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 public abstract class EntityTypeSpawnYLoopMixin {
 
     @ModifyVariable(
-            method = "create(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/PostSpawnProcessor;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/EntitySpawnReason;ZZ)Lnet/minecraft/world/entity/Entity;",
+            method = "create(Lnet/minecraft/server/level/ServerLevel;"
+                    + "Lnet/minecraft/world/entity/PostSpawnProcessor;Lnet/minecraft/core/BlockPos;"
+                    + "Lnet/minecraft/world/entity/EntitySpawnReason;ZZ)"
+                    + "Lnet/minecraft/world/entity/Entity;",
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$foldSpawnPosition(
             BlockPos spawnPos, @Local(argsOnly = true) ServerLevel level) {

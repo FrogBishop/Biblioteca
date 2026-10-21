@@ -24,6 +24,11 @@ import org.spongepowered.asm.mixin.injection.At;
  * special case is needed, and folding it to the bottom row would wrongly make an exposed sapling
  * depend on the light of the world's floor.
  *
+ * <p>With the {@code no_sky_light} attribute the sky channel is zeroed for every position in the
+ * dimension, so the cell above answers with block light only and a top-row sapling needs a light
+ * source exactly like any other sapling there. Block light still reaches that cell across the seam,
+ * because its queries are folded onto the ring.
+ *
  * <p>The remaining ceiling on tree growth is in {@code TreeFeature}, which has its own hook.
  */
 @Mixin(SaplingBlock.class)
@@ -32,7 +37,8 @@ public abstract class SaplingBlockYLoopMixin {
     @WrapOperation(
             method = "isValidBonemealTarget",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/world/level/LevelReader;isInsideBuildHeight(Lnet/minecraft/core/BlockPos;)Z"))
+                    target = "Lnet/minecraft/world/level/LevelReader;isInsideBuildHeight("
+                            + "Lnet/minecraft/core/BlockPos;)Z"))
     private boolean biblioteca$anyHeight(LevelReader level, BlockPos pos, Operation<Boolean> original) {
         return level instanceof Level realLevel && LoopingRegistry.isLooping(realLevel)
                 || original.call(level, pos);

@@ -24,7 +24,9 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 public abstract class LivingEntitySightYLoopMixin {
 
     @ModifyVariable(
-            method = "hasLineOfSight(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/level/ClipContext$Block;Lnet/minecraft/world/level/ClipContext$Fluid;D)Z",
+            method = "hasLineOfSight(Lnet/minecraft/world/entity/Entity;"
+                    + "Lnet/minecraft/world/level/ClipContext$Block;"
+                    + "Lnet/minecraft/world/level/ClipContext$Fluid;D)Z",
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private double biblioteca$foldTargetEyeHeight(double targetEyeY) {
         LivingEntity self = (LivingEntity) (Object) this;

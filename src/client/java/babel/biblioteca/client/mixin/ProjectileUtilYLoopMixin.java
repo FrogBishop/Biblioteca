@@ -11,36 +11,24 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
  * Makes the crosshair pick find entities across the seam.
  *
  * <p>The pick casts a short ray in the camera's own coordinates and asks the level for the entities
- * whose boxes are near it. An entity standing on the far side of the seam is not near the camera in
- * absolute terms, so it is never a candidate - the player cannot aim at, attack or interact with
- * it, even though it is drawn beside them.
+ * whose boxes are near it, then clips each candidate box against the ray. An entity standing on the
+ * far side of the seam is a world height away by both measures, so it is never a candidate and
+ * could not be hit if it were - the player cannot aim at, attack or interact with something drawn
+ * beside them.
  *
- * <p>Two small changes make the same logic work on the ring: the search box is widened by one world
- * height in both directions so the far side is a candidate at all, and each candidate's box is moved onto the copy
- * nearest the camera before it is clipped against the ray. The hit location that comes back is in
- * the camera's frame, which is what the client-side interaction code expects.
+ * <p>The candidate set is already handled by the level: {@code EntitySearchYLoopMixin} widens a
+ * search box that comes near a seam. What is left is the per-candidate test. The box clipped against
+ * the ray is the entity's stored one, so it is moved onto the copy nearest the camera first. The hit
+ * location that comes back is then in the camera's frame, which is what the client-side interaction
+ * code expects.
  */
 @Mixin(ProjectileUtil.class)
 public abstract class ProjectileUtilYLoopMixin {
-
-    @ModifyVariable(
-            method = "getEntityHitResult(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;"
-                    + "Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/AABB;"
-                    + "Ljava/util/function/Predicate;D)Lnet/minecraft/world/phys/EntityHitResult;",
-            at = @At("HEAD"), argsOnly = true, ordinal = 0)
-    private static AABB biblioteca$widenSearch(AABB searchBox) {
-        Level level = Minecraft.getInstance().level;
-        if (level == null || !LoopingRegistry.isLooping(level)) return searchBox;
-
-        int period = level.getHeight();
-        return period <= 0 ? searchBox : searchBox.inflate(0.0, period, 0.0);
-    }
 
     @WrapOperation(
             method = "getEntityHitResult(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;"

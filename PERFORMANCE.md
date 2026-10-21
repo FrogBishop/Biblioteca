@@ -39,6 +39,15 @@ packets and effects. Entity positions are folded at their single commit point. T
 `Seam crossings` statistic is awarded from the movement packet that changes the ring copy, so
 there is no per-tick check for it and none for entities either.
 
+- **Distances:** entity-to-entity and entity-to-point distances fold the other row only when the two
+  rows are closer around the ring than in absolute space. The common case is two comparisons on
+  top of the vanilla arithmetic.
+- **Entity searches:** a query whose box comes within 16 rows of a seam is evaluated over one extra
+  world height and then filtered by each entity's ring position. Queries further from the seams run
+  the vanilla code path, so ordinary AI, collision and item queries are unaffected.
+- **Explosions:** entity damage and knockback read the copy of the entity nearest the blast; this is
+  one fold per affected entity.
+
 ## Known ceiling
 
 Draw-command submission remains a ceiling, especially in short worlds. Height 16 at 32 chunks
@@ -80,6 +89,8 @@ test.
 - Allocation-free seam frustum tests (six doubles instead of a temporary AABB).
 - A reused presence set for the far-seam scan.
 - The cached per-level looping flag on entity, block-entity, beacon and cloud paths.
+- A distance fast path that leaves same-side queries untouched, and a seam margin that leaves
+  entity searches away from the boundary on the vanilla path.
 - Period-offset scanning covers every potentially visible layer, including short worlds.
 
 ## How to measure

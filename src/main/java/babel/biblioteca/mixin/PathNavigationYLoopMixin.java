@@ -33,7 +33,8 @@ public abstract class PathNavigationYLoopMixin {
     @WrapOperation(
             method = "followThePath",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/world/level/pathfinder/Path;getNextNodePos()Lnet/minecraft/core/BlockPos;"))
+                    target = "Lnet/minecraft/world/level/pathfinder/Path;getNextNodePos()"
+                            + "Lnet/minecraft/core/BlockPos;"))
     private BlockPos biblioteca$foldFollowedNode(Path path, Operation<BlockPos> original) {
         return biblioteca$foldNode(original.call(path));
     }
@@ -41,7 +42,8 @@ public abstract class PathNavigationYLoopMixin {
     @WrapOperation(
             method = "doStuckDetection",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/world/level/pathfinder/Path;getNextNodePos()Lnet/minecraft/core/BlockPos;"))
+                    target = "Lnet/minecraft/world/level/pathfinder/Path;getNextNodePos()"
+                            + "Lnet/minecraft/core/BlockPos;"))
     private BlockPos biblioteca$foldTimedNode(Path path, Operation<BlockPos> original) {
         return biblioteca$foldNode(original.call(path));
     }

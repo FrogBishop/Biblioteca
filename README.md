@@ -83,6 +83,14 @@ same period for interpolation. Movement packet handlers separately select the ne
 before vanilla validates movement. Block access, collisions, reach, neighbour updates, pistons,
 plant checks and block-light propagation have their own hooks where vanilla assumes a world edge.
 
+Distances and search areas use the same two operations. `Entity.distanceToSqr` and the helpers
+behind it compare with the copy of the other point nearest the entity, which is what makes despawn,
+nearest-player selection and AI reach work at the boundary. `Level.getEntities` widens its box by
+one world height when the box comes within reach of a seam, then keeps only the entities whose ring
+position is inside the original box, so a search still means "what is in this box". Line of sight,
+path nodes, look targets, interaction points, interpolation targets and explosion samples are placed
+on the nearest copy the same way.
+
 ## Source map
 
 | Area | Main code |
@@ -96,7 +104,10 @@ plant checks and block-light propagation have their own hooks where vanilla assu
 | Transparency without OIT | [LoopingTranslucency](src/client/java/babel/biblioteca/client/LoopingTranslucency.java), [TranslucentQuadOrder](src/client/java/babel/biblioteca/client/TranslucentQuadOrder.java) |
 | Weather geometry and impacts | [LoopingWeather](src/client/java/babel/biblioteca/client/LoopingWeather.java), [WeatherEffectRendererYLoopMixin](src/client/java/babel/biblioteca/client/mixin/WeatherEffectRendererYLoopMixin.java), [ClientLevelWeatherYLoopMixin](src/client/java/babel/biblioteca/client/mixin/ClientLevelWeatherYLoopMixin.java) |
 | Sound, particles and subtitles | [SeamEffects](src/main/java/babel/biblioteca/SeamEffects.java), [ServerLevelEffectsYLoopMixin](src/main/java/babel/biblioteca/mixin/ServerLevelEffectsYLoopMixin.java), [LoopingSounds](src/client/java/babel/biblioteca/client/LoopingSounds.java) |
-| Cross-seam reach, sight, AI and pathfinding | [EntitySearchYLoopMixin](src/main/java/babel/biblioteca/mixin/EntitySearchYLoopMixin.java), [EntityDistanceYLoopMixin](src/main/java/babel/biblioteca/mixin/EntityDistanceYLoopMixin.java), [PlayerEntityInteractionMixin](src/main/java/babel/biblioteca/mixin/PlayerEntityInteractionMixin.java), [AttackRangeYLoopMixin](src/main/java/babel/biblioteca/mixin/AttackRangeYLoopMixin.java), [LivingEntitySightYLoopMixin](src/main/java/babel/biblioteca/mixin/LivingEntitySightYLoopMixin.java), [PathNavigationRegionYLoopMixin](src/main/java/babel/biblioteca/mixin/PathNavigationRegionYLoopMixin.java), [LookControlYLoopMixin](src/main/java/babel/biblioteca/mixin/LookControlYLoopMixin.java), [HangingEntityYLoopMixin](src/main/java/babel/biblioteca/mixin/HangingEntityYLoopMixin.java), [EntityInterpolationYLoopMixin](src/main/java/babel/biblioteca/mixin/EntityInterpolationYLoopMixin.java) |
+| Cross-seam reach, sight and interaction | [PlayerEntityInteractionMixin](src/main/java/babel/biblioteca/mixin/PlayerEntityInteractionMixin.java), [AttackRangeYLoopMixin](src/main/java/babel/biblioteca/mixin/AttackRangeYLoopMixin.java), [LivingEntitySightYLoopMixin](src/main/java/babel/biblioteca/mixin/LivingEntitySightYLoopMixin.java), [PlayerInteractionLocationYLoopMixin](src/main/java/babel/biblioteca/mixin/PlayerInteractionLocationYLoopMixin.java), [LookControlYLoopMixin](src/main/java/babel/biblioteca/mixin/LookControlYLoopMixin.java) |
+| Entity searches, AI and pathfinding | [EntitySearchYLoopMixin](src/main/java/babel/biblioteca/mixin/EntitySearchYLoopMixin.java), [EntityDistanceYLoopMixin](src/main/java/babel/biblioteca/mixin/EntityDistanceYLoopMixin.java), [MobMeleeRangeYLoopMixin](src/main/java/babel/biblioteca/mixin/MobMeleeRangeYLoopMixin.java), [PathNavigationRegionYLoopMixin](src/main/java/babel/biblioteca/mixin/PathNavigationRegionYLoopMixin.java), [PathNavigationYLoopMixin](src/main/java/babel/biblioteca/mixin/PathNavigationYLoopMixin.java), [PathYLoopMixin](src/main/java/babel/biblioteca/mixin/PathYLoopMixin.java), [GroundPathNavigationYLoopMixin](src/main/java/babel/biblioteca/mixin/GroundPathNavigationYLoopMixin.java) |
+| Remote entity movement | [EntityInterpolationYLoopMixin](src/main/java/babel/biblioteca/mixin/EntityInterpolationYLoopMixin.java), [ClientPacketListenerYLoopMixin](src/client/java/babel/biblioteca/client/mixin/ClientPacketListenerYLoopMixin.java) |
+| Spawning, decorations, falling blocks and explosions | [EntityTypeSpawnYLoopMixin](src/main/java/babel/biblioteca/mixin/EntityTypeSpawnYLoopMixin.java), [HangingEntityYLoopMixin](src/main/java/babel/biblioteca/mixin/HangingEntityYLoopMixin.java), [FallingBlockEntityYLoopMixin](src/main/java/babel/biblioteca/mixin/FallingBlockEntityYLoopMixin.java), [ServerExplosionYLoopMixin](src/main/java/babel/biblioteca/mixin/ServerExplosionYLoopMixin.java) |
 | Client pick, name distance and locator bar | [ProjectileUtilYLoopMixin](src/client/java/babel/biblioteca/client/mixin/ProjectileUtilYLoopMixin.java), [EntityRenderDispatcherYLoopMixin](src/client/java/babel/biblioteca/client/mixin/EntityRenderDispatcherYLoopMixin.java), [TrackedWaypointYLoopMixin](src/client/java/babel/biblioteca/client/mixin/TrackedWaypointYLoopMixin.java) |
 
 ## Attributes and persistence
@@ -176,8 +187,11 @@ changing Minecraft targets. Useful regression scenarios include:
   standing near the boundary and while crossing it.
 - Watch a second player cross the boundary: name tag, movement, locator bar, and interaction
   with a villager or an item frame from the other side.
-- Let a mob path across the boundary, grow a sapling on the top row, and break a block on either
-  seam row to confirm the newly exposed face appears immediately.
+- Let a mob acquire a target across the boundary, path to it and land the hit.
+- Grow a sapling on the top row with and without `no_sky_light`, and break a block on either seam
+  row to confirm the newly exposed face appears immediately.
+- Detonate a charge on either seam row and check that the entity on the other side is damaged and
+  thrown away from the blast, not straight up.
 - Inspect both JAR variants: every registered Mixin must have its class, and the no-render
   variant must omit the visual hooks listed in `build.gradle`.
 
