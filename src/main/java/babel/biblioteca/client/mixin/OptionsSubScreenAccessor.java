@@ -2,16 +2,21 @@ package babel.biblioteca.client.mixin;
 
 import net.minecraft.client.gui.components.OptionsList;
 import net.minecraft.client.gui.screens.options.OptionsSubScreen;
+import net.minecraft.client.gui.screens.options.VideoSettingsScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 /**
  * Exposes the option list a vanilla options screen builds its rows into.
  *
- * The field is declared on OptionsSubScreen, so a @Shadow in a mixin targeting one of its
- * subclasses cannot reach it - @Shadow only resolves members declared in the target class itself.
+ * The accessor targets the declaring class so video-settings hooks can use the inherited list.
  */
+//? if >=1.21 {
 @Mixin(OptionsSubScreen.class)
+//?} else {
+/*@Mixin(VideoSettingsScreen.class)
+*///?}
+
 public interface OptionsSubScreenAccessor {
 
     @Accessor("list")

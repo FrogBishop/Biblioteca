@@ -5,7 +5,6 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -33,6 +32,8 @@ import java.util.Set;
  *
  *   looping              the Y axis wraps around, minY touching maxY
  *   beacon_ignores_sky   beacon beams skip the vanilla "must see the sky" rule
+ *   no_void_fog         disable vanilla void-fog darkening
+ *   no_sky_light        disable the vanilla sky-light channel
  *
  * Stored in the overworld's data storage (saves/<world>/data/biblioteca/looping.dat).
  */
@@ -40,10 +41,18 @@ public class LoopingWorldData extends SavedData {
 
     private final Set<ResourceKey<Level>> loopingDimensions;
     private final Set<ResourceKey<Level>> beaconIgnoresSky;
+    private final Set<ResourceKey<Level>> noVoidFog;
+    private final Set<ResourceKey<Level>> noSkyLight;
 
-    public LoopingWorldData(Set<ResourceKey<Level>> loopingDimensions, Set<ResourceKey<Level>> beaconIgnoresSky) {
+    public LoopingWorldData(
+            Set<ResourceKey<Level>> loopingDimensions,
+            Set<ResourceKey<Level>> beaconIgnoresSky,
+            Set<ResourceKey<Level>> noVoidFog,
+            Set<ResourceKey<Level>> noSkyLight) {
         this.loopingDimensions = new HashSet<>(loopingDimensions);
         this.beaconIgnoresSky = new HashSet<>(beaconIgnoresSky);
+        this.noVoidFog = new HashSet<>(noVoidFog);
+        this.noSkyLight = new HashSet<>(noSkyLight);
     }
 
     private static final Codec<LoopingWorldData> RECORD = RecordCodecBuilder.create(instance -> instance.group(
@@ -52,24 +61,31 @@ public class LoopingWorldData extends SavedData {
                     .forGetter(data -> List.copyOf(data.loopingDimensions)),
             ResourceKey.codec(Registries.DIMENSION).listOf()
                     .optionalFieldOf("beacon_ignores_sky", List.of())
-                    .forGetter(data -> List.copyOf(data.beaconIgnoresSky))
-    ).apply(instance, (looping, beacon) -> new LoopingWorldData(new HashSet<>(looping), new HashSet<>(beacon))));
+                    .forGetter(data -> List.copyOf(data.beaconIgnoresSky)),
+            ResourceKey.codec(Registries.DIMENSION).listOf()
+                    .optionalFieldOf("no_void_fog", List.of())
+                    .forGetter(data -> List.copyOf(data.noVoidFog)),
+            ResourceKey.codec(Registries.DIMENSION).listOf()
+                    .optionalFieldOf("no_sky_light", List.of())
+                    .forGetter(data -> List.copyOf(data.noSkyLight))
+    ).apply(instance, (looping, beacon, noVoidFog, noSkyLight) -> new LoopingWorldData(
+            new HashSet<>(looping), new HashSet<>(beacon), new HashSet<>(noVoidFog), new HashSet<>(noSkyLight))));
 
-    /** Worlds written before the second attribute existed hold a bare list of dimensions. */
+    /** Worlds written before the later attributes existed hold a bare list of dimensions. */
     private static final Codec<LoopingWorldData> LEGACY = ResourceKey.codec(Registries.DIMENSION)
             .listOf()
-            .xmap(looping -> new LoopingWorldData(new HashSet<>(looping), Set.of()),
+            .xmap(looping -> new LoopingWorldData(new HashSet<>(looping), Set.of(), Set.of(), Set.of()),
                     data -> List.copyOf(data.loopingDimensions));
 
     public static final Codec<LoopingWorldData> CODEC = Codec.either(RECORD, LEGACY)
             .xmap(either -> either.map(record -> record, legacy -> legacy),
                     data -> Either.<LoopingWorldData, LoopingWorldData>left(data));
 
-    /** A new world starts with every attribute off; both are opt-in per dimension. */
+    /** A new world starts with every attribute off; all attributes are opt-in per dimension. */
     //? if >=26.1 {
     public static final SavedDataType<LoopingWorldData> TYPE = new SavedDataType<>(
             Compat.id("biblioteca", "looping"),
-            () -> new LoopingWorldData(Set.of(), Set.of()),
+            () -> new LoopingWorldData(Set.of(), Set.of(), Set.of(), Set.of()),
             CODEC,
             null
     );
@@ -77,21 +93,21 @@ public class LoopingWorldData extends SavedData {
     //? if >=1.21.5 <26.1 {
     /*public static final SavedDataType<LoopingWorldData> TYPE = new SavedDataType<>(
             "biblioteca_looping",
-            () -> new LoopingWorldData(Set.of(), Set.of()),
+            () -> new LoopingWorldData(Set.of(), Set.of(), Set.of(), Set.of()),
             CODEC,
             DataFixTypes.LEVEL
     );
     *///?}
     //? if >=1.20.5 <1.21.5 {
     /*public static final SavedData.Factory<LoopingWorldData> TYPE = new SavedData.Factory<>(
-            () -> new LoopingWorldData(Set.of(), Set.of()),
+            () -> new LoopingWorldData(Set.of(), Set.of(), Set.of(), Set.of()),
             (tag, provider) -> decode(tag),
             DataFixTypes.LEVEL
     );
     *///?}
     //? if <1.20.5 {
     /*public static final SavedData.Factory<LoopingWorldData> TYPE = new SavedData.Factory<>(
-            () -> new LoopingWorldData(Set.of(), Set.of()),
+            () -> new LoopingWorldData(Set.of(), Set.of(), Set.of(), Set.of()),
             tag -> decode(tag),
             DataFixTypes.LEVEL
     );
@@ -101,7 +117,7 @@ public class LoopingWorldData extends SavedData {
     /*private static LoopingWorldData decode(CompoundTag tag) {
         return CODEC.parse(NbtOps.INSTANCE, tag)
                 .result()
-                .orElseGet(() -> new LoopingWorldData(Set.of(), Set.of()));
+                .orElseGet(() -> new LoopingWorldData(Set.of(), Set.of(), Set.of(), Set.of()));
     }
 
     private CompoundTag writeTo(CompoundTag tag) {
@@ -153,5 +169,24 @@ public class LoopingWorldData extends SavedData {
 
     public Set<ResourceKey<Level>> getBeaconIgnoresSky() {
         return Set.copyOf(beaconIgnoresSky);
+    }
+    public void setNoVoidFog(ResourceKey<Level> dimension, boolean disabled) {
+        if (disabled) noVoidFog.add(dimension);
+        else noVoidFog.remove(dimension);
+        setDirty();
+    }
+
+    public Set<ResourceKey<Level>> getNoVoidFogDimensions() {
+        return Set.copyOf(noVoidFog);
+    }
+
+    public void setNoSkyLight(ResourceKey<Level> dimension, boolean disabled) {
+        if (disabled) noSkyLight.add(dimension);
+        else noSkyLight.remove(dimension);
+        setDirty();
+    }
+
+    public Set<ResourceKey<Level>> getNoSkyLightDimensions() {
+        return Set.copyOf(noSkyLight);
     }
 }

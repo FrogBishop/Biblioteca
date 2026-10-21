@@ -1,17 +1,13 @@
 package babel.biblioteca.client.mixin;
 
 import babel.biblioteca.LoopingRegistry;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.renderer.chunk.RenderRegionCache;
-import net.minecraft.client.renderer.chunk.SectionCopy;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.chunk.LevelChunk;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
  * Gives section compilation the wrapped neighbour instead of an empty one at the world edges.
@@ -32,28 +28,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(RenderRegionCache.class)
 public abstract class RenderRegionCacheYLoopMixin {
 
-    @Shadow private Long2ObjectMap<SectionCopy> sectionCopyCache;
-
-    @Inject(method = "getSectionDataCopy", at = @At("HEAD"), cancellable = true)
-    private void biblioteca$foldRegionSectionY(
-            Level level, int sectionX, int sectionY, int sectionZ,
-            CallbackInfoReturnable<SectionCopy> cir) {
-
-        if (!LoopingRegistry.isLooping(level)) return;
+    @ModifyVariable(method = "getSectionDataCopy", at = @At("HEAD"), argsOnly = true, ordinal = 1)
+    private int biblioteca$foldRegionSectionY(int sectionY, @Local(argsOnly = true) Level level) {
+        if (!LoopingRegistry.isLooping(level)) return sectionY;
 
         int minSection = SectionPos.blockToSectionCoord(level.getMinY());
         int count      = level.getSectionsCount();
 
-        if (sectionY >= minSection && sectionY < minSection + count) return;
-
-        int foldedSectionY = Math.floorMod(sectionY - minSection, count) + minSection;
-
-        // Cache under the requested slice: the folded section is shared by both edges.
-        cir.setReturnValue(this.sectionCopyCache.computeIfAbsent(
-                SectionPos.asLong(sectionX, sectionY, sectionZ),
-                key -> {
-                    LevelChunk chunk = level.getChunk(sectionX, sectionZ);
-                    return new SectionCopy(chunk, chunk.getSectionIndexFromSectionY(foldedSectionY));
-                }));
+        // Vanilla constructs and caches the immutable snapshot under its canonical section key.
+        return Math.floorMod(sectionY - minSection, count) + minSection;
     }
 }

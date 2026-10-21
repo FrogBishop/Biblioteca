@@ -37,9 +37,11 @@ public final class CreateWorldScreenInjector {
                 ? PendingLoopingConfig.getPendingBeaconIgnoresSky()
                 : Set.of();
         //? if >=26.1 {
-        Minecraft.getInstance().setScreenAndShow(new LoopingConfigScreen(parent, looping, beaconIgnoresSky));
+        Minecraft.getInstance().setScreenAndShow(new LoopingConfigScreen(parent, looping, beaconIgnoresSky,
+                PendingLoopingConfig.getPendingNoVoidFog(), PendingLoopingConfig.getPendingNoSkyLight()));
         //?} else {
-        /*Minecraft.getInstance().setScreen(new LoopingConfigScreen(parent, looping, beaconIgnoresSky));
+        /*Minecraft.getInstance().setScreen(new LoopingConfigScreen(parent, looping, beaconIgnoresSky,
+                PendingLoopingConfig.getPendingNoVoidFog(), PendingLoopingConfig.getPendingNoSkyLight()));
         *///?}
     }
 }

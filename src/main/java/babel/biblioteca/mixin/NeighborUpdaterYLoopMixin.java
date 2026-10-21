@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * updater queued it, so folding the position here fixes the whole family: pistons, redstone wire,
  * observers, rails, doors, anything that reacts to a neighbour.
  *
- * 1.21.8 replaced the source BlockPos with an Orientation; the older signature carries both the
+ * 1.21.2 replaced the source BlockPos with an Orientation; the older signature carries both the
  * changed block and its position.
  */
 @Mixin(NeighborUpdater.class)

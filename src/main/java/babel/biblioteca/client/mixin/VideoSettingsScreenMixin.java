@@ -19,7 +19,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(VideoSettingsScreen.class)
 public abstract class VideoSettingsScreenMixin {
 
-    @Inject(method = "addOptions", at = @At("TAIL"))
+    @Inject(
+//? if >=1.21 {
+method = "addOptions",
+//?} else {
+/*method = "init",
+*///?}
+ at = @At("TAIL"))
     private void biblioteca$addPreloadOption(CallbackInfo ci) {
         OptionsList list = ((OptionsSubScreenAccessor) this).biblioteca$optionsList();
         if (list == null) return;

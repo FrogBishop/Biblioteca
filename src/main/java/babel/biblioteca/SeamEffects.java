@@ -1,6 +1,5 @@
 package babel.biblioteca;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -30,7 +29,7 @@ public final class SeamEffects {
 
     /** The copy of {@code y} closest to a listener at {@code listenerY}. */
     public static double foldToward(double y, double listenerY, int period) {
-        return y + Math.round((listenerY - y) / period) * (double) period;
+        return SeamPositions.foldToward(y, listenerY, period);
     }
 
     /**
@@ -99,7 +98,6 @@ public final class SeamEffects {
         int period = level.getHeight();
         if (period <= 0) return -1;
 
-        double rangeSquared = range * range;
         List<ServerPlayer> players = level.players();
         Packets cache = new Packets();
         int sent = 0;
@@ -110,10 +108,7 @@ public final class SeamEffects {
 
             double foldedY = foldToward(y, player.getY(), period);
 
-            double dx = x - player.getX();
-            double dy = foldedY - player.getY();
-            double dz = z - player.getZ();
-            if (dx * dx + dy * dy + dz * dz >= rangeSquared) continue;
+            if (!player.blockPosition().closerToCenterThan(new Vec3(x, foldedY, z), range)) continue;
 
             player.connection.send(cache.get(foldedY, packets::create));
             sent++;

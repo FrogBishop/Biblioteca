@@ -7,45 +7,43 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Measures block reach around the ring instead of a straight line.
+ * Measures block interaction range around the ring instead of straight through the world.
  *
- * 26.1+ routes the reach check through Player.isWithinBlockInteractionRange. A
- * player standing at the top of a 384-high world who clicks the rendered copy of
- * the bottom row is 384 blocks away from the real row, so the straight-line
- * check would drop the interaction. The answer here is the smallest distance
- * over the copies at y, y + height and y - height, which is the same block in
- * the ring.
+ * Vanilla measures the straight line from the eye to the block's box. In a looping dimension the
+ * block the player is aiming at may be the copy one period away, which is a whole world height from
+ * the eye in absolute terms and outside any reach. The block is therefore also tested one period up
+ * and one period down, and the shortest of the three distances is used - the same question vanilla
+ * asks, just around the ring.
+ *
+ * Only the looping case is replaced; in every other dimension vanilla's method runs untouched.
  */
 @Mixin(Player.class)
 public abstract class PlayerReachMixin {
 
-    /**
-     * @author biblioteca
-     * @reason toroidal Y-distance for Y-looping dimensions
-     */
-    @Overwrite
-    public boolean isWithinBlockInteractionRange(BlockPos pos, double delta) {
+    @Inject(method = "isWithinBlockInteractionRange", at = @At("HEAD"), cancellable = true)
+    private void biblioteca$toroidalReach(
+            BlockPos pos, double delta, CallbackInfoReturnable<Boolean> cir) {
+
         Player self = (Player) (Object) this;
         Level level = self.level();
+        if (!LoopingRegistry.isLooping(level)) return;
+
         double range = self.blockInteractionRange() + delta;
-
-        if (!LoopingRegistry.isLooping(level)) {
-            return new AABB(pos).distanceToSqr(self.getEyePosition()) < range * range;
-        }
-
         int height = level.getHeight();
-        Vec3 eye   = self.getEyePosition();
+        Vec3 eye = self.getEyePosition();
+
         double minDistSq = Math.min(
                 new AABB(pos).distanceToSqr(eye),
                 Math.min(
                         aabbDistSq(pos, height, eye),
-                        aabbDistSq(pos, -height, eye)
-                )
-        );
-        return minDistSq < range * range;
+                        aabbDistSq(pos, -height, eye)));
+
+        cir.setReturnValue(minDistSq < range * range);
     }
 
     private static double aabbDistSq(BlockPos pos, int yShift, Vec3 eye) {

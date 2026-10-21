@@ -1,76 +1,33 @@
-# Automatically build the project and run any configured tests for every push
-# and submitted pull request. This can help catch issues that only occur on
-# certain platforms or Java versions, and provides a first line of defence
-# against bad commits.
-
 name: build
 on: [pull_request, push]
 
 jobs:
   build:
     runs-on: ubuntu-24.04
-    env:
-      # One representative per shared jar; the full 20-node matrix is SC_ALL=1.
-      SC_VERSIONS: "1.20.4,1.20.5,1.21.2,1.21.5,1.21.11,26.1,26.3"
     steps:
-      - name: checkout repository
-        uses: actions/checkout@v6
-      - name: validate gradle wrapper
-        uses: gradle/actions/wrapper-validation@v6
-      - name: setup jdk
-        uses: actions/setup-java@v5
+      - uses: actions/checkout@v6
+      - uses: gradle/actions/wrapper-validation@v6
+      - uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'microsoft'
-      - name: make gradle wrapper executable
+      - name: Make wrapper executable
         run: chmod +x ./gradlew
-      - name: build
-        shell: bash
-        run: ./gradlew build
-      - name: verify grouped jars
-        shell: bash
-        run: |
-          set -euo pipefail
-          mod_version=$(sed -n 's/^mod.version *= *"\([^"]*\)"/\1/p' stonecutter.properties.toml)
-          test -n "$mod_version"
-
-          declare -A ranges=(
-            ["1.20.4"]="1.20.4"
-            ["1.20.5-1.21.1"]=">=1.20.5 <1.21.2"
-            ["1.21.2-1.21.4"]=">=1.21.2 <1.21.5"
-            ["1.21.5-1.21.10"]=">=1.21.5 <1.21.11"
-            ["1.21.11"]="1.21.11"
-            ["26.1-26.3-norender"]=">=26.1 <26.4"
-            ["26.3"]="26.3"
-          )
-
-          for group in "${!ranges[@]}"; do
-            jar="build/grouped/biblioteca-${mod_version}+${group}.jar"
-            if [ ! -f "$jar" ]; then
-              echo "::error::missing grouped jar $jar"
-              exit 1
-            fi
-            actual=$(python3 -c 'import json,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); print(json.loads(z.read("fabric.mod.json"))["depends"]["minecraft"])' "$jar")
-            expected="${ranges[$group]}"
-            if [ "$actual" != "$expected" ]; then
-              echo "::error::$jar declares minecraft '$actual', expected '$expected'"
-              exit 1
-            fi
-            echo "$jar -> $actual"
-          done
-
-          render_mixin='babel/biblioteca/client/mixin/LevelRendererYLoopMixin.class'
-          if ! jar tf "build/grouped/biblioteca-${mod_version}+26.3.jar" | grep -qxF "$render_mixin"; then
-            echo "::error::the 26.3 jar lost the renderer mixin"
-            exit 1
-          fi
-          if jar tf "build/grouped/biblioteca-${mod_version}+26.1-26.3-norender.jar" | grep -qxF "$render_mixin"; then
-            echo "::error::the 26.1-26.3 common jar contains the 26.3 renderer"
-            exit 1
-          fi
-      - name: capture grouped artifacts
+      - name: Build all exact-version artifacts and validation classpaths
+        run: ./gradlew build writeValidationConfig --console=plain --max-workers=2
+      - name: Check client/server injections and regression data on every node
+        run: python3 tools/verify_matrix.py --checks --workers 2
+      - name: Audit release metadata, refmaps and no-render variants
+        run: python3 tools/verify_artifacts.py
+      - name: Upload deliverables and validation evidence
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: Biblioteca
-          path: build/grouped/*.jar
+          path: |
+            build/distributions/*.jar
+            build/validation/results.json
+            build/validation/artifacts.json
+            build/validation/**/loader.log
+            build/validation/**/checks-compile.log
           if-no-files-found: error

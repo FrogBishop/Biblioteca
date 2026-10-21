@@ -8,8 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 //? if >=26.1 {
 import net.minecraft.world.level.storage.SavedDataStorage;
-//?}
-//? if <26.1 {
+//?} else {
 /*import net.minecraft.world.level.storage.DimensionDataStorage;
 *///?}
 
@@ -33,6 +32,8 @@ public final class LoopingDimensionManager {
      */
     private static volatile Set<ResourceKey<Level>> loopingSnapshot = Set.of();
     private static volatile Set<ResourceKey<Level>> beaconIgnoresSkySnapshot = Set.of();
+    private static volatile Set<ResourceKey<Level>> noVoidFogSnapshot = Set.of();
+    private static volatile Set<ResourceKey<Level>> noSkyLightSnapshot = Set.of();
 
     private LoopingDimensionManager() {}
 
@@ -45,12 +46,10 @@ public final class LoopingDimensionManager {
         //? if >=26.1 {
         SavedDataStorage storage = overworld.getDataStorage();
         serverData = storage.computeIfAbsent(LoopingWorldData.TYPE);
-        //?}
-        //? if >=1.21.5 <26.1 {
+        //?} else if >=1.21.5 {
         /*DimensionDataStorage storage = overworld.getDataStorage();
         serverData = storage.computeIfAbsent(LoopingWorldData.TYPE);
-        *///?}
-        //? if <1.21.5 {
+        *///?} else {
         /*DimensionDataStorage storage = overworld.getDataStorage();
         serverData = storage.computeIfAbsent(LoopingWorldData.TYPE, "biblioteca_looping");
         *///?}
@@ -58,6 +57,8 @@ public final class LoopingDimensionManager {
 
         Biblioteca.LOGGER.info("[Biblioteca] Looping dimensions: {}", loopingSnapshot);
         Biblioteca.LOGGER.info("[Biblioteca] Beacon ignores sky: {}", beaconIgnoresSkySnapshot);
+        Biblioteca.LOGGER.info("[Biblioteca] No void fog: {}", noVoidFogSnapshot);
+        Biblioteca.LOGGER.info("[Biblioteca] No sky light: {}", noSkyLightSnapshot);
 
         // The data only became readable now, so anything cached before this point is stale.
         LoopingRegistry.bumpRevision();
@@ -73,6 +74,8 @@ public final class LoopingDimensionManager {
         LoopingWorldData data = serverData;
         loopingSnapshot = data == null ? Set.of() : data.getLoopingDimensions();
         beaconIgnoresSkySnapshot = data == null ? Set.of() : data.getBeaconIgnoresSky();
+        noVoidFogSnapshot = data == null ? Set.of() : data.getNoVoidFogDimensions();
+        noSkyLightSnapshot = data == null ? Set.of() : data.getNoSkyLightDimensions();
     }
 
     public static boolean isLooping(ResourceKey<Level> dimension) {
@@ -105,5 +108,37 @@ public final class LoopingDimensionManager {
 
     public static Set<ResourceKey<Level>> getBeaconIgnoresSkyDimensions() {
         return beaconIgnoresSkySnapshot;
+    }
+
+    public static boolean hasNoVoidFog(ResourceKey<Level> dimension) {
+        return noVoidFogSnapshot.contains(dimension);
+    }
+
+    public static void setNoVoidFog(ResourceKey<Level> dimension, boolean disabled) {
+        if (serverData != null) {
+            serverData.setNoVoidFog(dimension, disabled);
+            republishSnapshots();
+            LoopingRegistry.bumpRevision();
+        }
+    }
+
+    public static Set<ResourceKey<Level>> getNoVoidFogDimensions() {
+        return noVoidFogSnapshot;
+    }
+
+    public static boolean hasNoSkyLight(ResourceKey<Level> dimension) {
+        return noSkyLightSnapshot.contains(dimension);
+    }
+
+    public static void setNoSkyLight(ResourceKey<Level> dimension, boolean disabled) {
+        if (serverData != null) {
+            serverData.setNoSkyLight(dimension, disabled);
+            republishSnapshots();
+            LoopingRegistry.bumpRevision();
+        }
+    }
+
+    public static Set<ResourceKey<Level>> getNoSkyLightDimensions() {
+        return noSkyLightSnapshot;
     }
 }

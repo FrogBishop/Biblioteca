@@ -20,9 +20,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *    match the pending prediction (keyed to y=320), the prediction times out,
  *    and the placed block is rolled back visually.
  *
- * 2. After setBlocksDirty notifies LevelRenderer about the real block change,
- *    also mark the mirror chunk sections (one world height away) dirty so the looping
- *    renderer can rebuild them too.
+ * 2. A block at either boundary is a neighbour of the opposite edge's mesh.
+ *    Mark that real section dirty so its face culling, fluid shape and lighting
+ *    are rebuilt. Periodic draws share these source meshes.
  */
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelDirtyMixin {
@@ -52,23 +52,13 @@ public abstract class ClientLevelDirtyMixin {
         int sectionX = pos.getX() >> 4;
         int sectionZ = pos.getZ() >> 4;
 
-        // Mark mirror sections dirty, but only when the computed section index
-        // is within the level's actual section range.  Out-of-bounds indices
-        // throw ArrayIndexOutOfBoundsException inside vanilla's section array
-        // lookup, which would propagate through setBlocksDirty and prevent the
-        // renderer from being notified even for the original block change.
-        // Derive section range from the methods we know exist in MC 26.3.
         int minSection = self.getMinY() >> 4;
         int maxSection = minSection + (self.getHeight() >> 4); // exclusive upper bound
-
-        int upSection   = (y + height) >> 4;
-        int downSection = (y - height) >> 4;
-
-        if (upSection >= minSection && upSection < maxSection) {
-            self.setSectionDirtyWithNeighbors(sectionX, upSection, sectionZ);
+        if (y == self.getMinY()) {
+            self.setSectionDirtyWithNeighbors(sectionX, maxSection - 1, sectionZ);
         }
-        if (downSection >= minSection && downSection < maxSection) {
-            self.setSectionDirtyWithNeighbors(sectionX, downSection, sectionZ);
+        if (y == self.getMinY() + height - 1) {
+            self.setSectionDirtyWithNeighbors(sectionX, minSection, sectionZ);
         }
     }
 }

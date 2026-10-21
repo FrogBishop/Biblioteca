@@ -6,7 +6,13 @@
   "biblioteca.gui.looping_config.end": "末地",
   "biblioteca.gui.looping_config.header_looping": "Y 轴循环",
   "biblioteca.gui.looping_config.header_beacon": "信标忽略天空判定",
-  "biblioteca.gui.looping_config.beacon_prefix": "信标",
-  "biblioteca.gui.looping_config.note": "游戏内：/biblioteca looping set <维度> <bool>；/biblioteca beacon <bool> 作用于当前维度",
-  "biblioteca.options.preload": "边界预加载（区段）"
+  "biblioteca.gui.looping_config.header_no_void_fog": "禁用虚空迷雾",
+  "biblioteca.gui.looping_config.header_no_sky_light": "禁用天空光照",
+  "biblioteca.gui.looping_config.no_void_fog_on": "禁用迷雾",
+  "biblioteca.gui.looping_config.no_void_fog_off": "保留迷雾",
+  "biblioteca.gui.looping_config.no_sky_light_on": "禁用光照",
+  "biblioteca.gui.looping_config.no_sky_light_off": "保留光照",
+  "biblioteca.gui.looping_config.note": "迷雾与天空光照：false 保留原版效果，true 禁用；默认 false。",
+  "biblioteca.options.preload": "边界预加载（区段）",
+  "stat.biblioteca.seam_crossings": "穿过边界次数"
 }

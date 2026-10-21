@@ -29,6 +29,8 @@ public abstract class VoidFogMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Mth;clamp(FFF)F"))
     private float biblioteca$noVoidDarkness(
             float original, @Local(argsOnly = true) ClientLevel level) {
-        return LoopingRegistry.isLooping(level) ? 0.0F : original;
+        // false (the default) keeps vanilla void fog; true removes its darkening term.
+        return LoopingRegistry.isLooping(level) && LoopingRegistry.hasNoVoidFog(level)
+                ? 0.0F : original;
     }
 }

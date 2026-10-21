@@ -1,6 +1,8 @@
 package babel.biblioteca.client.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.client.ClientCompat;
+import net.minecraft.world.level.block.entity.BeaconBlockEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -49,13 +51,14 @@ public abstract class LegacyBlockEntityRenderYLoopMixin {
     }
 
     private static double biblioteca$shift(BlockEntity blockEntity) {
+        if (blockEntity instanceof BeaconBlockEntity) return 0.0;
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || !LoopingRegistry.isLooping(minecraft.level)) return 0.0;
 
         int period = minecraft.level.getHeight();
         if (period <= 0) return 0.0;
 
-        double cameraY = minecraft.gameRenderer.getMainCamera().getPosition().y;
+        double cameraY = ClientCompat.cameraPosition().y;
         double offsetY = blockEntity.getBlockPos().getY() - cameraY;
         return -(double) Math.round(offsetY / period) * period;
     }

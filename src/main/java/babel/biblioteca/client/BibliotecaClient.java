@@ -31,6 +31,8 @@ public class BibliotecaClient implements ClientModInitializer {
         // Wire the client checkers into the shared LoopingRegistry.
         LoopingRegistry.setClientChecker(LoopingDimensionCache::isLooping);
         LoopingRegistry.setClientBeaconChecker(LoopingDimensionCache::beaconsIgnoreSky);
+        LoopingRegistry.setClientNoVoidFogChecker(LoopingDimensionCache::hasNoVoidFog);
+        LoopingRegistry.setClientNoSkyLightChecker(LoopingDimensionCache::hasNoSkyLight);
 
         // Attributes belong to the server we are connected to; drop them on disconnect so the next
         // server's payload is not mixed with the previous one.

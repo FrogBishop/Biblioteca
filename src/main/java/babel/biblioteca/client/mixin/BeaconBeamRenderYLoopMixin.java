@@ -6,7 +6,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.client.renderer.blockentity.state.BeaconRenderState;
+//? if >=26.1 {
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+//?} else {
+/*import net.minecraft.client.renderer.state.CameraRenderState;
+*///?}
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,18 +26,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * where it meets its own base. A beam blocked a few blocks up must also stop there instead of
  * being stretched past the obstruction.
  *
- * Both follow from drawing the scanned beam once per period rather than once. The scanned length
- * already ends where the column is blocked, so each copy ends on the base, and successive copies
- * cover the whole vertical span that is in view. Only copies that can be seen are emitted.
+ * The scanned length stops at the first obstruction or after one period. Copies are selected
+ * using the vertical render range, subject to the total copy cap below.
  *
- * LevelRendererYLoopMixin deliberately leaves beacon render states unfolded so that these copies
+ * BlockEntityPositionYLoopMixin deliberately leaves beacon render states unfolded so that these copies
  * are counted from the real block position: no other code has to agree on a fold offset.
  */
 @Mixin(BeaconRenderer.class)
 public abstract class BeaconBeamRenderYLoopMixin {
 
-    /** Upper bound on copies drawn in one direction, so a degenerate world height cannot flood it. */
-    private static final int MAX_COPIES = 8;
+    /** Total cap for the inclusive range of beam copies, including the source when it is in range. */
+    private static final int MAX_COPIES = 9;
 
     @Inject(method = "submit", at = @At("HEAD"), cancellable = true)
     private void biblioteca$drawPeriodicBeam(
@@ -63,12 +66,11 @@ public abstract class BeaconBeamRenderYLoopMixin {
         int    originY = state.blockPos.getY();
         double beamTop = (double) originY + beamHeight;
 
-        // The copy n covers [originY + n*period, beamTop + n*period]; keep the ones in reach.
+        // Round outward to cover the vertical view range, then cap the inclusive copy count.
         int lowest  = (int) Math.floor((camY - reach - beamTop) / period);
         int highest = (int) Math.ceil((camY + reach - originY) / period);
 
-        lowest  = Math.max(lowest, highest - MAX_COPIES);
-        highest = Math.min(highest, lowest + MAX_COPIES);
+        lowest = Math.max(lowest, highest - MAX_COPIES + 1);
 
         for (int copy = lowest; copy <= highest; copy++) {
             poseStack.pushPose();

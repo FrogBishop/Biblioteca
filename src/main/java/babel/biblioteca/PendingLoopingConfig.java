@@ -18,15 +18,25 @@ public final class PendingLoopingConfig {
     private static boolean hasPending = false;
     private static final Set<ResourceKey<Level>> pendingLooping = new HashSet<>();
     private static final Set<ResourceKey<Level>> pendingBeaconIgnoresSky = new HashSet<>();
+    private static final Set<ResourceKey<Level>> pendingNoVoidFog = new HashSet<>();
+    private static final Set<ResourceKey<Level>> pendingNoSkyLight = new HashSet<>();
 
     private PendingLoopingConfig() {}
 
     /** Called from LoopingConfigScreen when the player confirms their choices. */
-    public static void set(Set<ResourceKey<Level>> looping, Set<ResourceKey<Level>> beaconIgnoresSky) {
+    public static void set(
+            Set<ResourceKey<Level>> looping,
+            Set<ResourceKey<Level>> beaconIgnoresSky,
+            Set<ResourceKey<Level>> noVoidFog,
+            Set<ResourceKey<Level>> noSkyLight) {
         pendingLooping.clear();
         pendingLooping.addAll(looping);
         pendingBeaconIgnoresSky.clear();
         pendingBeaconIgnoresSky.addAll(beaconIgnoresSky);
+        pendingNoVoidFog.clear();
+        pendingNoVoidFog.addAll(noVoidFog);
+        pendingNoSkyLight.clear();
+        pendingNoSkyLight.addAll(noSkyLight);
         hasPending = true;
     }
 
@@ -42,10 +52,20 @@ public final class PendingLoopingConfig {
         return Set.copyOf(pendingBeaconIgnoresSky);
     }
 
+    public static Set<ResourceKey<Level>> getPendingNoVoidFog() {
+        return Set.copyOf(pendingNoVoidFog);
+    }
+
+    public static Set<ResourceKey<Level>> getPendingNoSkyLight() {
+        return Set.copyOf(pendingNoSkyLight);
+    }
+
     /** Consume and clear — called once the server has applied the pending config. */
     public static void consume() {
         hasPending = false;
         pendingLooping.clear();
         pendingBeaconIgnoresSky.clear();
+        pendingNoVoidFog.clear();
+        pendingNoSkyLight.clear();
     }
 }

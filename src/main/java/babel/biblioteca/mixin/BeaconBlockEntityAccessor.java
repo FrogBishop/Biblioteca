@@ -18,9 +18,6 @@ import java.util.List;
 public interface BeaconBlockEntityAccessor {
 
     @Accessor("beamSections")
-    List<BeaconBeamOwner.Section> biblioteca$getBeamSections();
-
-    @Accessor("beamSections")
     void biblioteca$setBeamSections(List<BeaconBeamOwner.Section> sections);
 
     @Accessor("levels")

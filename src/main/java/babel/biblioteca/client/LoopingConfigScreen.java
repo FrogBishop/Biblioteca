@@ -15,13 +15,15 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
- * World-creation sub-screen for the per-dimension attributes of this mod:
+ * World-creation sub-screen for the per-dimension attributes of this mod.
  *
- *   left column   does the Y axis loop
- *   right column  does a beacon beam ignore the sky check
+ * One row per vanilla dimension and one column per attribute. Every attribute is off for a new
+ * dimension. The two lighting columns are "No void fog" and "No sky light": false preserves the
+ * vanilla effect and true disables it. Their buttons name the resulting behaviour directly.
  *
  * Opens from the "Dimension Attributes…" button injected into CreateWorldScreen.
  */
@@ -30,156 +32,173 @@ public class LoopingConfigScreen extends Screen {
     private static final Component TITLE =
             Component.translatable("biblioteca.gui.looping_config.title");
 
-    private static final String OVERWORLD_KEY = "biblioteca.gui.looping_config.overworld";
-    private static final String NETHER_KEY    = "biblioteca.gui.looping_config.nether";
-    private static final String END_KEY       = "biblioteca.gui.looping_config.end";
+    // Text colors are ARGB. GuiGraphicsExtractor.text() returns early when the alpha is
+    // zero, so these must stay opaque or the whole line becomes invisible.
+    private static final int TEXT_COLOR = 0xFFFFFFFF;
+    private static final int NOTE_COLOR = 0xFFAAAAAA;
+
+    private static final List<ResourceKey<Level>> DIMENSIONS = List.of(
+            Level.OVERWORLD, Level.NETHER, Level.END);
+    private static final String[] DIMENSION_KEYS = {
+            "biblioteca.gui.looping_config.overworld",
+            "biblioteca.gui.looping_config.nether",
+            "biblioteca.gui.looping_config.end"
+    };
+    private static final String[] HEADER_KEYS = {
+            "biblioteca.gui.looping_config.header_looping",
+            "biblioteca.gui.looping_config.header_beacon",
+            "biblioteca.gui.looping_config.header_no_void_fog",
+            "biblioteca.gui.looping_config.header_no_sky_light"
+    };
+
+    private static final int COLUMNS = HEADER_KEYS.length;
+    private static final int BUTTON_W = 86;
+    private static final int BUTTON_H = 20;
+    private static final int COL_GAP = 6;
+    private static final int ROW_H = 24;
+    private static final int LABEL_W = 84;
 
     private final Screen parent;
 
-    // Widget state is kept here rather than read back from the buttons.
-    private boolean overworldLooping;
-    private boolean netherLooping;
-    private boolean endLooping;
-    private boolean overworldBeacon;
-    private boolean netherBeacon;
-    private boolean endBeacon;
+    /** [dimension][attribute], in the order of DIMENSIONS and HEADER_KEYS. */
+    private final boolean[][] values = new boolean[DIMENSIONS.size()][COLUMNS];
 
-    public LoopingConfigScreen(Screen parent,
-                               Set<ResourceKey<Level>> initialLooping,
-                               Set<ResourceKey<Level>> initialBeaconIgnoresSky) {
+    public LoopingConfigScreen(
+            Screen parent,
+            Set<ResourceKey<Level>> initialLooping,
+            Set<ResourceKey<Level>> initialBeaconIgnoresSky,
+            Set<ResourceKey<Level>> initialNoVoidFog,
+            Set<ResourceKey<Level>> initialNoSkyLight) {
         super(TITLE);
         this.parent = parent;
-        this.overworldLooping = initialLooping.contains(Level.OVERWORLD);
-        this.netherLooping    = initialLooping.contains(Level.NETHER);
-        this.endLooping       = initialLooping.contains(Level.END);
-        this.overworldBeacon  = initialBeaconIgnoresSky.contains(Level.OVERWORLD);
-        this.netherBeacon     = initialBeaconIgnoresSky.contains(Level.NETHER);
-        this.endBeacon        = initialBeaconIgnoresSky.contains(Level.END);
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
+            ResourceKey<Level> dimension = DIMENSIONS.get(row);
+            values[row][0] = initialLooping.contains(dimension);
+            values[row][1] = initialBeaconIgnoresSky.contains(dimension);
+            values[row][2] = initialNoVoidFog.contains(dimension);
+            values[row][3] = initialNoSkyLight.contains(dimension);
+        }
     }
 
-    private int columnWidth() {
-        return Math.min(150, (width - 30) / 2);
+    private int gridWidth() {
+        return LABEL_W + COLUMNS * (BUTTON_W + COL_GAP) - COL_GAP;
     }
 
-    private int leftX() {
-        return width / 2 - columnWidth() - 5;
+    private int gridX() {
+        return (width - gridWidth()) / 2;
     }
 
-    private int rightX() {
-        return width / 2 + 5;
+    private int buttonX(int column) {
+        return gridX() + LABEL_W + column * (BUTTON_W + COL_GAP);
     }
 
     private int rowY(int row) {
-        return height / 2 - 40 + row * 24;
+        return height / 2 - 34 + row * ROW_H;
     }
 
     @Override
     protected void init() {
-        int colW = columnWidth();
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
+            for (int column = 0; column < COLUMNS; column++) {
+                final int r = row;
+                final int c = column;
+                addRenderableWidget(Button.builder(stateLabel(c, values[r][c]), button -> {
+                    values[r][c] = !values[r][c];
+                    button.setMessage(stateLabel(c, values[r][c]));
+                }).bounds(buttonX(column), rowY(row), BUTTON_W, BUTTON_H).build());
+            }
+        }
 
-        addRenderableWidget(Button.builder(loopingLabel(OVERWORLD_KEY, overworldLooping), b -> {
-            overworldLooping = !overworldLooping;
-            b.setMessage(loopingLabel(OVERWORLD_KEY, overworldLooping));
-        }).bounds(leftX(), rowY(0), colW, 20).build());
-
-        addRenderableWidget(Button.builder(loopingLabel(NETHER_KEY, netherLooping), b -> {
-            netherLooping = !netherLooping;
-            b.setMessage(loopingLabel(NETHER_KEY, netherLooping));
-        }).bounds(leftX(), rowY(1), colW, 20).build());
-
-        addRenderableWidget(Button.builder(loopingLabel(END_KEY, endLooping), b -> {
-            endLooping = !endLooping;
-            b.setMessage(loopingLabel(END_KEY, endLooping));
-        }).bounds(leftX(), rowY(2), colW, 20).build());
-
-        addRenderableWidget(Button.builder(beaconLabel(OVERWORLD_KEY, overworldBeacon), b -> {
-            overworldBeacon = !overworldBeacon;
-            b.setMessage(beaconLabel(OVERWORLD_KEY, overworldBeacon));
-        }).bounds(rightX(), rowY(0), colW, 20).build());
-
-        addRenderableWidget(Button.builder(beaconLabel(NETHER_KEY, netherBeacon), b -> {
-            netherBeacon = !netherBeacon;
-            b.setMessage(beaconLabel(NETHER_KEY, netherBeacon));
-        }).bounds(rightX(), rowY(1), colW, 20).build());
-
-        addRenderableWidget(Button.builder(beaconLabel(END_KEY, endBeacon), b -> {
-            endBeacon = !endBeacon;
-            b.setMessage(beaconLabel(END_KEY, endBeacon));
-        }).bounds(rightX(), rowY(2), colW, 20).build());
-
-        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, btn -> applyAndClose())
-                .bounds(width / 2 - 75, rowY(3) + 12, 150, 20).build());
+        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> applyAndClose())
+                .bounds(width / 2 - 75, rowY(DIMENSIONS.size()) + 10, 150, 20).build());
     }
 
-    private Component loopingLabel(String dimensionKey, boolean value) {
-        return Component.translatable(dimensionKey).append(": ").append(boolStr(value));
-    }
-
-    private Component beaconLabel(String dimensionKey, boolean value) {
-        return Component.translatable("biblioteca.gui.looping_config.beacon_prefix")
-                .append(" ")
-                .append(Component.translatable(dimensionKey))
-                .append(": ")
-                .append(boolStr(value));
-    }
-
-    private Component boolStr(boolean value) {
-        return value ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
+    private Component stateLabel(int column, boolean value) {
+        return switch (column) {
+            case 2 -> Component.translatable(value
+                    ? "biblioteca.gui.looping_config.no_void_fog_on"
+                    : "biblioteca.gui.looping_config.no_void_fog_off");
+            case 3 -> Component.translatable(value
+                    ? "biblioteca.gui.looping_config.no_sky_light_on"
+                    : "biblioteca.gui.looping_config.no_sky_light_off");
+            default -> value ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
+        };
     }
 
     private void applyAndClose() {
         Set<ResourceKey<Level>> looping = new HashSet<>();
-        if (overworldLooping) looping.add(Level.OVERWORLD);
-        if (netherLooping)    looping.add(Level.NETHER);
-        if (endLooping)       looping.add(Level.END);
-
         Set<ResourceKey<Level>> beaconIgnoresSky = new HashSet<>();
-        if (overworldBeacon) beaconIgnoresSky.add(Level.OVERWORLD);
-        if (netherBeacon)    beaconIgnoresSky.add(Level.NETHER);
-        if (endBeacon)       beaconIgnoresSky.add(Level.END);
+        Set<ResourceKey<Level>> noVoidFog = new HashSet<>();
+        Set<ResourceKey<Level>> noSkyLight = new HashSet<>();
 
-        PendingLoopingConfig.set(looping, beaconIgnoresSky);
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
+            ResourceKey<Level> dimension = DIMENSIONS.get(row);
+            if (values[row][0]) looping.add(dimension);
+            if (values[row][1]) beaconIgnoresSky.add(dimension);
+            if (values[row][2]) noVoidFog.add(dimension);
+            if (values[row][3]) noSkyLight.add(dimension);
+        }
+
+        PendingLoopingConfig.set(looping, beaconIgnoresSky, noVoidFog, noSkyLight);
         onClose();
     }
 
     @Override
     public void onClose() {
         //? if >=26.1 {
-        Minecraft.getInstance().setScreenAndShow(parent);
-        //?} else {
-        /*Minecraft.getInstance().setScreen(parent);
-        *///?}
+Minecraft.getInstance().setScreenAndShow(parent);
+//?} else {
+/*Minecraft.getInstance().setScreen(parent);
+*///?}
     }
 
-    //? if >=26.1 {
+//? if >=26.1 {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        graphics.centeredText(font, title, width / 2, rowY(0) - 34, 0xFFFFFFFF);
-        graphics.centeredText(font,
-                Component.translatable("biblioteca.gui.looping_config.header_looping"),
-                leftX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFFFF);
-        graphics.centeredText(font,
-                Component.translatable("biblioteca.gui.looping_config.header_beacon"),
-                rightX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFFFF);
+
+        graphics.centeredText(font, title, width / 2, rowY(0) - 46, TEXT_COLOR);
+
+        for (int column = 0; column < COLUMNS; column++) {
+            graphics.centeredText(font,
+                    Component.translatable(HEADER_KEYS[column]),
+                    buttonX(column) + BUTTON_W / 2, rowY(0) - 18, TEXT_COLOR);
+        }
+
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
+            Component name = Component.translatable(DIMENSION_KEYS[row]);
+            graphics.text(font, name,
+                    gridX() + LABEL_W - 10 - font.width(name),
+                    rowY(row) + 6, TEXT_COLOR);
+        }
+
         graphics.centeredText(font,
                 Component.translatable("biblioteca.gui.looping_config.note"),
-                width / 2, rowY(3) + 44, 0xFFAAAAAA);
+                width / 2, rowY(DIMENSIONS.size()) + 40, NOTE_COLOR);
     }
-    //?} else {
-    /*@Override
+//?} else {
+/*    @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(font, title, width / 2, rowY(0) - 34, 0xFFFFFFFF);
-        graphics.drawCenteredString(font,
-                Component.translatable("biblioteca.gui.looping_config.header_looping"),
-                leftX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFFFF);
-        graphics.drawCenteredString(font,
-                Component.translatable("biblioteca.gui.looping_config.header_beacon"),
-                rightX() + columnWidth() / 2, rowY(0) - 16, 0xFFFFFFFF);
+
+        graphics.drawCenteredString(font, title, width / 2, rowY(0) - 46, TEXT_COLOR);
+
+        for (int column = 0; column < COLUMNS; column++) {
+            graphics.drawCenteredString(font,
+                    Component.translatable(HEADER_KEYS[column]),
+                    buttonX(column) + BUTTON_W / 2, rowY(0) - 18, TEXT_COLOR);
+        }
+
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
+            Component name = Component.translatable(DIMENSION_KEYS[row]);
+            graphics.drawString(font, name,
+                    gridX() + LABEL_W - 10 - font.width(name),
+                    rowY(row) + 6, TEXT_COLOR);
+        }
+
         graphics.drawCenteredString(font,
                 Component.translatable("biblioteca.gui.looping_config.note"),
-                width / 2, rowY(3) + 44, 0xFFAAAAAA);
+                width / 2, rowY(DIMENSIONS.size()) + 40, NOTE_COLOR);
     }
-    *///?}
+*///?}
 }

@@ -38,11 +38,8 @@ import java.util.List;
  *    that damps light like vanilla does, and runs at most one world height so a beam can never
  *    overlap itself.
  *
- * The scan is done in one pass rather than vanilla's ten-blocks-per-tick cursor because the
- * cursor is a plain Y counter: it cannot be continued across the seam, and the "scan finished"
- * test compares it against the column's surface height, which is meaningless once the scan has
- * wrapped. A full column is a few hundred block lookups, which is cheaper than the incremental
- * version takes to converge (vanilla needs 38 ticks to cover the same distance).
+ * A bounded scan builds one full period every ten ticks, using periodic coordinates
+ * instead of vanilla's incremental Y cursor and surface-height termination condition.
  *
  * The beam itself is drawn by BeaconBeamRenderYLoopMixin, which stops it where the scan stopped.
  */
@@ -74,10 +71,7 @@ public abstract class BeaconBlockEntityYLoopMixin {
             return;
         }
 
-        // The scan walks a whole world height, so it runs a few times a second rather than every
-        // tick: it is a few hundred block lookups per beacon, and nothing it observes changes
-        // faster than this. Vanilla needs 38 ticks to cover the same distance, so reacting within
-        // ten is still quicker than vanilla.
+        // Limit the additional scan to once per ten ticks.
         if (level.getGameTime() % 10L != 0L) return;
 
         accessor.biblioteca$setBeamSections(biblioteca$scanAroundTheRing(level, pos));

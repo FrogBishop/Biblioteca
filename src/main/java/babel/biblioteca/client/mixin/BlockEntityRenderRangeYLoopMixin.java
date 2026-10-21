@@ -28,19 +28,28 @@ import org.spongepowered.asm.mixin.injection.At;
  * straight-line distance the renderer computes becomes the distance around the ring.
  *
  * Only the position handed to the check is moved. The render state keeps the real block position,
- * and LevelRendererYLoopMixin folds that when the block entity is finally drawn.
+ * and the block entity position hook folds that when the block entity is finally drawn.
  */
 @Mixin(BlockEntityRenderDispatcher.class)
 public abstract class BlockEntityRenderRangeYLoopMixin {
 
     @WrapOperation(
+            //? if >=1.21.9 {
             method = "tryExtractRenderState",
+            //?} else {
+            /*method = "render",
+            *///?}
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/renderer/blockentity/BlockEntityRenderer;"
                             + "shouldRender(Lnet/minecraft/world/level/block/entity/BlockEntity;"
                             + "Lnet/minecraft/world/phys/Vec3;)Z"))
     private boolean biblioteca$ringViewDistance(
-            BlockEntityRenderer<?, ?> renderer, BlockEntity blockEntity, Vec3 cameraPos,
+            //? if >=1.21.9 {
+            BlockEntityRenderer<?, ?> renderer,
+            //?} else {
+            /*BlockEntityRenderer<?> renderer,
+            *///?}
+            BlockEntity blockEntity, Vec3 cameraPos,
             Operation<Boolean> original) {
 
         if (original.call(renderer, blockEntity, cameraPos)) return true;

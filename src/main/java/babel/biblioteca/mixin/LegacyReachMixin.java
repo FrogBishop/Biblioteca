@@ -13,18 +13,8 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Folds the position handed to block-break enchantment effects onto the
- * periodic copy nearest the player.
- *
- * ServerGamePacketListenerMixin folds the packet position to the canonical row,
- * so a break started on the rendered copy of the bottom row is processed at
- * y = -64 while the player stands at the top. Passing the unfurled centre to
- * EnchantmentHelper.onHitBlock would place its effects a whole world height away
- * from the block the player actually hit; this hook moves the centre back to the
- * copy the player can see.
- *
- * The reach check itself is not here: Player.canInteractWithBlock is folded by
- * LegacyBlockReachMixin.
+ * Folds the target of 1.20.4's inline block-breaking reach check. Newer releases
+ * route reach through the Player hooks instead and do not register this mixin.
  */
 @Mixin(ServerPlayerGameMode.class)
 public abstract class LegacyReachMixin {

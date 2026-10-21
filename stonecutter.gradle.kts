@@ -9,6 +9,12 @@ stonecutter parameters {
     // keeps the shared sources readable and avoids a conditional around every
     // import.
     replacements {
+        string(current.parsed < "1.21") {
+            replace("client.gui.screens.options.OptionsSubScreen", "client.gui.screens.OptionsSubScreen")
+            replace("client.gui.screens.options.VideoSettingsScreen", "client.gui.screens.VideoSettingsScreen")
+            replace("client/gui/screens/options/OptionsSubScreen", "client/gui/screens/OptionsSubScreen")
+            replace("client/gui/screens/options/VideoSettingsScreen", "client/gui/screens/VideoSettingsScreen")
+        }
         string(current.parsed < "1.21.11") {
             replace("Identifier", "ResourceLocation")
             replace(".identifier()", ".location()")
@@ -27,7 +33,7 @@ stonecutter parameters {
             replace("world.entity.vehicle.minecart.AbstractMinecart", "world.entity.vehicle.AbstractMinecart")
         }
 
-        string(current.parsed < "26.3") {
+        string(current.parsed < "26.2") {
             replace("SpeleothemBlock", "PointedDripstoneBlock")
         }
     }

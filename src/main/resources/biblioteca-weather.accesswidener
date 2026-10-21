@@ -1,0 +1,4 @@
+accessWidener v2 named
+
+# Reuse vanilla precipitation animation when supplying periodic weather columns.
+accessible class net/minecraft/client/renderer/WeatherEffectRenderer$ColumnInstance

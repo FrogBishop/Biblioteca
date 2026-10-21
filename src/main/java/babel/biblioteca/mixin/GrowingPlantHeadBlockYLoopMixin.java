@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * The head of a growing plant (kelp, twisting vines, cave vines, sugar cane) refuses to
+ * The head of a growing plant (kelp, twisting vines or cave vines) refuses to
  * extend once the next cell is outside the build height. In a Y-looping dimension that
  * cell is the bottom row of the ring, so the extension is allowed there.
  */

@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,15 +38,9 @@ public abstract class EntityYLoopMixin {
         if (level == null) return y;
         if (!LoopingRegistry.isLooping(level)) return y;
 
-        int minY   = level.getMinY();
-        int height = level.getHeight();
-
         // Fast path: almost every position is already inside the world.
-        if (y >= minY && y < minY + height) return y;
-
-        double floored  = Math.floor(y);
-        double fraction = y - floored;
-        double folded   = Math.floorMod((int) floored - minY, height) + minY + fraction;
+        double folded = SeamPositions.foldY(level, y);
+        if (folded == y) return y;
 
         // A fold moves the position by a whole world height in a single step, and the renderer
         // interpolates from the previous tick's row. Moving that row by the same multiple of the
@@ -53,8 +48,8 @@ public abstract class EntityYLoopMixin {
         // reads as going from -64.1 to -64.0, the same movement at the same ring position.
         //
         // Collapsing the previous row to the new one instead - what a teleport does - would hold
-        // the camera still for one tick and then jump, which is the twitch this replaced. Only
-        // the interpolated position matters here; nothing else reads these two fields.
+        // the camera still for one tick and then jump. Shifting both previous-position fields
+        // preserves the short interpolation interval across the boundary.
         double shift = y - folded;
         this.yo -= shift;
         this.yOld -= shift;

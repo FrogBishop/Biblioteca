@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.core.BlockPos;
@@ -52,22 +53,14 @@ public abstract class BlockCollisionsYLoopMixin {
             return original.call(chunk, pos);
         }
 
-        int y      = pos.getY();
-        int minY   = level.getMinY();
-        int height = level.getHeight();
-
         // Fast path: the queried row is inside the world, which is almost every block.
-        if (y >= minY && y < minY + height) {
+        if (SeamPositions.isInside(level, pos.getY())) {
             return original.call(chunk, pos);
         }
         if (!LoopingRegistry.isLooping(level)) {
             return original.call(chunk, pos);
         }
 
-        BlockPos folded = new BlockPos(
-                pos.getX(),
-                Math.floorMod(y - minY, height) + minY,
-                pos.getZ());
-        return original.call(chunk, folded);
+        return original.call(chunk, SeamPositions.foldBlockPos(level, pos));
     }
 }

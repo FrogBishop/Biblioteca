@@ -3,7 +3,7 @@
 mod.id = "biblioteca"
 mod.name = "Biblioteca"
 mod.group = "babel.biblioteca"
-mod.version = "0.0.67"
+mod.version = "0.67.0"
 
 deps.fabric_loader = "0.19.5"
 loomx.loom_version = "1.18-SNAPSHOT"
@@ -99,31 +99,31 @@ deps.fabric_api = "0.141.6+1.21.11"
 deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/6qAuTtLR/fabric-api-0.141.6%2B1.21.11.jar"
 
 ["26.1"]
-mod.mc_compat = "~26.1"
+mod.mc_compat = "26.1"
 mod.mc_releases = ["26.1"]
 deps.fabric_api = "0.155.3+26.1.2"
 deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/3dM0X6ou/fabric-api-0.155.3%2B26.1.2.jar"
 
 ["26.1.1"]
-mod.mc_compat = "~26.1"
+mod.mc_compat = "26.1.1"
 mod.mc_releases = ["26.1.1"]
 deps.fabric_api = "0.155.3+26.1.2"
 deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/3dM0X6ou/fabric-api-0.155.3%2B26.1.2.jar"
 
 ["26.1.2"]
-mod.mc_compat = "~26.1"
+mod.mc_compat = "26.1.2"
 mod.mc_releases = ["26.1.2"]
 deps.fabric_api = "0.155.3+26.1.2"
 deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/3dM0X6ou/fabric-api-0.155.3%2B26.1.2.jar"
 
 ["26.2"]
-mod.mc_compat = "~26.2"
+mod.mc_compat = "26.2"
 mod.mc_releases = ["26.2"]
 deps.fabric_api = "0.161.0+26.2"
 deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/ewUK83HI/fabric-api-0.161.0%2B26.2.jar"
 
 ["26.3"]
-mod.mc_compat = "~26.3"
+mod.mc_compat = "26.3"
 mod.mc_releases = ["26.3"]
 deps.fabric_api = "0.164.0+26.3"
 deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/LEklt8GT/fabric-api-0.164.0%2B26.3.jar"

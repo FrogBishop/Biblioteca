@@ -4,6 +4,7 @@ import java.net.URI
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
+import org.gradle.api.tasks.bundling.AbstractArchiveTask
 
 plugins {
     // Applies the remapping Loom variant for obfuscated versions and the plain
@@ -13,6 +14,15 @@ plugins {
 
 version = "${property("mod.version")}+${sc.current.version}"
 base.archivesName = property("mod.id") as String
+
+val accessWidener = when {
+    sc.current.parsed >= "26.3" -> "biblioteca.accesswidener"
+    sc.current.parsed >= "1.21.2" && sc.current.parsed < "1.21.9" -> "biblioteca-weather.accesswidener"
+    else -> null
+}
+if (accessWidener != null) {
+    loom { accessWidenerPath = rootProject.file("src/main/resources/$accessWidener") }
+}
 
 val requiredJava: JavaVersion = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
@@ -121,6 +131,8 @@ java {
 // the inapplicable one. The generated mixin config is filtered to match, because
 // Mixin would otherwise fail to load the class.
 val excludedServerMixins = buildSet {
+    if (sc.current.parsed < "1.20.5") add("ServerPlayerGameModeMixin")
+    if (sc.current.parsed >= "1.20.5") add("LegacyInlineBlockReachMixin")
     // Player.canInteractWithBlock exists from 1.20.5 through 1.21.10; outside
     // that window the reach check has a different shape and the hook has no
     // target method to attach to.
@@ -133,7 +145,7 @@ val excludedServerMixins = buildSet {
         // folds instead.
         add("PlayerReachMixin")
     }
-    if (sc.current.parsed >= "26.1") {
+    if (sc.current.parsed >= "1.20.5") {
         add("LegacyReachMixin")
     }
     if (sc.current.parsed < "1.21.5") {
@@ -148,17 +160,8 @@ val excludedServerMixins = buildSet {
             "LegacyBeaconBlockEntityYLoopMixin",
         ))
     }
-    if (sc.current.parsed < "1.21.5") {
-        add("MidServerLevelEffectsYLoopMixin")
-    } else {
-        add("LegacyServerLevelEffectsYLoopMixin")
-    }
-    if (sc.current.parsed >= "26.3") {
-        add("MidServerLevelEffectsYLoopMixin")
-    }
     if (sc.current.parsed < "26.3") {
         addAll(listOf(
-            "ServerLevelEffectsYLoopMixin",
             // 26.3 added explicit isOutsideBuildHeight guards to these growth
             // paths. Older releases do not have those guards; their growth
             // code goes through Level.getBlockState/setBlock, which
@@ -177,98 +180,51 @@ if (excludedServerMixins.isNotEmpty()) {
     }
 }
 
-// The 26.3 client is a render-state/submit renderer. Before that the renderer
-// is a different architecture, so a legacy jar keeps the payload cache, the
-// create-world screen and the entrypoint. 1.21.1 and 1.21.8 add their own
-// renderer ports below; the remaining legacy nodes have gameplay only.
-val legacyClientMixins = listOf(
-    "ClientLevelDirtyMixin",
-    "CreateWorldScreenMoreTabMixin",
-    "GridLayoutTabAccessor",
+// A single selection drives both compilation and runtime registration. No absent
+// renderer hook is hidden by require=0, and unselected implementations are not packaged.
+val clientUiAndAudioMixins = setOf(
+    "ClientLevelDirtyMixin", "CreateWorldScreenMoreTabMixin", "GridLayoutTabAccessor",
+    "OptionsSubScreenAccessor", "VideoSettingsScreenMixin",
+    "ClientLevelSoundYLoopMixin", "SoundEngineYLoopMixin",
+    "SubtitleDirectionYLoopMixin", "SubtitleDistanceYLoopMixin",
 )
-// Classic-renderer port for 1.21.1. It is intentionally built only for that
-// node until the other legacy releases have their own renderer variants.
-val legacy1211RendererMixins = listOf(
-    "LegacyLevelRendererYLoopMixin",
-    "LegacyLevelRendererAccessor",
-    "LegacySectionOcclusionGraphLoopMixin",
-    "LegacyViewAreaAccessor",
-    "LegacyEntityRender1211YLoopMixin",
-    "LegacyBeaconBeam1211YLoopMixin",
-    "LegacyClouds1211Mixin",
-    "LegacyFrustumInvoker",
-    "LegacySky1211Mixin",
-    "LegacyFog1211Mixin",
-)
+val selectedClientMixins = buildSet {
+    addAll(clientUiAndAudioMixins)
+    addAll(listOf("FrustumInvoker", "FrustumYLoopMixin", "EntityShouldRenderYLoopMixin",
+            "ParticleYLoopMixin", "ClientHorizonYLoopMixin", "SectionOcclusionGraphLoopMixin", "ViewAreaAccessor"))
+    if (sc.current.parsed >= "1.21.6") add("VoidFogMixin") else add("LegacyVoidFogMixin")
+    if (sc.current.parsed >= "1.21.2") add("CloudRendererLoopMixin") else add("LegacyClouds1211Mixin")
+    add("RainImpactsYLoopMixin")
+    add(if (sc.current.parsed >= "1.21.2") "WeatherEffectRendererYLoopMixin" else "ClassicWeatherYLoopMixin")
 
-// 1.21.8 has the new frame-graph chunk renderer. Its terrain copies are built by
-// calling prepareChunkRenders once per period; the chunk render mixin replays them.
-val legacy1218RendererMixins = listOf(
-    "MidLevelRendererYLoopMixin",
-    "MidLevelRendererAccessor",
-    "MidLevelRendererInvoker",
-    "MidChunkSectionsToRenderMixin",
-    "MidViewAreaAccessor",
-    "MidSectionOcclusionGraphLoopMixin",
-    "LegacyEntityRender1218YLoopMixin",
-    "LegacyBeaconBeam1218YLoopMixin",
-    "LegacyClouds1218Mixin",
-    "MidFrustumInvoker",
-    "MidSky1218Mixin",
-    "MidFog1218Mixin",
-)
-val legacy1218ClientClasses = listOf("MidChunkCopyStore")
-
-// The block-entity dispatcher kept the same render signature across 1.21.1 and
-// 1.21.8; include the shared hook in both ported nodes without duplicating its
-// source exclusion. Entity renderers differ by one float and are version-specific.
-val legacyClassicSharedMixins = listOf(
-    "LegacyBlockEntityRenderYLoopMixin",
-)
-
-val legacyRendererMixins = listOf(
-    "BeaconBeamRenderYLoopMixin",
-    "BlockEntityRenderRangeYLoopMixin",
-    "ChunkDrawGroupAccessor",
-    "CloudRendererLoopMixin",
-    "EntityRenderYLoopMixin",
-    "EntityShouldRenderYLoopMixin",
-    "FrustumInvoker",
-    "FrustumYLoopMixin",
-    "ImprovedTransparencyYLoopMixin",
-    "LevelRendererYLoopMixin",
-    "OptionsSubScreenAccessor",
-    "RenderRegionCacheYLoopMixin",
-    "SectionOcclusionGraphLoopMixin",
-    "SkyRendererYLoopMixin",
-    "VideoSettingsScreenMixin",
-    "ViewAreaAccessor",
-    "VoidFogMixin",
-)
-if (sc.current.parsed < "26.3") {
-    sourceSets.named("main") {
-        java.exclude(
-            "babel/biblioteca/client/LoopingClientSettings.java",
-            "babel/biblioteca/client/SeamCull.java",
-        )
-        java.exclude(legacyRendererMixins.map { "babel/biblioteca/client/mixin/$it.java" })
+    if (sc.current.parsed < "1.21.5") addAll(listOf(
+        "ClassicTerrainYLoopMixin", "LegacyVertexBufferMixin", "LegacySectionBufferMixin",
+    ))
+    if (sc.current.version == "1.21.5") addAll(listOf("GpuLayerTerrainYLoopMixin", "GpuCompiledSectionAccessor"))
+    if (sc.current.parsed >= "1.21.6" && sc.current.parsed < "26.3") add("GpuTerrainYLoopMixin")
+    if (sc.current.parsed < "1.21.9") {
+        add("LegacyBlockEntityRenderYLoopMixin")
+        add(if (sc.current.parsed < "1.21.2") "LegacyEntityRender1211YLoopMixin" else "LegacyEntityRender1218YLoopMixin")
     }
+    add("BlockEntityRenderRangeYLoopMixin")
+    add(if (sc.current.parsed >= "1.21.6") "RenderRegionCacheYLoopMixin" else "LegacyRenderChunkYLoopMixin")
+    if (sc.current.parsed >= "1.21.9") addAll(listOf(
+        "EntityRenderYLoopMixin", "BlockEntityPositionYLoopMixin", "BeaconBeamRenderYLoopMixin",
+    )) else add("LegacyBeaconBeamYLoopMixin")
+    if (sc.current.parsed >= "26.3") add("LevelRendererYLoopMixin")
 }
-if (sc.current.version != "1.21.1") {
-    sourceSets.named("main") {
-        java.exclude(legacy1211RendererMixins.map { "babel/biblioteca/client/mixin/$it.java" })
-    }
-}
-if (sc.current.version != "1.21.8") {
-    sourceSets.named("main") {
-        java.exclude(legacy1218RendererMixins.map { "babel/biblioteca/client/mixin/$it.java" })
-        java.exclude(legacy1218ClientClasses.map { "babel/biblioteca/client/$it.java" })
-    }
-}
-if (sc.current.version != "1.21.1" && sc.current.version != "1.21.8") {
-    sourceSets.named("main") {
-        java.exclude(legacyClassicSharedMixins.map { "babel/biblioteca/client/mixin/$it.java" })
-    }
+val allClientMixins = rootProject.fileTree("src/main/java/babel/biblioteca/client/mixin")
+    .matching { include("*.java") }.files.map { it.nameWithoutExtension }.toSet()
+sourceSets.named("main") {
+    java.exclude((allClientMixins - selectedClientMixins).map { "babel/biblioteca/client/mixin/$it.java" })
+    if (sc.current.parsed >= "1.21.5") java.exclude(
+        "babel/biblioteca/client/ClassicTerrainBackend.java",
+        "babel/biblioteca/client/LegacyVertexData.java",
+    )
+    if (sc.current.parsed < "26.3") java.exclude("babel/biblioteca/client/LoopingTranslucency.java")
+    if (sc.current.parsed < "1.21.5" || sc.current.parsed >= "26.3") java.exclude("babel/biblioteca/client/GpuTerrainIndices.java")
+    if (sc.current.parsed < "1.21.5" || sc.current.parsed >= "26.3") java.exclude(
+        "babel/biblioteca/client/GpuTerrainBuffer.java", "babel/biblioteca/client/GpuTerrainDraws.java")
 }
 
 // Diagnostic switch: compile the shared/server half of the mod without the
@@ -292,11 +248,20 @@ tasks.processResources {
     )
     inputs.properties(props)
     inputs.property("excludedServerMixins", excludedServerMixins.joinToString(","))
+    inputs.property("selectedClientMixins", selectedClientMixins.sorted().joinToString(","))
     filesMatching("fabric.mod.json") { expand(props) }
     filesMatching("*.mixins.json") { expand("java" to "JAVA_${requiredJava.majorVersion}") }
+    listOf("biblioteca.accesswidener", "biblioteca-weather.accesswidener").filter { it != accessWidener }.forEach { exclude(it) }
 
     doLast {
         val outputDir = destinationDirectory.get().asFile
+        if (accessWidener != null) {
+            val metadataFile = outputDir.resolve("fabric.mod.json")
+            @Suppress("UNCHECKED_CAST")
+            val metadata = groovy.json.JsonSlurper().parse(metadataFile) as MutableMap<String, Any?>
+            metadata["accessWidener"] = accessWidener
+            metadataFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + "\n")
+        }
 
         if (excludedServerMixins.isNotEmpty()) {
             val configFile = outputDir.resolve("biblioteca.mixins.json")
@@ -304,39 +269,20 @@ tasks.processResources {
             @Suppress("UNCHECKED_CAST")
             val config = slurper.parse(configFile) as MutableMap<String, Any?>
             config["mixins"] = (config["mixins"] as List<*>).filterNot { it in excludedServerMixins }
-            // A legacy preview build must not take the game down when an
-            // optional hook cannot find its call site; the core hooks still log
-            // and apply normally.
-            config["injectors"] = mapOf("defaultRequire" to 0)
+            config["injectors"] = mapOf("defaultRequire" to 1)
             configFile.writeText(
                 groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config)) + "\n")
         }
 
-        if (sc.current.parsed < "26.3") {
-            // Only client hooks that are compiled for this node may be named in
-            // the generated config; asking for a class that was excluded is a
-            // startup crash.
-            val rendererEntries = when (sc.current.version) {
-                "1.21.1" -> legacy1211RendererMixins + legacyClassicSharedMixins
-                "1.21.8" -> legacy1218RendererMixins + legacyClassicSharedMixins
-                else -> emptyList()
-            }
-            val clientEntries = (legacyClientMixins + rendererEntries)
-                .joinToString(",\n    ") { "\"$it\"" }
-            outputDir.resolve("biblioteca.client.mixins.json").writeText(
-                """{
-  "required": true,
-  "package": "babel.biblioteca.client.mixin",
-  "compatibilityLevel": "JAVA_${requiredJava.majorVersion}",
-  "client": [
-    $clientEntries
-  ],
-  "injectors": {
-    "defaultRequire": 0
-  }
-}
-""")
-        }
+        val clientConfig = mutableMapOf<String, Any?>(
+            "required" to true,
+            "package" to "babel.biblioteca.client.mixin",
+            "compatibilityLevel" to "JAVA_${requiredJava.majorVersion}",
+            "client" to selectedClientMixins.sorted(),
+            "injectors" to mapOf("defaultRequire" to 1),
+        )
+        outputDir.resolve("biblioteca.client.mixins.json").writeText(
+            groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(clientConfig)) + "\n")
     }
 }
 
@@ -353,23 +299,7 @@ tasks.jar {
 // ---------------------------------------------------------------------------
 // The dedicated-server jar carries the same logic with the client renderer
 // mixins removed. It is cut from the finished jar so the two cannot drift.
-val noRenderMixins = listOf(
-    "BeaconBeamRenderYLoopMixin",
-    "BlockEntityRenderRangeYLoopMixin",
-    "ChunkDrawGroupAccessor",
-    "CloudRendererLoopMixin",
-    "EntityRenderYLoopMixin",
-    "EntityShouldRenderYLoopMixin",
-    "FrustumInvoker",
-    "FrustumYLoopMixin",
-    "ImprovedTransparencyYLoopMixin",
-    "LevelRendererYLoopMixin",
-    "RenderRegionCacheYLoopMixin",
-    "SectionOcclusionGraphLoopMixin",
-    "SkyRendererYLoopMixin",
-    "ViewAreaAccessor",
-    "VoidFogMixin",
-) + legacy1211RendererMixins + legacy1218RendererMixins + legacyClassicSharedMixins
+val noRenderMixins = selectedClientMixins - clientUiAndAudioMixins
 
 val noRenderDir = layout.buildDirectory.dir("generated/noRender")
 
@@ -379,6 +309,7 @@ val prepareNoRenderResources = tasks.register("prepareNoRenderResources") {
     dependsOn(tasks.processResources)
     val resourcesDir = layout.buildDirectory.dir("resources/main")
     inputs.dir(resourcesDir)
+    inputs.property("removedMixins", noRenderMixins)
     outputs.dir(noRenderDir)
     doLast {
         val out = noRenderDir.get().asFile
@@ -477,114 +408,49 @@ val noRenderJar = tasks.register("noRenderJar") {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Grouped jars
-// ---------------------------------------------------------------------------
-// A group is compiled once, at its representative release, and published with a
-// Minecraft dependency range instead of one exact version. The intermediate jar
-// in versions/<node>/build/libs stays untouched for debugging.
-if (project.path != ":") {
-    @Suppress("UNCHECKED_CAST")
-    val jarGroups = rootProject.extensions.extraProperties
-        .get("bibliotecaJarGroups") as List<Map<String, Any?>>
-    val fullRendererVersion = "26.3"
-    val currentGroup = jarGroups.firstOrNull { it["representative"] == sc.current.version }
-    val isFullRenderer = sc.current.version == fullRendererVersion
+// Exact-version distribution artifacts. Metadata is never widened across unverified ABIs.
+val collectArtifacts = tasks.register<Copy>("collectArtifacts") {
+    group = "build"
+    description = "Collects this node's full and no-render artifacts."
+    val deliverable = if (sc.current.parsed < "26.1") {
+        tasks.named("remapJar").flatMap { (it as AbstractArchiveTask).archiveFile }
+    } else {
+        tasks.jar.flatMap { it.archiveFile }
+    }
+    dependsOn(noRenderJar)
+    from(deliverable)
+    from(noRenderJar)
+    into(rootProject.layout.buildDirectory.dir("distributions"))
+}
+tasks.named("build") { finalizedBy(collectArtifacts) }
 
-    if (currentGroup != null || isFullRenderer) {
-        val artifactId = if (isFullRenderer) {
-            fullRendererVersion
-        } else {
-            currentGroup!!["id"] as String
-        }
-        val minecraftRange = if (isFullRenderer) {
-            fullRendererVersion
-        } else {
-            currentGroup!!["minecraft"] as String
-        }
-        val useNoRender = !isFullRenderer && currentGroup!!["noRender"] == true
-        val sourceTask = when {
-            useNoRender -> "noRenderJar"
-            sc.current.parsed < "26.1" -> "remapJar"
-            else -> "jar"
-        }
-        val sourceJar = if (useNoRender) {
-            // noRenderJar is a plain task that writes a sibling of the remapped
-            // jar, so it has no archiveFile property to read.
-            layout.buildDirectory.file(
-                "libs/${property("mod.id")}-${project.version}-norender.jar"
-            )
-        } else {
-            tasks.named(sourceTask).flatMap {
-                (it as org.gradle.api.tasks.bundling.AbstractArchiveTask).archiveFile
-            }
-        }
-        val modVersion = property("mod.version").toString()
-        val targetJar = rootProject.layout.buildDirectory.file(
-            "grouped/biblioteca-$modVersion+$artifactId" +
-                if (useNoRender) "-norender.jar" else ".jar"
+// Used by tools/verify_matrix.py to launch the real Fabric transformer without a game window.
+tasks.register("writeValidationConfig") {
+    group = "verification"
+    dependsOn(tasks.classes)
+    dependsOn(tasks.matching { it.name == "configureLaunch" })
+    val report = rootProject.layout.buildDirectory.file("validation/runtime/${sc.current.version}.json")
+    outputs.file(report)
+    outputs.upToDateWhen { false }
+    doLast {
+        val clientRun = tasks.named("runClient").get() as JavaExec
+        val serverRun = tasks.named("runServer").get() as JavaExec
+        val fabricApiVersion = sc.properties["deps.fabric_api"] as String
+        val bundle = rootProject.file(".gradle/fabric-api/$fabricApiVersion/fabric-api.jar")
+        val data = mapOf(
+            "minecraft" to sc.current.version,
+            "java" to requiredJava.majorVersion,
+            "classpath" to clientRun.classpath.files.map { it.absolutePath },
+            "serverClasspath" to serverRun.classpath.files.map { it.absolutePath },
+            "clientJvmArgs" to (clientRun.allJvmArgs + clientRun.jvmArgumentProviders.flatMap { it.asArguments() }),
+            "serverJvmArgs" to (serverRun.allJvmArgs + serverRun.jvmArgumentProviders.flatMap { it.asArguments() }),
+            "resources" to layout.buildDirectory.dir("resources/main").get().asFile.absolutePath,
+            "classes" to layout.buildDirectory.dir("classes/java/main").get().asFile.absolutePath,
+            "fabricApi" to bundle.absolutePath,
         )
-
-        val groupJar = tasks.register("groupJar") {
-            group = "build"
-            description = "Writes the grouped jar for $artifactId."
-            dependsOn(sourceTask)
-            inputs.file(sourceJar)
-            outputs.file(targetJar)
-            // Metadata injection is cheap; always rewrite instead of risking a
-            // stale range after a property change.
-            outputs.upToDateWhen { false }
-
-            doLast {
-                val source = sourceJar.get().asFile
-                val target = targetJar.get().asFile
-                target.parentFile.mkdirs()
-
-                val metadata = ZipFile(source).use { zip ->
-                    val entry = zip.getEntry("fabric.mod.json")
-                        ?: error("$source has no fabric.mod.json")
-                    val text = zip.getInputStream(entry).use {
-                        it.readBytes().toString(Charsets.UTF_8)
-                    }
-                    @Suppress("UNCHECKED_CAST")
-                    val json = groovy.json.JsonSlurper().parseText(text) as MutableMap<String, Any?>
-                    json["version"] = "$modVersion+$artifactId" +
-                        if (useNoRender) "-norender" else ""
-                    @Suppress("UNCHECKED_CAST")
-                    val depends = json["depends"] as MutableMap<String, Any?>
-                    depends["minecraft"] = minecraftRange
-                    if (useNoRender) {
-                        json["name"] = json["name"].toString().removeSuffix(" (No Render)") + " (No Render)"
-                    }
-                    groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)) + "\n"
-                }
-
-                ZipFile(source).use { zip ->
-                    ZipOutputStream(
-                        BufferedOutputStream(FileOutputStream(target))
-                    ).use { out ->
-                        for (entry in zip.entries()) {
-                            if (entry.name == "fabric.mod.json") continue
-                            val copy = ZipEntry(entry.name)
-                            copy.time = entry.time
-                            out.putNextEntry(copy)
-                            if (!entry.isDirectory) {
-                                zip.getInputStream(entry).use { input -> input.copyTo(out) }
-                            }
-                            out.closeEntry()
-                        }
-                        val bytes = metadata.toByteArray(Charsets.UTF_8)
-                        val copy = ZipEntry("fabric.mod.json")
-                        copy.time = source.lastModified()
-                        out.putNextEntry(copy)
-                        out.write(bytes)
-                        out.closeEntry()
-                    }
-                }
-            }
-        }
-
-        tasks.findByName("build")?.finalizedBy(groupJar)
+        val file = report.get().asFile
+        file.parentFile.mkdirs()
+        file.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data)))
     }
 }
 

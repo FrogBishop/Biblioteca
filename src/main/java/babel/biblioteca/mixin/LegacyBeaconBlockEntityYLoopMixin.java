@@ -4,7 +4,6 @@ import babel.biblioteca.LoopingRegistry;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BeaconBeamBlock;
 import net.minecraft.world.level.block.Blocks;
@@ -15,57 +14,16 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * Pre-1.21.5 version of BeaconBlockEntityYLoopMixin.
- *
- * The algorithm is identical, but this era changed the BeamSection colour from
- * float[] to int at 1.21 while keeping the class and method names. The grouped
- * 1.20.5 - 1.21.1 jar spans that change, so the colour access goes through
- * reflection; the section constructor, getColor and increaseHeight are selected
- * once at class load.
+ * The same bounded beacon scan as the modern backend, using the pre-1.21.5 beam section type.
+ * Colours changed from float triples to packed integers in 1.21; each artifact uses its native API.
  */
 @Mixin(BeaconBlockEntity.class)
 public abstract class LegacyBeaconBlockEntityYLoopMixin {
-
-    private static final Constructor<?> SECTION_CONSTRUCTOR;
-    private static final Method SECTION_GET_COLOR;
-    private static final Method DYE_TEXTURE_COLORS;
-    private static final Method DYE_TEXTURE_COLOR;
-
-    static {
-        Constructor<?> constructor = null;
-        for (Constructor<?> candidate : BeaconBlockEntity.BeaconBeamSection.class.getConstructors()) {
-            if (candidate.getParameterCount() == 1) {
-                constructor = candidate;
-                break;
-            }
-        }
-        if (constructor == null) {
-            throw new IllegalStateException("No BeamSection colour constructor");
-        }
-        SECTION_CONSTRUCTOR = constructor;
-        try {
-            SECTION_GET_COLOR = BeaconBlockEntity.BeaconBeamSection.class.getMethod("getColor");
-        } catch (NoSuchMethodException exception) {
-            throw new IllegalStateException("No BeamSection.getColor", exception);
-        }
-        DYE_TEXTURE_COLORS = methodOrNull(DyeColor.class, "getTextureDiffuseColors");
-        DYE_TEXTURE_COLOR = methodOrNull(DyeColor.class, "getTextureDiffuseColor");
-    }
-
-    private static Method methodOrNull(Class<?> owner, String name) {
-        try {
-            return owner.getMethod(name);
-        } catch (NoSuchMethodException ignored) {
-            return null;
-        }
-    }
 
     @WrapOperation(
             method = "updateBase",
@@ -143,62 +101,35 @@ public abstract class LegacyBeaconBlockEntityYLoopMixin {
         *///?}
     }
 
-    private static Object biblioteca$textureColor(BeaconBeamBlock block) {
-        try {
-            return SECTION_CONSTRUCTOR.getParameterTypes()[0] == float[].class
-                    ? DYE_TEXTURE_COLORS.invoke(block.getColor())
-                    : DYE_TEXTURE_COLOR.invoke(block.getColor());
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Cannot read a beacon colour", exception);
-        }
-    }
-
     private static BeaconBlockEntity.BeaconBeamSection biblioteca$newSection(BeaconBeamBlock block) {
-        try {
-            return (BeaconBlockEntity.BeaconBeamSection) SECTION_CONSTRUCTOR.newInstance(
-                    biblioteca$textureColor(block));
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Cannot create a beam section", exception);
-        }
+        //? if >=1.21 {
+        return new BeaconBlockEntity.BeaconBeamSection(block.getColor().getTextureDiffuseColor());
+        //?} else {
+        /*return new BeaconBlockEntity.BeaconBeamSection(block.getColor().getTextureDiffuseColors());
+        *///?}
     }
 
-    private static boolean biblioteca$sameColor(
-            BeaconBlockEntity.BeaconBeamSection section, BeaconBeamBlock block) {
-        try {
-            Object current = SECTION_GET_COLOR.invoke(section);
-            Object next = biblioteca$textureColor(block);
-            if (current instanceof float[] currentFloats && next instanceof float[] nextFloats) {
-                return Arrays.equals(currentFloats, nextFloats);
-            }
-            return current.equals(next);
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Cannot compare beacon colours", exception);
-        }
+    private static boolean biblioteca$sameColor(BeaconBlockEntity.BeaconBeamSection section, BeaconBeamBlock block) {
+        //? if >=1.21 {
+        return section.getColor() == block.getColor().getTextureDiffuseColor();
+        //?} else {
+        /*return Arrays.equals(section.getColor(), block.getColor().getTextureDiffuseColors());
+        *///?}
     }
 
-    private static BeaconBlockEntity.BeaconBeamSection biblioteca$average(
-            BeaconBlockEntity.BeaconBeamSection section, BeaconBeamBlock block) {
-        try {
-            Object current = SECTION_GET_COLOR.invoke(section);
-            Object next = biblioteca$textureColor(block);
-            Object average;
-            if (current instanceof float[] a && next instanceof float[] b) {
-                average = new float[] {
-                        (a[0] + b[0]) * 0.5F,
-                        (a[1] + b[1]) * 0.5F,
-                        (a[2] + b[2]) * 0.5F,
-                };
-            } else {
-                int a = (Integer) current;
-                int b = (Integer) next;
-                int r = (((a >> 16) & 0xFF) + ((b >> 16) & 0xFF)) / 2;
-                int g = (((a >> 8) & 0xFF) + ((b >> 8) & 0xFF)) / 2;
-                int blue = ((a & 0xFF) + (b & 0xFF)) / 2;
-                average = 0xFF000000 | r << 16 | g << 8 | blue;
-            }
-            return (BeaconBlockEntity.BeaconBeamSection) SECTION_CONSTRUCTOR.newInstance(average);
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Cannot average beacon colours", exception);
-        }
+    private static BeaconBlockEntity.BeaconBeamSection biblioteca$average(BeaconBlockEntity.BeaconBeamSection section, BeaconBeamBlock block) {
+        //? if >=1.21 {
+        int a = section.getColor();
+        int b = block.getColor().getTextureDiffuseColor();
+        int r = (((a >> 16) & 255) + ((b >> 16) & 255)) / 2;
+        int g = (((a >> 8) & 255) + ((b >> 8) & 255)) / 2;
+        int blue = ((a & 255) + (b & 255)) / 2;
+        return new BeaconBlockEntity.BeaconBeamSection(0xff000000 | r << 16 | g << 8 | blue);
+        //?} else {
+        /*float[] a = section.getColor();
+        float[] b = block.getColor().getTextureDiffuseColors();
+        return new BeaconBlockEntity.BeaconBeamSection(new float[]{
+                (a[0] + b[0]) * 0.5f, (a[1] + b[1]) * 0.5f, (a[2] + b[2]) * 0.5f});
+        *///?}
     }
 }

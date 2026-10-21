@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -23,10 +24,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * 1. PistonBaseBlock.isPushable refuses any row outside [minY, maxY], and refuses to
  *    push down from the bottom row / up from the top row. In a ring none of those rows
  *    is special, so a piston at the bottom row simply would not push anything, which is
- *    why slime blocks could never be pushed across the border. The seam cases are
- *    answered by asking the same question about the same block one period away, where
- *    those guards do not fire; the method only inspects the pushed block itself, so the
- *    answer is identical.
+ *    why slime blocks could not be pushed across the boundary. Out-of-range positions are
+ *    normalized. At an exact edge, the check is retried at an interior row that avoids the
+ *    vertical height guard, retaining the supplied block state and push parameters.
  *
  * 2. moveBlocks places the moving-piston placeholder at the *target* position, which is
  *    out of range at the seam. Level.setBlock folds that position, but the block entity
@@ -39,14 +39,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(PistonBaseBlock.class)
 public abstract class PistonBaseBlockYLoopMixin {
 
-    private static BlockPos biblioteca$wrap(BlockPos pos, Level level) {
-        int y      = pos.getY();
-        int minY   = level.getMinY();
-        int height = level.getHeight();
-        if (y >= minY && y < minY + height) return pos;
-        return new BlockPos(pos.getX(), Math.floorMod(y - minY, height) + minY, pos.getZ());
-    }
-
     @Inject(method = "isPushable", at = @At("HEAD"), cancellable = true)
     private static void biblioteca$allowSeamRows(
             BlockState state, Level level, BlockPos pos, Direction direction,
@@ -57,12 +49,13 @@ public abstract class PistonBaseBlockYLoopMixin {
 
         int minY   = level.getMinY();
         int height = level.getHeight();
-        int maxY   = level.getMaxY();
+        int maxY   = minY + height - 1; // Legacy getMaxBuildHeight() is exclusive.
         int y      = pos.getY();
 
         if (y < minY || y > maxY) {
             cir.setReturnValue(PistonBaseBlock.isPushable(
-                    state, level, biblioteca$wrap(pos, level), direction, allowDestroyable, connectionDirection));
+                    state, level, SeamPositions.foldBlockPos(level, pos),
+                    direction, allowDestroyable, connectionDirection));
             return;
         }
 
@@ -90,10 +83,9 @@ public abstract class PistonBaseBlockYLoopMixin {
             boolean extending, boolean isSourcePiston, Operation<BlockEntity> original,
             @Local(argsOnly = true) Level level) {
 
-        BlockPos target = position;
-        if (LoopingRegistry.isLooping(level)) {
-            target = biblioteca$wrap(position, level);
-        }
+        BlockPos target = LoopingRegistry.isLooping(level)
+                ? SeamPositions.foldBlockPos(level, position)
+                : position;
         return original.call(target, blockState, movedState, direction, extending, isSourcePiston);
     }
 }
