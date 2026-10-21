@@ -142,5 +142,5 @@ height and whether Improved Transparency is enabled.
 [Release history](https://github.com/FrogBishop/Biblioteca/blob/main/CHANGELOG.md)
 
 Author: **FrogBishop**. Inspired by Jorge Luis Borges' *The Library of Babel*.
-Bug fixes and rendering work: DeepSeek-v4.1-flash. Licensed under
+Bug fixes and rendering work: DeepSeek-v4.1-flash, GPT-6-Astra. Licensed under
 [GPLv3](https://github.com/FrogBishop/Biblioteca/blob/main/LICENSE).
