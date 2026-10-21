@@ -4,6 +4,7 @@ import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamPositions;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,9 +21,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * (also at y = -64) does not match the pending prediction keyed to y = 320, the prediction times
  * out, and the placed block is rolled back visually.
  *
- * <p>2. After {@code setBlocksDirty} notifies LevelExtractor, notifications expressed in an
- * adjacent period also dirty their stored counterpart. The range checks admit only real section
- * rows. Periodic terrain copies share the source mesh; they do not have separate meshes to rebuild.
+ * <p>2. A section at either end of the world is not compiled on its own: face culling reads one row
+ * past its edge, and in a ring that row belongs to the section at the opposite end. Breaking a
+ * block on the bottom row can therefore reveal a face in the top section, and the other way round.
+ * Vanilla only dirties the neighbours inside the build height, so the section on the far side of
+ * the seam keeps its old mesh and the newly exposed face stays invisible until something else
+ * happens to rebuild it. The opposite end's section is dirtied explicitly here, using the block's
+ * own column.
+ *
+ * <p>The previous version computed the opposite row as {@code y +/- height}, which lands outside the
+ * world and is discarded by {@code SectionUpdateTracker}, so the dependency was never invalidated.
  */
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelDirtyMixin {
@@ -36,28 +44,29 @@ public abstract class ClientLevelDirtyMixin {
     }
 
     @Inject(method = "setBlocksDirty", at = @At("TAIL"))
-    private void biblioteca$mirrorSectionDirty(
+    private void biblioteca$mirrorSeamSectionDirty(
             BlockPos pos, BlockState oldState, BlockState newState, CallbackInfo ci) {
 
         ClientLevel self = (ClientLevel) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return;
 
-        int height   = self.getHeight();
-        int y        = pos.getY();
-        int sectionX = pos.getX() >> 4;
-        int sectionZ = pos.getZ() >> 4;
+        int y = pos.getY();
+        int minY = self.getMinY();
+        int maxY = self.getMaxY();
 
-        int minSection = self.getMinY() >> 4;
-        int maxSection = minSection + (self.getHeight() >> 4); // exclusive upper bound
-
-        int upSection   = (y + height) >> 4;
-        int downSection = (y - height) >> 4;
-
-        if (upSection >= minSection && upSection < maxSection) {
-            self.setSectionDirtyWithNeighbors(sectionX, upSection, sectionZ);
+        // Only the two rows that touch a seam have a face compiled against the other end.
+        int oppositeSectionY;
+        if (y == minY) {
+            oppositeSectionY = self.getMaxSectionY();
+        } else if (y == maxY) {
+            oppositeSectionY = self.getMinSectionY();
+        } else {
+            return;
         }
-        if (downSection >= minSection && downSection < maxSection) {
-            self.setSectionDirtyWithNeighbors(sectionX, downSection, sectionZ);
-        }
+
+        self.setSectionDirtyWithNeighbors(
+                SectionPos.blockToSectionCoord(pos.getX()),
+                oppositeSectionY,
+                SectionPos.blockToSectionCoord(pos.getZ()));
     }
 }

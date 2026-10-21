@@ -1,5 +1,58 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Entity searches return what is in the box on the ring. A search box within reach of a seam is
+  widened by one world height and its results are filtered by the ring position of each entity, so
+  AI goals, explosions, effects and command selectors see the entities beside them rather than
+  only the ones beside them in absolute space.
+- Explosions across the boundary damage and throw entities. The visibility samples and the
+  knockback direction use the copy of the entity nearest the blast, instead of a body a whole world
+  height away.
+- Mobs are no longer despawned when their player crosses the boundary. Distances between entities
+  are measured around the ring, which also corrects nearest-player selection, AI reach checks,
+  melee range and leashes.
+- Another player's name tag stays visible across the boundary. Entity render distance is measured
+  around the ring, which also corrects entity shadows at the seam.
+- Other players and mobs crossing the boundary move smoothly instead of snapping. Movement and
+  teleport packets choose the target copy nearest the entity, the previous position is folded with
+  it, and the "too far to interpolate" test uses the ring distance.
+- The locator bar draws each waypoint at its ring distance and pitch, so dot size and up/down
+  arrows are correct across the boundary.
+- Mobs can pathfind across the boundary. The pathfinding snapshot now answers out-of-range rows
+  from their periodic rows instead of air, path nodes and look targets are placed on the copy
+  nearest the mob, and ground navigation folds its destination before the surface search.
+- Mobs can see across the boundary: line of sight measures eye rows around the ring.
+- A spawn egg used on the top face of the top row places the mob on the ring row above instead of
+  inside the block. Entity spawning now folds the spawn position before the surface search.
+- Villagers and other entities can be attacked and interacted with across the boundary. Interaction
+  and attack reach, the client's crosshair pick, and the click location sent with an interaction
+  are all ring-aware.
+- Paintings and item frames can be placed across the boundary, including decorations that span it.
+  A hanging entity's position, bounding box and saved attachment are now folded together, and block
+  items receive the folded block position rather than an out-of-range copy.
+- Saplings on the top row grow. The bone meal build-height check and the tree height check no
+  longer treat the ring as having a ceiling; the random-tick light check already reads the open
+  sky above the top row and needed no change.
+- Faces exposed by breaking a block on either seam row are rebuilt immediately. Changing a block in
+  the bottom section also dirties the top section, and the other way round, because each compiles
+  against one row of the other.
+- A falling block that crosses the boundary is placed as a block instead of being dropped as an
+  item. The out-of-world fallback no longer reads the bottom row as "below the world".
+
+### Notes
+
+- New hooks live beside the existing ones: `EntityInterpolationYLoopMixin`,
+  `EntityTypeSpawnYLoopMixin`, `FallingBlockEntityYLoopMixin`, `HangingEntityYLoopMixin`,
+  `LivingEntitySightYLoopMixin`, `LookControlYLoopMixin`, `PathNavigationRegionYLoopMixin`,
+  `PathNavigationYLoopMixin`, `PathYLoopMixin`, `GroundPathNavigationYLoopMixin`,
+  `PlayerEntityInteractionMixin`, `PlayerInteractionLocationYLoopMixin`,
+  `AttackRangeYLoopMixin`, `SaplingBlockYLoopMixin`, `TreeFeatureYLoopMixin` (common), and
+  `ClientPacketListenerYLoopMixin`, `EntityRenderDispatcherYLoopMixin`,
+  `ProjectileUtilYLoopMixin`, `TrackedWaypointYLoopMixin` (client).
+
 ## 0.67.0
 
 ### Fixed

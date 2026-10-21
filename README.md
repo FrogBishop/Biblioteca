@@ -96,6 +96,8 @@ plant checks and block-light propagation have their own hooks where vanilla assu
 | Transparency without OIT | [LoopingTranslucency](src/client/java/babel/biblioteca/client/LoopingTranslucency.java), [TranslucentQuadOrder](src/client/java/babel/biblioteca/client/TranslucentQuadOrder.java) |
 | Weather geometry and impacts | [LoopingWeather](src/client/java/babel/biblioteca/client/LoopingWeather.java), [WeatherEffectRendererYLoopMixin](src/client/java/babel/biblioteca/client/mixin/WeatherEffectRendererYLoopMixin.java), [ClientLevelWeatherYLoopMixin](src/client/java/babel/biblioteca/client/mixin/ClientLevelWeatherYLoopMixin.java) |
 | Sound, particles and subtitles | [SeamEffects](src/main/java/babel/biblioteca/SeamEffects.java), [ServerLevelEffectsYLoopMixin](src/main/java/babel/biblioteca/mixin/ServerLevelEffectsYLoopMixin.java), [LoopingSounds](src/client/java/babel/biblioteca/client/LoopingSounds.java) |
+| Cross-seam reach, sight, AI and pathfinding | [EntitySearchYLoopMixin](src/main/java/babel/biblioteca/mixin/EntitySearchYLoopMixin.java), [EntityDistanceYLoopMixin](src/main/java/babel/biblioteca/mixin/EntityDistanceYLoopMixin.java), [PlayerEntityInteractionMixin](src/main/java/babel/biblioteca/mixin/PlayerEntityInteractionMixin.java), [AttackRangeYLoopMixin](src/main/java/babel/biblioteca/mixin/AttackRangeYLoopMixin.java), [LivingEntitySightYLoopMixin](src/main/java/babel/biblioteca/mixin/LivingEntitySightYLoopMixin.java), [PathNavigationRegionYLoopMixin](src/main/java/babel/biblioteca/mixin/PathNavigationRegionYLoopMixin.java), [LookControlYLoopMixin](src/main/java/babel/biblioteca/mixin/LookControlYLoopMixin.java), [HangingEntityYLoopMixin](src/main/java/babel/biblioteca/mixin/HangingEntityYLoopMixin.java), [EntityInterpolationYLoopMixin](src/main/java/babel/biblioteca/mixin/EntityInterpolationYLoopMixin.java) |
+| Client pick, name distance and locator bar | [ProjectileUtilYLoopMixin](src/client/java/babel/biblioteca/client/mixin/ProjectileUtilYLoopMixin.java), [EntityRenderDispatcherYLoopMixin](src/client/java/babel/biblioteca/client/mixin/EntityRenderDispatcherYLoopMixin.java), [TrackedWaypointYLoopMixin](src/client/java/babel/biblioteca/client/mixin/TrackedWaypointYLoopMixin.java) |
 
 ## Attributes and persistence
 
@@ -172,6 +174,10 @@ changing Minecraft targets. Useful regression scenarios include:
   short dimension with several periods visible at once.
 - Check rain/snow, rain impacts, local and entity sounds, subtitles and particle effects while
   standing near the boundary and while crossing it.
+- Watch a second player cross the boundary: name tag, movement, locator bar, and interaction
+  with a villager or an item frame from the other side.
+- Let a mob path across the boundary, grow a sapling on the top row, and break a block on either
+  seam row to confirm the newly exposed face appears immediately.
 - Inspect both JAR variants: every registered Mixin must have its class, and the no-render
   variant must omit the visual hooks listed in `build.gradle`.
 
