@@ -183,4 +183,4 @@ changing Minecraft targets. Useful regression scenarios include:
 - [Issue tracker](https://github.com/FrogBishop/Biblioteca/issues).
 
 Author: **FrogBishop**. Inspired by Jorge Luis Borges' *The Library of Babel*.
-Bug fixes and rendering work: DeepSeek-v4.1-flash. Licensed under [GPLv3](LICENSE).
+Bug fixes and rendering work: DeepSeek-v4.1-flash, GPT-6-Astra. Licensed under [GPLv3](LICENSE).
