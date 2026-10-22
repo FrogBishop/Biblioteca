@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.67.67
 
 ### Fixed
 
@@ -42,6 +42,13 @@
   against one row of the other.
 - A falling block that crosses the boundary is placed as a block instead of being dropped as an
   item. The out-of-world fallback no longer reads the bottom row as "below the world".
+
+### Changed
+
+- Version is now `0.67.67`.
+- Documented the ring-aware distance and search rules in the README, the performance notes and the
+  player description, and cleaned up the new hooks: sorted imports, removed a search-widening hook
+  that `Level.getEntities` now covers, and corrected comments that described the earlier behaviour.
 
 ### Notes
 

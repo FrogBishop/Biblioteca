@@ -2,7 +2,7 @@
 
 **A periodic Y axis for Minecraft dimensions.**
 
-Biblioteca **0.67.0** is a Fabric mod for Minecraft 26.3. It makes a dimension's vertical
+Biblioteca **0.67.67** is a Fabric mod for Minecraft 26.3. It makes a dimension's vertical
 coordinate periodic: the boundary at `minY` is the same place as `minY + height`. The server
 stores one period, and the client renders visible copies above and below it.
 
@@ -41,9 +41,9 @@ validates the access widener and creates these artifacts in `build/libs`:
 
 | Artifact | Purpose |
 |---|---|
-| `biblioteca-0.67.0.jar` | Complete mod for clients and servers |
-| `biblioteca-0.67.0-norender.jar` | Variant intended for dedicated servers |
-| `biblioteca-0.67.0-sources.jar` | Common and client source code |
+| `biblioteca-0.67.67.jar` | Complete mod for clients and servers |
+| `biblioteca-0.67.67-norender.jar` | Variant intended for dedicated servers |
+| `biblioteca-0.67.67-sources.jar` | Common and client source code |
 
 The no-render variant is derived from the primary JAR by removing the visual Mixin hooks and
 rewriting its manifest. It retains server logic, networking, client prediction, audio and
