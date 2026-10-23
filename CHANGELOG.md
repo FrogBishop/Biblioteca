@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.676.7
+
+### Fixed
+
+- Players and mobs crossing the boundary no longer flicker. A stepped movement path can hold rows
+  on both sides of the seam; it is unwrapped one step at a time, and a committed row that is a
+  whole period away from the row still on screen moves that row with it instead of letting the
+  renderer interpolate through the world.
+- Mobs walk to a target across the boundary. A path target was folded into the stored period,
+  which put it a whole world height away from the mob and outside the search area, so the mob
+  only acquired its target and stood still. Targets are now moved to the copy nearest the mob,
+  and the ground-surface search in front of a destination walks the ring instead of scanning
+  the whole world column below it.
+- A spawn egg used on a block one row below the top row no longer places the mob inside that
+  block. The surface search reads rows outside the world through the chunk while the entity's
+  temporary row has already been folded, so the two frames disagree and the estimate moves the
+  mob one row too low. The search now reads through the level and measures the box in the spawn
+  position's frame.
+- Tall paintings can be placed at the top of the world. The support and collision checks read
+  rows outside the world through the chunk and the section-based block scan, which answer air
+  there, so a decoration whose rows are the top row and the rows below the world failed its
+  placement test. Those checks now read through the level, which folds, and a painting can span
+  the seam at any height.
+
+### Changed
+
+- Version is now `0.676.7`.
+
+### Notes
+
+- These are follow-ups to the seam work in `0.67.67`. Each one was a place where vanilla compared
+  a folded row with an unfolded one: a stepped movement path, a path target, a decoration's
+  support scan, and the surface search under a spawn position.
+
 ## 0.67.67
 
 ### Fixed

@@ -40,7 +40,21 @@ public abstract class EntityYLoopMixin {
 
         // Fast path: almost every position is already inside the world.
         double folded = SeamPositions.foldY(level, y);
-        if (folded == y) return y;
+        double shift = y - folded;
+
+        if (shift == 0.0) {
+            // Some paths commit a target that is already inside the world but a whole period away
+            // from the row the entity is still shown at: a movement packet, a teleport that was
+            // folded before it was sent, or an interpolated step that arrived after a dropped
+            // packet. The renderer interpolates from the previous row, so without this the body
+            // sweeps through the world and vanishes for a frame or two.
+            shift = this.biblioteca$previousRowShift(level, y);
+            if (shift == 0.0) return y;
+
+            this.yo -= shift;
+            this.yOld -= shift;
+            return y;
+        }
 
         // A fold moves the position by a whole world height in a single step, and the renderer
         // interpolates from the previous tick's row. Moving that row by the same multiple of the
@@ -50,10 +64,29 @@ public abstract class EntityYLoopMixin {
         // Collapsing the previous row to the new one instead - what a teleport does - would hold
         // the camera still for one tick and then jump. Shifting both previous-position fields
         // preserves the short interpolation interval across the boundary.
-        double shift = y - folded;
         this.yo -= shift;
         this.yOld -= shift;
 
         return folded;
+    }
+
+    /**
+     * How far to move the previous row when the new row is already in range.
+     *
+     * <p>The shift is taken only when the previous row is a whole number of periods from the new
+     * one, up to a small tolerance; that is the same ring row expressed in another copy. A
+     * genuine jump of a few hundred blocks - a teleport within the world - leaves a large
+     * remainder and is left alone, so it still snaps the way it always did.
+     */
+    private double biblioteca$previousRowShift(Level level, double y) {
+        int period = level.getHeight();
+        if (period <= 0) return 0.0;
+
+        double gap = this.yOld - y;
+        double half = (double) period * 0.5;
+        if (gap <= half && gap >= -half) return 0.0;
+
+        double shift = Math.round(gap / (double) period) * (double) period;
+        return Math.abs(gap - shift) <= 16.0 ? shift : 0.0;
     }
 }

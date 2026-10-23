@@ -2,7 +2,7 @@
 
 **A periodic Y axis for Minecraft dimensions.**
 
-Biblioteca **0.67.67** is a Fabric mod for Minecraft 26.3. It makes a dimension's vertical
+Biblioteca **0.676.7** is a Fabric mod for Minecraft 26.3. It makes a dimension's vertical
 coordinate periodic: the boundary at `minY` is the same place as `minY + height`. The server
 stores one period, and the client renders visible copies above and below it.
 
@@ -41,9 +41,9 @@ validates the access widener and creates these artifacts in `build/libs`:
 
 | Artifact | Purpose |
 |---|---|
-| `biblioteca-0.67.67.jar` | Complete mod for clients and servers |
-| `biblioteca-0.67.67-norender.jar` | Variant intended for dedicated servers |
-| `biblioteca-0.67.67-sources.jar` | Common and client source code |
+| `biblioteca-0.676.7.jar` | Complete mod for clients and servers |
+| `biblioteca-0.676.7-norender.jar` | Variant intended for dedicated servers |
+| `biblioteca-0.676.7-sources.jar` | Common and client source code |
 
 The no-render variant is derived from the primary JAR by removing the visual Mixin hooks and
 rewriting its manifest. It retains server logic, networking, client prediction, audio and
@@ -81,7 +81,8 @@ observer is across the boundary. Shared helpers live in
 `EntityYLoopMixin` folds positions at `Entity.setPosRaw` and shifts previous positions by the
 same period for interpolation. Movement packet handlers separately select the nearest copy
 before vanilla validates movement. Block access, collisions, reach, neighbour updates, pistons,
-plant checks and block-light propagation have their own hooks where vanilla assumes a world edge.
+plant checks, decoration support scans, spawn surface queries and block-light propagation have
+their own hooks where vanilla assumes a world edge.
 
 Distances and search areas use the same two operations. `Entity.distanceToSqr` and the helpers
 behind it compare with the copy of the other point nearest the entity, which is what makes despawn,
@@ -185,9 +186,13 @@ changing Minecraft targets. Useful regression scenarios include:
   short dimension with several periods visible at once.
 - Check rain/snow, rain impacts, local and entity sounds, subtitles and particle effects while
   standing near the boundary and while crossing it.
-- Watch a second player cross the boundary: name tag, movement, locator bar, and interaction
-  with a villager or an item frame from the other side.
+- Watch a second player and a mob cross the boundary: name tag, movement, locator bar, and
+  interaction with a villager or an item frame from the other side.
 - Let a mob acquire a target across the boundary, path to it and land the hit.
+- Place a two-block-high painting at the top row and check that it occupies the top row and the
+  row below the world, then place a taller one that spans several rows of the ring.
+- Use a spawn egg on a block one row below the top row and on the top row itself; the mob should
+  stand on the clicked block in both cases.
 - Grow a sapling on the top row with and without `no_sky_light`, and break a block on either seam
   row to confirm the newly exposed face appears immediately.
 - Detonate a charge on either seam row and check that the entity on the other side is damaged and

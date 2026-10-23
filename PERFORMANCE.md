@@ -47,6 +47,16 @@ there is no per-tick check for it and none for entities either.
   the vanilla code path, so ordinary AI, collision and item queries are unaffected.
 - **Explosions:** entity damage and knockback read the copy of the entity nearest the blast; this is
   one fold per affected entity.
+- **Entity position commits:** the commit point compares the new row with the previous one; the
+  common case is two comparisons. Only a row a whole world height away from the previous one pays
+  for a rounding and a shift of the two previous-position fields.
+- **Path requests:** each named target is moved to the copy nearest the mob with one rounding; the
+  search itself is unchanged. The ground-surface search uses level reads bounded by one world
+  height instead of a chunk scan of the whole column.
+- **Spawning and decorations:** the spawn surface query is repeated with ring-aware reads only when
+  its area leaves the world; ordinary spawning keeps the vanilla path. A hanging entity's support
+  and collision checks run when it is placed and every 100 ticks, and read only the cells its box
+  covers.
 
 ## Known ceiling
 
@@ -91,6 +101,8 @@ test.
 - The cached per-level looping flag on entity, block-entity, beacon and cloud paths.
 - A distance fast path that leaves same-side queries untouched, and a seam margin that leaves
   entity searches away from the boundary on the vanilla path.
+- Placement and position hooks fall back to the vanilla path when the query or the committed row
+  stays inside one period.
 - Period-offset scanning covers every potentially visible layer, including short worlds.
 
 ## How to measure

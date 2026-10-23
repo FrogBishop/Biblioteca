@@ -28,7 +28,8 @@ import java.util.List;
  *   <li>{@code ClientPacketListener} treats the 384 block gap as "too big to interpolate" and
  *       snaps;</li>
  *   <li>the interpolation handler would still be handed the far copy and would walk the entity
- *       through the world during its interpolation steps.</li>
+ *       through the world during its interpolation steps, including along a stepped path whose
+ *       steps straddle the seam.</li>
  * </ul>
  *
  * <p>Both are fixed here, at the two places every path funnels through: the interpolation target
@@ -46,6 +47,13 @@ public abstract class EntityInterpolationYLoopMixin {
     /**
      * Chooses the copy of an interpolation target nearest the entity, so the interpolation runs
      * over one ring step rather than a whole world height.
+     *
+     * <p>A stepped path is unwrapped step by step, not shifted as a whole. The server buffers the
+     * positions of the last few ticks and sends them together, so one path can hold rows on both
+     * sides of the seam; shifting all of them by the end's period would move the earlier steps a
+     * whole world height away from the entity and the interpolation would sweep through the world
+     * before arriving. Each step is instead placed on the copy nearest the step before it, which
+     * keeps the path continuous across the boundary and leaves a path away from the seam untouched.
      */
     @ModifyVariable(
             method = "moveOrInterpolateTo(Lnet/minecraft/world/entity/PositionPath;FFZ)V",
@@ -58,23 +66,29 @@ public abstract class EntityInterpolationYLoopMixin {
         if (period <= 0) return path;
 
         double currentY = this.position().y;
-        long layers = SeamPositions.layer(path.endPosition().y, currentY, period);
-        if (layers == 0L) return path;
-
-        double shift = (double) layers * period;
 
         return switch (path) {
-            case PositionPath.Linear linear ->
-                    PositionPath.of(linear.endPosition().add(0.0, shift, 0.0));
+            case PositionPath.Linear linear -> {
+                Vec3 end = linear.endPosition();
+                double folded = SeamPositions.foldToward(end.y, currentY, period);
+                yield folded == end.y ? path : PositionPath.of(new Vec3(end.x, folded, end.z));
+            }
             case PositionPath.Stepped stepped -> {
+                double reference = currentY;
+                boolean moved = false;
                 List<PositionStep> steps = new ArrayList<>(stepped.steps().size());
                 for (PositionStep step : stepped.steps()) {
-                    steps.add(new PositionStep(step.position().add(0.0, shift, 0.0), step.tickOffset()));
+                    Vec3 point = step.position();
+                    double folded = SeamPositions.foldToward(point.y, reference, period);
+                    moved |= folded != point.y;
+                    steps.add(new PositionStep(new Vec3(point.x, folded, point.z), step.tickOffset()));
+                    reference = folded;
                 }
 
-                yield new PositionPath.Stepped(
-                        stepped.endPosition().add(0.0, shift, 0.0),
-                        steps);
+                Vec3 end = stepped.endPosition();
+                double foldedEnd = SeamPositions.foldToward(end.y, reference, period);
+                moved |= foldedEnd != end.y;
+                yield moved ? new PositionPath.Stepped(new Vec3(end.x, foldedEnd, end.z), steps) : path;
             }
         };
     }
