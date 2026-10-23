@@ -31,8 +31,8 @@ public final class LoopingLight {
 
     /** Folds a packed block node's Y into this level's rows. Returns it unchanged when in range. */
     public static long foldBlockNode(long blockNode, Level level) {
-        int minY   = level.getMinY();
-        int height = level.getHeight();
+        int minY   = Compat.minY(level);
+        int height = Compat.height(level);
         int y      = BlockPos.getY(blockNode);
         if (y >= minY && y < minY + height) return blockNode;
 

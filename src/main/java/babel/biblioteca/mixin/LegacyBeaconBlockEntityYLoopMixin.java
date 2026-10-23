@@ -1,5 +1,7 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -12,6 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayList;
@@ -25,6 +28,7 @@ import java.util.List;
 @Mixin(BeaconBlockEntity.class)
 public abstract class LegacyBeaconBlockEntityYLoopMixin {
 
+//? if >=1.17 {
     @WrapOperation(
             method = "updateBase",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinY()I"))
@@ -32,16 +36,35 @@ public abstract class LegacyBeaconBlockEntityYLoopMixin {
         return LoopingRegistry.isLooping(level) ? Integer.MIN_VALUE : original.call(level);
     }
 
-    @Inject(method = "tick", at = @At("TAIL"))
-    private static void biblioteca$ringBeam(
-            Level level, BlockPos pos, BlockState selfState, BeaconBlockEntity entity, CallbackInfo ci) {
 
+//?} else {
+/*    @ModifyVariable(method = "updateBase", at = @At("HEAD"), argsOnly = true, ordinal = 1)
+    private int biblioteca$legacyBaseRow(int y) {
+        Level level = ((BeaconBlockEntity) (Object) this).getLevel();
+        return LoopingRegistry.isLooping(level) ? y + Compat.height(level) : y;
+    }
+
+*///?}
+    //? if >=1.17 {
+    @Inject(method = "tick", at = @At("TAIL"))
+    private static void biblioteca$ringBeam(Level level, BlockPos pos, BlockState state, BeaconBlockEntity entity, CallbackInfo ci) {
+        biblioteca$updateBeam(level, pos, entity);
+    }
+    //?} else {
+    /*@Inject(method = "tick", at = @At("TAIL"))
+    private void biblioteca$ringBeam(CallbackInfo ci) {
+        BeaconBlockEntity entity = (BeaconBlockEntity) (Object) this;
+        biblioteca$updateBeam(entity.getLevel(), entity.getBlockPos(), entity);
+    }
+    *///?}
+
+    private static void biblioteca$updateBeam(Level level, BlockPos pos, BeaconBlockEntity entity) {
         if (!LoopingRegistry.isLooping(level)) return;
 
         LegacyBeaconBlockEntityAccessor accessor = (LegacyBeaconBlockEntityAccessor) entity;
 
         if (!LoopingRegistry.beaconsIgnoreSky(level)) {
-            if (!entity.getBeamSections().isEmpty()) {
+            if (!accessor.biblioteca$getBeamSections().isEmpty()) {
                 accessor.biblioteca$setBeamSections(new ArrayList<>());
             }
             accessor.biblioteca$setLevels(0);
@@ -56,8 +79,8 @@ public abstract class LegacyBeaconBlockEntityYLoopMixin {
     private static List<BeaconBlockEntity.BeaconBeamSection> biblioteca$scanAroundTheRing(
             Level level, BlockPos origin) {
 
-        int period = level.getHeight();
-        int minY = level.getMinY();
+        int period = Compat.height(level);
+        int minY = Compat.minY(level);
         int x = origin.getX();
         int z = origin.getZ();
 
@@ -111,22 +134,22 @@ public abstract class LegacyBeaconBlockEntityYLoopMixin {
 
     private static boolean biblioteca$sameColor(BeaconBlockEntity.BeaconBeamSection section, BeaconBeamBlock block) {
         //? if >=1.21 {
-        return section.getColor() == block.getColor().getTextureDiffuseColor();
+        return ((LegacyBeaconBeamSectionAccessor) section).biblioteca$color() == block.getColor().getTextureDiffuseColor();
         //?} else {
-        /*return Arrays.equals(section.getColor(), block.getColor().getTextureDiffuseColors());
+        /*return Arrays.equals(((LegacyBeaconBeamSectionAccessor) section).biblioteca$color(), block.getColor().getTextureDiffuseColors());
         *///?}
     }
 
     private static BeaconBlockEntity.BeaconBeamSection biblioteca$average(BeaconBlockEntity.BeaconBeamSection section, BeaconBeamBlock block) {
         //? if >=1.21 {
-        int a = section.getColor();
+        int a = ((LegacyBeaconBeamSectionAccessor) section).biblioteca$color();
         int b = block.getColor().getTextureDiffuseColor();
         int r = (((a >> 16) & 255) + ((b >> 16) & 255)) / 2;
         int g = (((a >> 8) & 255) + ((b >> 8) & 255)) / 2;
         int blue = ((a & 255) + (b & 255)) / 2;
         return new BeaconBlockEntity.BeaconBeamSection(0xff000000 | r << 16 | g << 8 | blue);
         //?} else {
-        /*float[] a = section.getColor();
+        /*float[] a = ((LegacyBeaconBeamSectionAccessor) section).biblioteca$color();
         float[] b = block.getColor().getTextureDiffuseColors();
         return new BeaconBlockEntity.BeaconBeamSection(new float[]{
                 (a[0] + b[0]) * 0.5f, (a[1] + b[1]) * 0.5f, (a[2] + b[2]) * 0.5f});

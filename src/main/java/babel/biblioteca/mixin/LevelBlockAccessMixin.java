@@ -85,4 +85,8 @@ public abstract class LevelBlockAccessMixin {
     private BlockPos biblioteca$wrapLoadedAndEntityCanStandOnFace(BlockPos pos) {
         return biblioteca$fold(pos);
     }
+    //? if <1.17 {
+    /*@ModifyVariable(method = "setBlockEntity", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private BlockPos biblioteca$wrapCreatedBlockEntity(BlockPos pos) { return biblioteca$fold(pos); }
+    *///?}
 }

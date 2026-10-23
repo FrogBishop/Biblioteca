@@ -3,7 +3,6 @@ package babel.biblioteca.client;
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.Compat;
 import babel.biblioteca.network.LoopingStatePayload;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
@@ -49,7 +48,7 @@ public final class LoopingDimensionCache {
     private static void fill(Set<ResourceKey<Level>> target, Set<String> keys) {
         target.clear();
         for (String key : keys) {
-            target.add(ResourceKey.create(Registries.DIMENSION, Compat.parseId(key)));
+            target.add(Compat.dimensionKey(Compat.parseId(key)));
         }
     }
 

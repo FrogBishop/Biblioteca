@@ -28,14 +28,26 @@ public final class WeatherCompat {
         //? if >=26.2 {
         return ((ClientLevel) level).getPrecipitationAt(pos);
         //?} else {
-        /*if (!level.getChunkSource().hasChunk(SectionPos.blockToSectionCoord(pos.getX()), SectionPos.blockToSectionCoord(pos.getZ()))) {
+        /*if (!level.getChunkSource().hasChunk(SectionPos.blockToSectionCoord(pos.getX()), SectionPos.blockToSectionCoord(pos.getZ())))
             return Biome.Precipitation.NONE;
-        }
         //? if >=1.21.2 {
         return level.getBiome(pos).value().getPrecipitationAt(pos, level.getSeaLevel());
+        //?} else if >=1.19.4 {
+        return level.getBiome(pos).value().getPrecipitationAt(pos);
         //?} else {
-        /^return level.getBiome(pos).value().getPrecipitationAt(pos);
-        ^///?}
+        //? if >=1.18.2 {
+        Biome biome = level.getBiome(pos).value();
+        //?} else {
+        Biome biome = level.getBiome(pos);
+        //?}
+        if (biome.getPrecipitation() == Biome.Precipitation.NONE) return Biome.Precipitation.NONE;
+        //? if >=1.18 {
+        boolean warm = biome.warmEnoughToRain(pos);
+        //?} else {
+        boolean warm = biome.getTemperature(pos) >= 0.15f;
+        //?}
+        return warm ? Biome.Precipitation.RAIN : Biome.Precipitation.SNOW;
+        //?}
         *///?}
     }
 

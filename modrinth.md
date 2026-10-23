@@ -9,7 +9,7 @@ arrive at the top. Biblioteca makes the two sides neighbours, with continuous mo
 repeating view of the world above and below you.
 
 The place where the top and bottom meet is the **boundary**. In a normal Overworld, it joins
-`y = 320` to `y = -64`.
+`y = 320` to `y = -64` from 1.18 onward; in the vanilla 1.16.5/1.17 Overworld it joins `y = 256` to `y = 0`.
 
 Looping is optional for each dimension and works with existing worlds. The mod keeps normal
 world generation and adds no blocks, items or world types. Existing terrain, including bedrock,
@@ -19,6 +19,12 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 
 - Enable looping independently for the Overworld, Nether, End or a modded dimension.
 - Build and interact across the boundary, with block and entity collisions in the right places.
+- Attack and interact with creatures across the boundary; explosions, mob sight and navigation
+  use their nearby positions around the loop.
+- Watch players and mobs cross smoothly, with nearby name tags and, on versions that include
+  it, correct locator-bar distances and arrows.
+- Place paintings and item frames across the boundary, spawn creatures above the top rows,
+  grow top-row saplings and let falling blocks cross before settling.
 - Use fluids, redstone, pistons and supported plant growth across the top and bottom.
 - See repeated terrain, nearby entities and block entities, periodic beacon beams and clouds.
 - See rain and snow across the boundary, with rain splashes, hot-surface smoke and impact sounds.
@@ -28,8 +34,10 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 ## Requirements and installation
 
 - **Fabric Loader 0.19.5 or newer** and **Fabric API** for your Minecraft version.
-- Supported releases: **1.20.4–1.20.6**, **1.21 and 1.21.1–1.21.11**, **26.1–26.1.2**, **26.2**, **26.3**.
-- Java **17** for 1.20.4, **21** for 1.20.5–1.21.11, or **25** for 26.1 and newer.
+- Supported releases: **1.16.5**, **1.17–1.17.1**, **1.18–1.18.2**, **1.19–1.19.4**, **1.20–1.20.6**, **1.21–1.21.11**, **26.1–26.1.2**, **26.2**, **26.3**.
+- Java **17** for 1.16.5–1.20.4, **21** for 1.20.5–1.21.11, or **25** for 26.1 and newer.
+
+The 1.16.5 and 1.17 builds also need Java 17 or newer.
 
 Choose the JAR whose `+<minecraft version>` suffix matches your game exactly. Every supported
 version includes the visual loop and sorted translucent terrain.

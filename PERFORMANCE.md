@@ -39,6 +39,19 @@ packets and effects. Entity positions are folded at their single commit point. T
 `Seam crossings` statistic is awarded from the movement packet that changes the ring copy, so
 there is no per-tick check for it and none for entities either.
 
+Entity distance queries leave rows within half a world height unchanged. Searches farther than
+16 rows from both boundaries use vanilla's candidate area. Near a boundary, the area is moved
+into the stored period and widened by one height, then candidate boxes are tested in the query's
+own frame. Only matching entities consume the result limit. Delegating overloads share the
+widened box; independent queries made inside a predicate still perform their own fold.
+This can inspect more entities in the same columns, especially in height-16 dimensions, where
+every query is near a seam. Stored entities and world data are not duplicated.
+
+Ground destination scans stop after at most one period in each direction. Spawn and decoration
+collision/support scans are bounded by their query boxes. Interpolation targets are adjusted as
+they are consumed; 26.3 stepped paths are unwrapped when a packet arrives and append in the
+existing buffered path's frame.
+
 ## Known ceiling
 
 Draw-command submission remains a ceiling, especially in short worlds. Height 16 at 32 chunks
@@ -112,3 +125,16 @@ values do not tint the repeated layers toward the fog colour.
 The exact-version artifacts do not imply identical frame times across rendering generations.
 Compare each version against its own vanilla path and record GPU/driver, Java version and graphics
 options alongside results. Automated data tests do not measure real GPU performance.
+
+## Older renderer and storage paths
+
+1.16.5 uses native fixed-function material state and shared VBOs, with an additional global alpha
+index stream. 1.17/1.18 capture centres from actual vertex uploads and restore native VAO/index
+bindings after sorted draws. These paths keep one source mesh per section, as the newer paths do.
+Before 1.20.2, visible periodic sources are added to the native compilation/render list; later
+versions use SectionOcclusionGraph. Snapshot sampling before 1.18 folds during array creation,
+so ordinary mesh reads retain their constant-time local index lookup.
+
+1.16.5 stores entities in chunks instead of the later LevelEntityGetter; both paths keep physical
+storage unchanged and widen/filter the public query. The oldest API returns collision streams
+and accepts a caller predicate, which is preserved when adding periodic collision shapes.

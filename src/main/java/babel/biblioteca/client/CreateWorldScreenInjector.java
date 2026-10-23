@@ -1,5 +1,7 @@
 package babel.biblioteca.client;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.PendingLoopingConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
@@ -22,14 +24,11 @@ public final class CreateWorldScreenInjector {
 
     /** One More-tab row, sized like the Game Rules / Experiments / Data Packs buttons above it. */
     public static Button createButton(CreateWorldScreen parent) {
-        return Button.builder(
-                Component.translatable("biblioteca.gui.looping_button"),
-                button -> openConfig(parent))
-                .width(210)
-                .build();
+        return ClientCompat.button(Compat.translatable("biblioteca.gui.looping_button"),
+                0, 0, 210, 20, button -> openConfig(parent));
     }
 
-    private static void openConfig(CreateWorldScreen parent) {
+    public static void openConfig(CreateWorldScreen parent) {
         Set<ResourceKey<Level>> looping = PendingLoopingConfig.hasPending()
                 ? PendingLoopingConfig.getPendingLooping()
                 : Set.of();

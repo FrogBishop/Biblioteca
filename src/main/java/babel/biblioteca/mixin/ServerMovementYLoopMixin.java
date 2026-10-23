@@ -1,5 +1,7 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamPositions;
 import babel.biblioteca.SeamStats;
@@ -18,6 +20,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 public abstract class ServerMovementYLoopMixin {
     @Shadow public ServerPlayer player;
 
+//? if >=1.17 {
     @ModifyArg(
             //? if >=26.3 {
             method = "handlePlayerPositionChange",
@@ -25,21 +28,34 @@ public abstract class ServerMovementYLoopMixin {
             /*method = "handleMovePlayer",
             *///?}
             at = @At(value = "INVOKE", target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;clampVertical(D)D"), index = 0)
+
+//?} else {
+/*    @ModifyExpressionValue(method = "handleMovePlayer", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/network/protocol/game/ServerboundMovePlayerPacket;getY(D)D"))
+
+*///?}
     private double biblioteca$foldRequestedPlayerY(double requestedY) {
         if (this.player.isPassenger()) return requestedY;
         return biblioteca$requestedY(requestedY, this.player);
     }
 
+//? if >=1.17 {
     @ModifyArg(method = "handleMoveVehicle", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;clampVertical(D)D"), index = 0)
+
+//?} else {
+/*    @ModifyExpressionValue(method = "handleMoveVehicle", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/network/protocol/game/ServerboundMoveVehiclePacket;getY()D"))
+
+*///?}
     private double biblioteca$foldRequestedVehicleY(double requestedY) {
         return biblioteca$requestedY(requestedY, this.player.getRootVehicle());
     }
 
     private double biblioteca$requestedY(double requestedY, Entity reference) {
-        Level level = reference.level();
+        Level level = Compat.level(reference);
         if (!LoopingRegistry.isLooping(level)) return requestedY;
-        double folded = SeamPositions.foldToward(requestedY, reference.getY(), level.getHeight());
+        double folded = SeamPositions.foldToward(requestedY, reference.getY(), Compat.height(level));
         if (folded != requestedY) SeamStats.awardCrossing(this.player);
         return folded;
     }
@@ -63,8 +79,8 @@ public abstract class ServerMovementYLoopMixin {
 
     /** More than one packet can arrive in a tick, after the committed position has wrapped. */
     private double biblioteca$baselineY(double y, Entity reference) {
-        Level level = reference.level();
+        Level level = Compat.level(reference);
         return LoopingRegistry.isLooping(level)
-                ? SeamPositions.foldToward(y, reference.getY(), level.getHeight()) : y;
+                ? SeamPositions.foldToward(y, reference.getY(), Compat.height(level)) : y;
     }
 }

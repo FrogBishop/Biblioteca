@@ -1,5 +1,7 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -90,8 +92,8 @@ public abstract class BeaconBlockEntityYLoopMixin {
     }
 
     private static List<BeaconBeamOwner.Section> biblioteca$scanAroundTheRing(Level level, BlockPos origin) {
-        int period = level.getHeight();
-        int minY   = level.getMinY();
+        int period = Compat.height(level);
+        int minY   = Compat.minY(level);
         int x      = origin.getX();
         int z      = origin.getZ();
 

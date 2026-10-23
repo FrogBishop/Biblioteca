@@ -1,6 +1,10 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.core.Vec3i;
@@ -22,6 +26,7 @@ public abstract class LegacyReachMixin {
     @Shadow protected ServerLevel level;
     @Shadow protected ServerPlayer player;
 
+    //? if >=1.19 {
     @WrapOperation(
             method = "handleBlockBreakAction",
             at = @At(value = "INVOKE",
@@ -32,11 +37,19 @@ public abstract class LegacyReachMixin {
         ServerLevel level = this.level;
         if (level == null || !LoopingRegistry.isLooping(level)) return centre;
 
-        int period = level.getHeight();
+        int period = Compat.height(level);
         if (period <= 0) return centre;
 
-        double eyeY = this.player.getEyePosition().y;
+        double eyeY = this.player.getEyeY();
         double y = centre.y + Math.round((eyeY - centre.y) / period) * (double) period;
         return new Vec3(centre.x, y, centre.z);
     }
+    //?} else {
+    /*@ModifyExpressionValue(method = "handleBlockBreakAction", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/core/BlockPos;getY()I", ordinal = 0))
+    private int biblioteca$nearBreakTarget(int y) {
+        return LoopingRegistry.isLooping(this.level)
+                ? (int) SeamPositions.foldToward(y, this.player.getY(), Compat.height(this.level)) : y;
+    }
+    *///?}
 }

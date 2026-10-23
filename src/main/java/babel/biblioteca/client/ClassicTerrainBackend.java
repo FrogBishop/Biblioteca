@@ -24,14 +24,13 @@ public final class ClassicTerrainBackend implements AutoCloseable {
                            int period, Vec3 camera, double distance, PeriodicTerrainPlan.Visibility visible) {
         List<PeriodicTerrainPlan.Source<VertexBuffer>> sources = new ArrayList<>();
         for (SectionRenderDispatcher.RenderSection section : sections) {
-            if (section.getCompiled().isEmpty(layer)) continue;
+            if (ClientCompat.empty(section, layer)) continue;
             VertexBuffer buffer = section.getBuffer(layer);
-            if (buffer.isInvalid()) continue;
             LegacyVertexData data = (LegacyVertexData) buffer;
-            if (data.biblioteca$indexCount() <= 0) continue;
+            if (!data.biblioteca$valid() || data.biblioteca$indexCount() <= 0) continue;
             BlockPos origin = ClientCompat.origin(section);
             sources.add(new PeriodicTerrainPlan.Source<>(buffer, origin.getX(), origin.getY(), origin.getZ(),
-                    data.biblioteca$indexCount(), data.biblioteca$indexType().bytes, data.biblioteca$centers()));
+                    data.biblioteca$indexCount(), data.biblioteca$indexBytes(), data.biblioteca$centers()));
         }
         var copies = PeriodicTerrainPlan.copies(sources, period, camera, distance, visible);
         var result = plans.computeIfAbsent(layer, key -> new PeriodicTerrainPlan<>()).sort(copies, camera);
@@ -48,11 +47,11 @@ public final class ClassicTerrainBackend implements AutoCloseable {
             LegacyVertexData data = (LegacyVertexData) buffer;
             offset.set((float) (copy.x() - camera.x), (float) (copy.y() - camera.y), (float) (copy.z() - camera.z));
             offset.upload();
-            buffer.bind();
+            data.biblioteca$bindForDraw();
             if (draw.sorted()) {
                 GlStateManager._glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, this.indexBuffer);
                 try {
-                    GlStateManager._drawElements(layer.mode().asGLMode, draw.indexCount(), data.biblioteca$indexType().asGLType,
+                    GlStateManager._drawElements(layer.mode().asGLMode, draw.indexCount(), data.biblioteca$indexGlType(),
                             (long) draw.firstIndex() * copy.source().indexBytes());
                 } finally {
                     data.biblioteca$restoreIndices();
@@ -62,6 +61,9 @@ public final class ClassicTerrainBackend implements AutoCloseable {
             }
         }
         VertexBuffer.unbind();
+        //? if <1.19 {
+        /*VertexBuffer.unbindVertexArray();
+        *///?}
     }
 
     @Override public void close() {

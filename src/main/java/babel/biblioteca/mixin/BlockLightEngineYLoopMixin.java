@@ -1,7 +1,11 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
 import babel.biblioteca.LoopingLight;
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.core.BlockPos;
@@ -36,7 +40,11 @@ public abstract class BlockLightEngineYLoopMixin {
     @Unique private Level biblioteca$level;
 
     @WrapOperation(
+            //? if >=1.20 {
             method = {"propagateIncrease", "propagateDecrease"},
+            //?} else {
+            /*method = {"checkNeighborsAfterUpdate", "getComputedLevel"},
+            *///?}
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/core/BlockPos;offset(JLnet/minecraft/core/Direction;)J"))
     private long biblioteca$foldNeighbour(long fromNode, Direction direction, Operation<Long> original) {
@@ -56,4 +64,15 @@ public abstract class BlockLightEngineYLoopMixin {
 
         return LoopingLight.foldBlockNode(toNode, level);
     }
+
+    //? if <1.20 {
+    /*@ModifyExpressionValue(method = "computeLevelFromNeighbor", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/core/BlockPos;getY(J)I", ordinal = 0))
+    private int biblioteca$ringDirection(int targetY, @Local(argsOnly = true, ordinal = 0) long from) {
+        if (from == Long.MAX_VALUE) return targetY;
+        Level level = LoopingLight.levelOf(((LightEngineAccessor) (Object) this).biblioteca$chunkSource());
+        if (level == null || !LoopingRegistry.isLooping(level)) return targetY;
+        return (int) SeamPositions.foldToward(targetY, BlockPos.getY(from), Compat.height(level));
+    }
+    *///?}
 }

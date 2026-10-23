@@ -6,7 +6,12 @@ import babel.biblioteca.SeamPositions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LightChunkGetter;
+//? if >=1.20 {
 import net.minecraft.world.level.lighting.LightEngine;
+//?} else {
+/*import net.minecraft.world.level.lighting.LayerLightEngine;
+*///?}
+
 import net.minecraft.world.level.lighting.SkyLightEngine;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -35,7 +40,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * there instead of letting the light fall off the world. {@link BlockLightEngineYLoopMixin} handles
  * propagation, which is the other half of the same problem.
  */
+//? if >=1.20 {
 @Mixin(LightEngine.class)
+//?} else {
+/*@Mixin(LayerLightEngine.class)
+*///?}
+
 public abstract class LightEngineYLoopMixin {
 
     @Shadow @Final protected LightChunkGetter chunkSource;

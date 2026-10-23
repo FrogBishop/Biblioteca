@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.ClientCompat;
 import net.minecraft.world.level.block.entity.BeaconBlockEntity;
@@ -55,7 +57,7 @@ public abstract class LegacyBlockEntityRenderYLoopMixin {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || !LoopingRegistry.isLooping(minecraft.level)) return 0.0;
 
-        int period = minecraft.level.getHeight();
+        int period = Compat.height(minecraft.level);
         if (period <= 0) return 0.0;
 
         double cameraY = ClientCompat.cameraPosition().y;

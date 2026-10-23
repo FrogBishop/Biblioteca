@@ -1,5 +1,7 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
@@ -31,10 +33,10 @@ public abstract class LegacyBlockReachMixin {
     @ModifyVariable(method = "canInteractWithBlock", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$nearestCopy(BlockPos pos) {
         Player self = (Player) (Object) this;
-        Level level = self.level();
+        Level level = Compat.level(self);
         if (!LoopingRegistry.isLooping(level)) return pos;
 
-        int period = level.getHeight();
+        int period = Compat.height(level);
         if (period <= 0) return pos;
 
         double eyeY = self.getEyePosition().y;

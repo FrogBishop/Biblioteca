@@ -4,7 +4,12 @@ import babel.biblioteca.Biblioteca;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
+//? if >=1.19 {
 import net.minecraft.client.OptionInstance;
+//?} else {
+/*import net.minecraft.client.ProgressOption;
+*///?}
+
 import net.minecraft.client.Options;
 import net.minecraft.util.Mth;
 
@@ -64,6 +69,7 @@ public final class LoopingClientSettings {
     }
 
     /** The slider that appears in the video settings screen. */
+//? if >=1.19 {
     public static OptionInstance<Integer> createPreloadOption() {
         return new OptionInstance<>(
                 "biblioteca.options.preload",
@@ -74,6 +80,17 @@ public final class LoopingClientSettings {
                 LoopingClientSettings::setPreloadSections);
     }
 
+
+//?} else {
+/*    public static ProgressOption createPreloadOption() {
+        return new ProgressOption("biblioteca.options.preload", MIN_PRELOAD_SECTIONS, MAX_PRELOAD_SECTIONS, 1.0f,
+                options -> (double) preloadSections(),
+                (options, value) -> setPreloadSections((int) Math.round(value)),
+                (options, option) -> babel.biblioteca.Compat.translatable("options.generic_value",
+                        babel.biblioteca.Compat.translatable("biblioteca.options.preload"), preloadSections()));
+    }
+
+*///?}
     private static Path file() {
         return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
     }
@@ -83,7 +100,7 @@ public final class LoopingClientSettings {
         if (!Files.isRegularFile(path)) return;
 
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8))
+            JsonObject root = new JsonParser().parse(Files.readString(path, StandardCharsets.UTF_8))
                     .getAsJsonObject();
             if (root.has(PRELOAD_KEY)) {
                 preloadSections = Mth.clamp(root.get(PRELOAD_KEY).getAsInt(),

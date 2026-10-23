@@ -11,7 +11,11 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 public abstract class ClientLevelSoundYLoopMixin {
 
     @ModifyVariable(
+            //? if >=1.19 {
             method = "playSound(DDDLnet/minecraft/sounds/SoundEvent;Lnet/minecraft/sounds/SoundSource;FFZJ)V",
+            //?} else {
+            /*method = "playLocalSound(DDDLnet/minecraft/sounds/SoundEvent;Lnet/minecraft/sounds/SoundSource;FFZ)V",
+            *///?}
             at = @At("HEAD"), argsOnly = true, ordinal = 1)
     private double biblioteca$nearestSoundY(double y) {
         return LoopingSounds.nearestY(y);

@@ -21,10 +21,11 @@ def verify(config_file, side, java, checks=False):
     target = ROOT / 'build/validation' / config['minecraft'] / side
     target.mkdir(parents=True, exist_ok=True)
     cp = config['serverClasspath' if side == 'server' else 'classpath']
+    cp = cp + [str(ROOT / 'build/validation' / config['minecraft'] / 'verifier')]
     if checks:
         cp = cp + [str(ROOT / 'build/validation' / config['minecraft'] / 'checks')]
-    args = ['-Djava.awt.headless=true', '--add-modules=jdk.zipfs', '--class-path', quote(os.pathsep.join(cp)),
-            quote(ROOT / 'tools/MatrixMixinVerifier.java'), quote(config_file), side, quote(target / 'run')]
+    args = ['-Djava.awt.headless=true', '-Duser.language=en', '-Dfile.encoding=UTF-8', '--add-modules=jdk.zipfs', '--class-path', quote(os.pathsep.join(cp)),
+            'MatrixMixinVerifier', quote(config_file), side, quote(target / 'run')]
     if checks:
         args.append(quote(ROOT / 'build/validation' / config['minecraft'] / 'checks'))
     argfile = target / 'java.args'
@@ -58,15 +59,26 @@ def main():
         raise SystemExit('No runtime configurations; run Gradle writeValidationConfig first.')
     if selected - {p.stem for p in configs}:
         raise SystemExit('Missing runtime configurations for ' + ', '.join(sorted(selected - {p.stem for p in configs})))
-    if args.checks:
-        for config_file in configs:
-            config = json.loads(config_file.read_text(encoding='utf-8'))
+    for config_file in configs:
+        config = json.loads(config_file.read_text(encoding='utf-8'))
+        # Compile in a separate process so javac's JAR filesystems are closed before Fabric remaps mods.
+        verifier = ROOT / 'build/validation' / config['minecraft'] / 'verifier'
+        verifier.mkdir(parents=True, exist_ok=True)
+        compile_args = ['-encoding', 'UTF-8', '--release', config['java'], '-cp', quote(os.pathsep.join(config['classpath'])),
+                        '-d', quote(verifier), quote(ROOT / 'tools/MatrixMixinVerifier.java')]
+        argfile = verifier.parent / 'verifier-compile.args'
+        argfile.write_text('\n'.join(compile_args) + '\n', encoding='utf-8')
+        with (verifier.parent / 'verifier-compile.log').open('w', encoding='utf-8') as log:
+            result = subprocess.run([args.javac, '@' + str(argfile)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+        if result.returncode:
+            raise SystemExit(f"Verifier compilation failed: {verifier.parent / 'verifier-compile.log'}")
+        if args.checks:
             target = ROOT / 'build/validation' / config['minecraft'] / 'checks'
             target.mkdir(parents=True, exist_ok=True)
             sources = list((ROOT / 'tools/validation').glob('*.java'))
             if config['minecraft'] == '26.3':
                 sources.append(ROOT / 'tools/validation/renderpearl/RenderingChecks.java')
-            compile_args = ['--release', config['java'], '-cp', quote(os.pathsep.join(config['classpath'])), '-d', quote(target)]
+            compile_args = ['-encoding', 'UTF-8', '--release', config['java'], '-cp', quote(os.pathsep.join(config['classpath'])), '-d', quote(target)]
             compile_args.extend(map(quote, sources))
             argfile = target.parent / 'checks-compile.args'
             argfile.write_text('\n'.join(compile_args) + '\n', encoding='utf-8')

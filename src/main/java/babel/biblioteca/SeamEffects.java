@@ -49,7 +49,7 @@ public final class SeamEffects {
 
         if (!LoopingRegistry.isLooping(level)) return false;
 
-        int period = level.getHeight();
+        int period = Compat.height(level);
         if (period <= 0) return false;
 
         double rangeSquared = range * range;
@@ -58,7 +58,7 @@ public final class SeamEffects {
 
         for (int i = 0; i < players.size(); i++) {
             ServerPlayer player = players.get(i);
-            if (player == except || player.level() != level) continue;
+            if (player == except || Compat.level(player) != level) continue;
 
             double foldedY = foldToward(y, player.getY(), period);
 
@@ -95,7 +95,7 @@ public final class SeamEffects {
 
         if (!LoopingRegistry.isLooping(level)) return -1;
 
-        int period = level.getHeight();
+        int period = Compat.height(level);
         if (period <= 0) return -1;
 
         List<ServerPlayer> players = level.players();
@@ -104,11 +104,11 @@ public final class SeamEffects {
 
         for (int i = 0; i < players.size(); i++) {
             ServerPlayer player = players.get(i);
-            if (player.level() != level) continue;
+            if (Compat.level(player) != level) continue;
 
             double foldedY = foldToward(y, player.getY(), period);
 
-            if (!player.blockPosition().closerToCenterThan(new Vec3(x, foldedY, z), range)) continue;
+            if (Vec3.atCenterOf(player.blockPosition()).distanceToSqr(x, foldedY, z) >= range * range) continue;
 
             player.connection.send(cache.get(foldedY, packets::create));
             sent++;

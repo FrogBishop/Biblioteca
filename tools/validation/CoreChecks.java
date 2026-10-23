@@ -19,10 +19,11 @@ import java.util.Set;
 /** Executes against each node's real Minecraft classes inside the Fabric class loader. */
 public final class CoreChecks {
     public static void run(boolean client) throws Exception {
-        net.minecraft.SharedConstants.tryDetectVersion();
+        try { net.minecraft.SharedConstants.class.getMethod("tryDetectVersion").invoke(null); }
+        catch (NoSuchMethodException ignored) { net.minecraft.SharedConstants.getCurrentVersion(); }
         net.minecraft.server.Bootstrap.bootStrap();
         new babel.biblioteca.Biblioteca().onInitialize();
-        check(net.minecraft.core.registries.BuiltInRegistries.CUSTOM_STAT.containsKey(
+        check(babel.biblioteca.Compat.customStats().keySet().contains(
                 babel.biblioteca.Compat.id("biblioteca", "seam_crossings")), "crossing statistic registration");
         if (client) {
             Class<?> initializer = Class.forName("babel.biblioteca.client.BibliotecaClient");

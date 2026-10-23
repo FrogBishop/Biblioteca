@@ -1,5 +1,7 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -40,8 +42,8 @@ public interface NeighborUpdaterYLoopMixin {
 
         if (!LoopingRegistry.isLooping(level)) return;
 
-        int minY   = level.getMinY();
-        int height = level.getHeight();
+        int minY   = Compat.minY(level);
+        int height = Compat.height(level);
         int y      = pos.getY();
 
         // Fast path: updates inside the world are by far the common case.

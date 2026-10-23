@@ -21,7 +21,7 @@ public class MatrixMixinVerifier {
     public static void main(String[] args) throws Exception {
         // Resolve ZipFS before Fabric's parallel remapper uses service loading from worker threads.
         java.nio.file.spi.FileSystemProvider.installedProviders();
-        JsonObject config = JsonParser.parseString(Files.readString(Path.of(args[0]))).getAsJsonObject();
+        JsonObject config = new JsonParser().parse(Files.readString(Path.of(args[0]))).getAsJsonObject();
         EnvType environment = args[1].equals("server") ? EnvType.SERVER : EnvType.CLIENT;
         Path runDir = Path.of(args[2]);
         Files.createDirectories(runDir);
@@ -46,8 +46,19 @@ public class MatrixMixinVerifier {
             }
         }
         // Use the published Fabric API bundle, including the renderer's normal companion mixins.
-        System.setProperty("fabric.addMods", config.get("fabricApi").getAsString());
+        if (config.has("fabricApiOnClasspath") && config.get("fabricApiOnClasspath").getAsBoolean()) {
+            System.clearProperty("fabric.addMods");
+        } else {
+            System.setProperty("fabric.addMods", config.get("fabricApi").getAsString());
+        }
         System.setProperty("mixin.debug.countInjections", "true");
+        // The old Log4j bundled with 1.16/1.17 does not understand Loom's newer GUI/arbiter appenders.
+        Path logging = runDir.resolve("matrix-log4j2.xml");
+        Files.writeString(logging, "<Configuration status=\"WARN\"><Appenders>"
+                + "<Console name=\"Console\" target=\"SYSTEM_OUT\"><PatternLayout pattern=\"[%level] %msg%n\"/>"
+                + "</Console></Appenders><Loggers><Root level=\"info\"><AppenderRef ref=\"Console\"/>"
+                + "</Root></Loggers></Configuration>");
+        System.setProperty("log4j.configurationFile", logging.toString());
 
         Path resources = Path.of(config.get("resources").getAsString());
         Path classes = Path.of(config.get("classes").getAsString());
@@ -58,11 +69,26 @@ public class MatrixMixinVerifier {
         ClassLoader loader = new Knot(environment).init(new String[] {
                 "--gameDir", runDir.toString(), "--version", config.get("minecraft").getAsString()
         });
+        if (config.has("fabricApiModules")) {
+            int checked = 0;
+            for (JsonElement value : config.getAsJsonArray("fabricApiModules")) {
+                JsonObject module = value.getAsJsonObject();
+                String side = module.get("environment").getAsString();
+                if (side.equals(environment == EnvType.CLIENT ? "server" : "client")) continue;
+                String id = module.get("id").getAsString();
+                if (FabricLoader.getInstance().getModContainer(id).isEmpty()) throw new AssertionError("Missing Fabric API runtime module: " + id);
+                checked++;
+            }
+            System.out.println("DATA_OK Fabric API runtime modules: " + checked);
+        }
         String version = FabricLoader.getInstance().getModContainer("biblioteca").orElseThrow()
                 .getMetadata().getVersion().getFriendlyString();
-        if (!version.equals("0.67.0+" + config.get("minecraft").getAsString())) {
+        String expectedVersion = new JsonParser().parse(Files.readString(resources.resolve("fabric.mod.json")))
+                .getAsJsonObject().get("version").getAsString();
+        if (!version.equals(expectedVersion) || !version.endsWith("+" + config.get("minecraft").getAsString())) {
             throw new AssertionError("Loaded the wrong node: " + version);
         }
+        java.util.List<String> failures = new java.util.ArrayList<>();
         for (String target : targets) {
             try {
                 Class<?> type = Class.forName(target, false, loader);
@@ -77,12 +103,19 @@ public class MatrixMixinVerifier {
                         }
                     }, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
                 }
-                throw failure;
+                System.err.println("TARGET_FAILED " + target);
+                failure.printStackTrace();
+                failures.add(target);
+                continue;
             }
             System.out.println("TARGET_OK " + target);
         }
+        if (!failures.isEmpty()) throw new AssertionError("Failed transformed targets: " + failures);
         if (args.length > 3) {
+            loader.loadClass("babel.biblioteca.validation.ApiChecks").getMethod("run", Path.class).invoke(null, classes);
             loader.loadClass("babel.biblioteca.validation.CoreChecks").getMethod("run", boolean.class)
+                    .invoke(null, environment == EnvType.CLIENT);
+            loader.loadClass("babel.biblioteca.validation.SeamChecks").getMethod("run", boolean.class)
                     .invoke(null, environment == EnvType.CLIENT);
             if (environment == EnvType.CLIENT) {
                 loader.loadClass("babel.biblioteca.validation.TerrainChecks").getMethod("run").invoke(null);
@@ -96,7 +129,7 @@ public class MatrixMixinVerifier {
     }
 
     private static void readTargets(Path file, Path classes, String key, Set<String> targets) throws Exception {
-        JsonObject config = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+        JsonObject config = new JsonParser().parse(Files.readString(file)).getAsJsonObject();
         if (config.getAsJsonObject("injectors").get("defaultRequire").getAsInt() != 1) {
             throw new AssertionError("Injection checking is not strict: " + file);
         }

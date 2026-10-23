@@ -1,7 +1,6 @@
 package babel.biblioteca;
 
 import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.Stat;
@@ -31,7 +30,7 @@ public final class SeamStats {
 
     /** Called from the common initializer; the custom-stat registry is not frozen yet. */
     public static void init() {
-        Registry.register(BuiltInRegistries.CUSTOM_STAT, ID, ID);
+        Registry.register(Compat.customStats(), ID, ID);
         seamCrossings = Stats.CUSTOM.get(ID, StatFormatter.DEFAULT);
         Biblioteca.LOGGER.info("[Biblioteca] Registered statistic {}", ID);
     }

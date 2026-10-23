@@ -1,5 +1,7 @@
 package babel.biblioteca.client;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.SeamPositions;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -29,17 +31,17 @@ public final class LoopingRainImpacts {
 
     public static int tick(ClientLevel level, Vec3 cameraPosition, long ticks, ParticleStatus particles,
                            int radius, float rain, int attempts, int soundTime) {
-        int period = level.getHeight();
+        int period = Compat.height(level);
         if (period <= 0 || rain <= 0.0f || radius <= 0) return soundTime;
         int diameter = radius * 2 + 1;
         RandomSource random = RandomSource.create(ticks * 312987231L);
-        BlockPos camera = BlockPos.containing(cameraPosition);
+        BlockPos camera = Compat.blockPos(cameraPosition);
         BlockPos soundPos = null;
         for (int i = 0; i < attempts; i++) {
             int dx = random.nextInt(diameter) - radius;
             int dz = random.nextInt(diameter) - radius;
             BlockPos surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, camera.offset(dx, 0, dz));
-            if (surface.getY() <= level.getMinY()) continue;
+            if (surface.getY() <= Compat.minY(level)) continue;
             int nearbyY = (int) SeamPositions.foldToward(surface.getY(), camera.getY(), period);
             if (nearbyY > camera.getY() + 10 || nearbyY < camera.getY() - 10) continue;
             if (WeatherCompat.precipitation(level, SeamPositions.foldBlockPos(level, surface)) != Biome.Precipitation.RAIN) continue;
@@ -60,7 +62,7 @@ public final class LoopingRainImpacts {
             soundTime = 0;
             int roofY = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, camera).getY();
             double nearbyRoofY = SeamPositions.foldToward(roofY, camera.getY(), period);
-            boolean sheltered = soundPos.getY() > camera.getY() + 1 && roofY > level.getMinY() && nearbyRoofY > camera.getY();
+            boolean sheltered = soundPos.getY() > camera.getY() + 1 && roofY > Compat.minY(level) && nearbyRoofY > camera.getY();
             level.playLocalSound(soundPos, sheltered ? SoundEvents.WEATHER_RAIN_ABOVE : SoundEvents.WEATHER_RAIN,
                     SoundSource.WEATHER, sheltered ? 0.1f : 0.2f, sheltered ? 0.5f : 1.0f, false);
         }

@@ -1,5 +1,7 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamEntityCollisions;
 import net.minecraft.world.entity.Entity;
@@ -38,30 +40,47 @@ public interface EntityGetterYLoopMixin {
 
     @Inject(method = "getEntityCollisions", at = @At("RETURN"), cancellable = true)
     private void biblioteca$addSeamCollisions(
-            Entity source, AABB testArea, CallbackInfoReturnable<List<VoxelShape>> cir) {
+            Entity source, AABB testArea,
+//? if >=1.18 {
+            CallbackInfoReturnable<List<VoxelShape>> cir
+//?} else {
+/*            java.util.function.Predicate<Entity> selector, CallbackInfoReturnable<java.util.stream.Stream<VoxelShape>> cir
+*///?}
+            ) {
 
         if (!(this instanceof Level level) || !LoopingRegistry.isLooping(level)) return;
 
-        int minY = level.getMinY();
-        int height = level.getHeight();
+        //? if >=1.18 {
+        java.util.function.Predicate<Entity> extraFilter = entity -> true;
+        //?} else {
+        /*java.util.function.Predicate<Entity> extraFilter = selector;
+        *///?}
+
+        int minY = Compat.minY(level);
+        int height = Compat.height(level);
         double reach = SeamEntityCollisions.REACH;
 
         List<VoxelShape> extra = null;
 
         if (testArea.minY < minY + reach) {
             extra = new ArrayList<>(4);
-            SeamEntityCollisions.collect(level, source, testArea, height, extra);
+            SeamEntityCollisions.collect(level, source, testArea, height, extra, extraFilter);
         }
         if (testArea.maxY > minY + height - reach) {
             if (extra == null) extra = new ArrayList<>(4);
-            SeamEntityCollisions.collect(level, source, testArea, -height, extra);
+            SeamEntityCollisions.collect(level, source, testArea, -height, extra, extraFilter);
         }
 
         if (extra == null || extra.isEmpty()) return;
 
+//? if >=1.18 {
         List<VoxelShape> merged = new ArrayList<>(cir.getReturnValue().size() + extra.size());
         merged.addAll(cir.getReturnValue());
         merged.addAll(extra);
         cir.setReturnValue(merged);
+//?} else {
+/*        cir.setReturnValue(java.util.stream.Stream.concat(cir.getReturnValue(), extra.stream()));
+*///?}
+
     }
 }

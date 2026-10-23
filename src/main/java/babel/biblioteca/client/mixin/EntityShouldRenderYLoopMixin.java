@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -30,11 +32,11 @@ public abstract class EntityShouldRenderYLoopMixin {
             double camX, double camY, double camZ, CallbackInfoReturnable<Boolean> cir) {
 
         Entity self = (Entity) (Object) this;
-        Level level = self.level();
+        Level level = Compat.level(self);
         if (level == null) return;
         if (!LoopingRegistry.isLooping(level)) return;
 
-        int period = level.getHeight();
+        int period = Compat.height(level);
         if (period <= 0) return;
 
         double xd = self.getX() - camX;

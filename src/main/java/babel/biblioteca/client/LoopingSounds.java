@@ -1,5 +1,7 @@
 package babel.biblioteca.client;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamPositions;
 import net.minecraft.client.Minecraft;
@@ -13,7 +15,7 @@ public final class LoopingSounds {
 
     public static int period() {
         ClientLevel level = Minecraft.getInstance().level;
-        return level != null && LoopingRegistry.isLooping(level) ? level.getHeight() : 0;
+        return level != null && LoopingRegistry.isLooping(level) ? Compat.height(level) : 0;
     }
 
     public static double nearestY(double y) {

@@ -3,7 +3,9 @@ package babel.biblioteca.client;
 //? if >=1.21.9 {
 import com.mojang.blaze3d.vertex.CompactVectorArray;
 //?}
+//? if >=1.19.3 {
 import org.joml.Vector3f;
+//?}
 import java.nio.ByteBuffer;
 
 /** Read-only access to the centroid storage used by each renderer generation. */
@@ -38,6 +40,7 @@ public interface QuadCenters {
         };
     }
 
+    //? if >=1.19.3 {
     static QuadCenters of(Vector3f[] points) {
         return new QuadCenters() {
             public int size() { return points.length; }
@@ -47,6 +50,8 @@ public interface QuadCenters {
             public Object identity() { return points; }
         };
     }
+
+    //?}
 
     //? if >=1.21.9 {
     static QuadCenters of(CompactVectorArray points) {

@@ -49,9 +49,14 @@ public final class LoopingDimensionManager {
         //?} else if >=1.21.5 {
         /*DimensionDataStorage storage = overworld.getDataStorage();
         serverData = storage.computeIfAbsent(LoopingWorldData.TYPE);
-        *///?} else {
+        *///?} else if >=1.20.2 {
         /*DimensionDataStorage storage = overworld.getDataStorage();
         serverData = storage.computeIfAbsent(LoopingWorldData.TYPE, "biblioteca_looping");
+        *///?} else if >=1.17 {
+        /*serverData = overworld.getDataStorage().computeIfAbsent(LoopingWorldData::decode,
+                LoopingWorldData::empty, "biblioteca_looping");
+        *///?} else {
+        /*serverData = overworld.getDataStorage().computeIfAbsent(LoopingWorldData::empty, "biblioteca_looping");
         *///?}
         republishSnapshots();
 

@@ -1,5 +1,129 @@
 # Changelog
 
+## 0.676.7
+
+### Expanded release coverage
+
+- Added every missing formal release back to 1.16.5: 1.16.5, 1.17, 1.17.1, 1.18, 1.18.1,
+  1.18.2, 1.19, 1.19.1, 1.19.2, 1.19.3, 1.19.4, 1.20, 1.20.1, 1.20.2 and 1.20.3.
+  The complete matrix now has 35 exact-version full artifacts and 35 matching no-render artifacts.
+- Added 1.16 fixed-function terrain drawing, older visible-source lists, buffered vertex uploads
+  and snapshot sampling. All rendering generations retain shared source VBOs and global alpha order.
+- Adapted the old height constants, collision streams, light propagation, entity storage, movement,
+  spawning, beacon ticks, sounds, world-creation controls, networking and SavedData lifecycle.
+- Fixed old dedicated-server calls to client-only convenience methods: explicit UTF length on
+  state decoding and typed field accessors for beacon sections/colours.
+- Prepare the full Fabric API bundle and all nested runtime modules through Loom, retaining the
+  actual old/new umbrella dependency ID. Development runs and validation use those same modules.
+- Added side-specific API linkage checks and native behavior fixtures for old storage/interpolation.
+  All 70 client/server validation runs and all 70 release-package audits passed. These are headless
+  checks, not in-game visual/audio testing. Old Minecraft artifacts require Java 17 or newer.
+
+### Multiversion adaptation
+
+- Initially ported the fixes in main's 0.67.67 and 0.676.7 to the original 20 releases, 1.20.4 through 26.3.
+  Older releases use their native interpolation, explosion, interaction and decoration APIs;
+  locator-bar hooks apply from 1.21.6, attack components from 1.21.11, and sapling height
+  guards from 26.1. Earlier versions retain the equivalent older behavior.
+- Keep previous rows local across repeated unwrapped writes and choose stored linear targets
+  again after intermediate crossings. Filter capped entity searches before applying the cap,
+  preserve nested queries, and include the newer short-circuit entity-search API.
+- Preserve movement and interaction hooks in the no-render variants. Opposite-boundary mesh
+  invalidation was already present in this branch and remains in use.
+- Add transformed-entity regression checks for 16- and 384-row worlds, alongside strict
+  client/server loading and release-artifact audits. See PARITY.md for tested scope.
+
+### Fixed
+
+- Players and mobs crossing the boundary no longer flicker. A stepped movement path can hold rows
+  on both sides of the seam; it is unwrapped one step at a time, and a committed row that is a
+  whole period away from the row still on screen moves that row with it instead of letting the
+  renderer interpolate through the world.
+- Mobs walk to a target across the boundary. A path target was folded into the stored period,
+  which put it a whole world height away from the mob and outside the search area, so the mob
+  only acquired its target and stood still. Targets are now moved to the copy nearest the mob,
+  and the ground-surface search in front of a destination walks the ring instead of scanning
+  the whole world column below it.
+- A spawn egg used on a block one row below the top row no longer places the mob inside that
+  block. The surface search reads rows outside the world through the chunk while the entity's
+  temporary row has already been folded, so the two frames disagree and the estimate moves the
+  mob one row too low. The search now reads through the level and measures the box in the spawn
+  position's frame.
+- Tall paintings can be placed at the top of the world. The support and collision checks read
+  rows outside the world through the chunk and the section-based block scan, which answer air
+  there, so a decoration whose rows are the top row and the rows below the world failed its
+  placement test. Those checks now read through the level, which folds, and a painting can span
+  the seam at any height.
+
+### Changed
+
+- Version is now `0.676.7`.
+
+### Notes
+
+- These are follow-ups to the seam work in `0.67.67`. Each one was a place where vanilla compared
+  a folded row with an unfolded one: a stepped movement path, a path target, a decoration's
+  support scan, and the surface search under a spawn position.
+
+## 0.67.67
+
+### Fixed
+
+- Entity searches return what is in the box on the ring. A search box within reach of a seam is
+  widened by one world height and its results are filtered by the ring position of each entity, so
+  AI goals, explosions, effects and command selectors see the entities beside them rather than
+  only the ones beside them in absolute space.
+- Explosions across the boundary damage and throw entities. The visibility samples and the
+  knockback direction use the copy of the entity nearest the blast, instead of a body a whole world
+  height away.
+- Mobs are no longer despawned when their player crosses the boundary. Distances between entities
+  are measured around the ring, which also corrects nearest-player selection, AI reach checks,
+  melee range and leashes.
+- Another player's name tag stays visible across the boundary. Entity render distance is measured
+  around the ring, which also corrects entity shadows at the seam.
+- Other players and mobs crossing the boundary move smoothly instead of snapping. Movement and
+  teleport packets choose the target copy nearest the entity, the previous position is folded with
+  it, and the "too far to interpolate" test uses the ring distance.
+- The locator bar draws each waypoint at its ring distance and pitch, so dot size and up/down
+  arrows are correct across the boundary.
+- Mobs can pathfind across the boundary. The pathfinding snapshot now answers rows outside the
+  stored period from the rows the ring puts there instead of air, path nodes and look targets are
+  placed on the copy nearest the mob, and ground navigation folds its destination before the
+  surface search.
+- Mobs can see across the boundary: line of sight measures eye rows around the ring.
+- A spawn egg used on the top face of the top row places the mob on the ring row above instead of
+  inside the block. Entity spawning now folds the spawn position before the surface search.
+- Villagers and other entities can be attacked and interacted with across the boundary. Interaction
+  and attack reach, the client's crosshair pick, and the click location sent with an interaction
+  are all ring-aware.
+- Paintings and item frames can be placed across the boundary, including decorations that span it.
+  A hanging entity's position, bounding box and saved attachment are now folded together, and block
+  items receive the folded block position rather than an out-of-range copy.
+- Saplings on the top row grow. The bone meal build-height check and the tree height check no
+  longer treat the ring as having a ceiling; the random-tick light check already reads the open
+  sky above the top row and needed no change.
+- Faces exposed by breaking a block on either seam row are rebuilt immediately. Changing a block in
+  the bottom section also dirties the top section, and the other way round, because each compiles
+  against one row of the other.
+- A falling block that crosses the boundary is placed as a block instead of being dropped as an
+  item. The out-of-world fallback no longer reads the bottom row as "below the world".
+
+### Changed
+
+- Version is now `0.67.67`.
+- Documented the ring-aware distance and search rules in the README, the performance notes and the
+  player description, and cleaned up the new hooks: sorted imports, removed a search-widening hook
+  that `Level.getEntities` now covers, and corrected comments that described the earlier behaviour.
+
+### Notes
+
+- The fixes are additional Mixins beside the existing ones; each hook documents the vanilla
+  assumption it removes. `SeamPositions` gained nearest-copy helpers for points, boxes and
+  distances, and `Level.getEntities` is now the single place where a search area is widened, so
+  new code can keep using ordinary vanilla queries and still see the ring.
+- Entity searches are only widened within 16 rows of a seam, and distance queries only fold when
+  the two rows are closer around the ring, so code away from the boundary runs unchanged.
+
 ## 0.67.0
 
 ### Multiversion adaptation

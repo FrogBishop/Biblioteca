@@ -43,13 +43,20 @@ public abstract class ClassicWeatherYLoopMixin {
         if (intensity <= 0) return;
         int radius = WeatherCompat.radius();
         int cx = Mth.floor(cameraX), cz = Mth.floor(cameraZ);
-        var slices = LoopingWeather.visibleSlices(Mth.floor(cameraY), radius, level.getMinY(), level.getHeight());
+        var slices = LoopingWeather.visibleSlices(Mth.floor(cameraY), radius, Compat.minY(level), Compat.height(level));
         lightTexture.turnOnLightLayer();
         RenderSystem.disableCull();
         RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(Minecraft.useShaderTransparency());
+//? if >=1.17 {
         RenderSystem.setShader(GameRenderer::getParticleShader);
+//?} else {
+/*        RenderSystem.enableAlphaTest();
+        RenderSystem.alphaFunc(516, 0.1f);
+*///?}
+
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         RandomSource random = RandomSource.create();
         // Keep the native rain/snow textures and animation, batching all periodic slices together.
@@ -64,13 +71,22 @@ public abstract class ClassicWeatherYLoopMixin {
                         int bottom = slice.bottomY(surface), top = slice.topY();
                         if (bottom >= top || WeatherCompat.precipitation(level, pos.set(x, slice.cameraY(), z)) != kind) continue;
                         if (buffer == null) {
-                            RenderSystem.setShaderTexture(0, Compat.id("minecraft", kind == Biome.Precipitation.RAIN
-                                    ? "textures/environment/rain.png" : "textures/environment/snow.png"));
+                            var texture = Compat.id("minecraft", kind == Biome.Precipitation.RAIN
+                                    ? "textures/environment/rain.png" : "textures/environment/snow.png");
+                            //? if >=1.17 {
+                            RenderSystem.setShaderTexture(0, texture);
+                            //?} else {
+                            /*Minecraft.getInstance().getTextureManager().bind(texture);
+                            *///?}
                             //? if >=1.21 {
                             buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
                             //?} else {
                             /*buffer = Tesselator.getInstance().getBuilder();
+                            //? if >=1.17 {
                             buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+                            //?} else {
+                            buffer.begin(7, DefaultVertexFormat.PARTICLE);
+                            //?}
                             *///?}
                         }
                         random.setSeed(x * x * 3121 + x * 45238971 ^ z * z * 418711 + z * 13761);
@@ -99,8 +115,11 @@ public abstract class ClassicWeatherYLoopMixin {
             if (buffer != null) {
                 //? if >=1.21 {
                 BufferUploader.drawWithShader(buffer.buildOrThrow());
-                //?} else {
+                //?} else if >=1.19 {
                 /*BufferUploader.drawWithShader(buffer.end());
+                *///?} else {
+                /*buffer.end();
+                BufferUploader.end(buffer);
                 *///?}
             }
         }

@@ -30,12 +30,18 @@ public final class SeamEntityCollisions {
      * {@code box}, where {@code yShift} is the period to search at (positive to look up,
      * negative to look down) and is undone again on the way out.
      */
-    public static void collect(Level level, Entity source, AABB box, double yShift, List<VoxelShape> out) {
+    public static void collect(Level level, Entity source, AABB box, double yShift, List<VoxelShape> out,
+                               Predicate<Entity> selector) {
         Predicate<Entity> canCollide = source == null
+                //? if >=1.20.2 {
                 ? EntitySelector.CAN_BE_COLLIDED_WITH
+                //?} else {
+                /*
+                ? EntitySelector.NO_SPECTATORS.and(Entity::canBeCollidedWith)
+                *///?}
                 : EntitySelector.NO_SPECTATORS.and(source::canCollideWith);
 
-        for (Entity entity : level.getEntities(source, box.move(0.0, yShift, 0.0).inflate(1.0E-7), canCollide)) {
+        for (Entity entity : level.getEntities(source, box.move(0.0, yShift, 0.0).inflate(1.0E-7), canCollide.and(selector))) {
             out.add(Shapes.create(entity.getBoundingBox().move(0.0, -yShift, 0.0)));
         }
     }

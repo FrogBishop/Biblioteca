@@ -1,5 +1,9 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.client.ClientCompat;
+
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -47,7 +51,7 @@ public abstract class BeaconBeamRenderYLoopMixin {
         if (minecraft.level == null) return;
         if (!LoopingRegistry.isLooping(minecraft.level)) return;
 
-        int period = minecraft.level.getHeight();
+        int period = Compat.height(minecraft.level);
         if (period <= 0) return;
 
         int beamHeight = 0;
@@ -62,7 +66,7 @@ public abstract class BeaconBeamRenderYLoopMixin {
         }
 
         double camY    = camera.pos.y;
-        double reach   = minecraft.options.getEffectiveRenderDistance() * 16.0;
+        double reach   = ClientCompat.renderDistance() * 16.0;
         int    originY = state.blockPos.getY();
         double beamTop = (double) originY + beamHeight;
 

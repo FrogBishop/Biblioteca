@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -27,6 +29,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelDirtyMixin {
 
+    //? if >=1.19 {
     @ModifyVariable(
             method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
@@ -34,11 +37,13 @@ public abstract class ClientLevelDirtyMixin {
         ClientLevel self = (ClientLevel) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return pos;
         int y = pos.getY();
-        int minY = self.getMinY();
-        int height = self.getHeight();
+        int minY = Compat.minY(self);
+        int height = Compat.height(self);
         if (y >= minY && y < minY + height) return pos;
         return new BlockPos(pos.getX(), Math.floorMod(y - minY, height) + minY, pos.getZ());
     }
+
+    //?}
 
     @Inject(method = "setBlocksDirty", at = @At("TAIL"))
     private void biblioteca$mirrorSectionDirty(
@@ -47,17 +52,17 @@ public abstract class ClientLevelDirtyMixin {
         ClientLevel self = (ClientLevel) (Object) this;
         if (!LoopingRegistry.isLooping(self)) return;
 
-        int height   = self.getHeight();
+        int height   = Compat.height(self);
         int y        = pos.getY();
         int sectionX = pos.getX() >> 4;
         int sectionZ = pos.getZ() >> 4;
 
-        int minSection = self.getMinY() >> 4;
-        int maxSection = minSection + (self.getHeight() >> 4); // exclusive upper bound
-        if (y == self.getMinY()) {
+        int minSection = Compat.minY(self) >> 4;
+        int maxSection = minSection + (Compat.height(self) >> 4); // exclusive upper bound
+        if (y == Compat.minY(self)) {
             self.setSectionDirtyWithNeighbors(sectionX, maxSection - 1, sectionZ);
         }
-        if (y == self.getMinY() + height - 1) {
+        if (y == Compat.minY(self) + height - 1) {
             self.setSectionDirtyWithNeighbors(sectionX, minSection, sectionZ);
         }
     }

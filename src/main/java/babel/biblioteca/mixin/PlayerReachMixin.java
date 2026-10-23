@@ -1,5 +1,7 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
@@ -30,11 +32,11 @@ public abstract class PlayerReachMixin {
             BlockPos pos, double delta, CallbackInfoReturnable<Boolean> cir) {
 
         Player self = (Player) (Object) this;
-        Level level = self.level();
+        Level level = Compat.level(self);
         if (!LoopingRegistry.isLooping(level)) return;
 
         double range = self.blockInteractionRange() + delta;
-        int height = level.getHeight();
+        int height = Compat.height(level);
         Vec3 eye = self.getEyePosition();
 
         double minDistSq = Math.min(

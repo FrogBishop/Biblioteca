@@ -2,10 +2,16 @@ package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamPositions;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.core.BlockPos;
+//? if >=1.18 {
 import net.minecraft.world.level.BlockCollisions;
+//?} else {
+/*import net.minecraft.world.level.CollisionSpliterator;
+*///?}
+
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.CollisionGetter;
 import net.minecraft.world.level.Level;
@@ -37,13 +43,24 @@ import org.spongepowered.asm.mixin.injection.At;
  * Runs on both sides: collision is part of movement prediction, so the client and the
  * server must agree about it.
  */
+//? if >=1.18 {
 @Mixin(BlockCollisions.class)
+//?} else {
+/*@Mixin(CollisionSpliterator.class)
+*///?}
+
 public abstract class BlockCollisionsYLoopMixin {
 
     @Shadow @Final private CollisionGetter collisionGetter;
 
+    //? if >=1.18 {
     @WrapOperation(
+//? if >=1.18 {
             method = "computeNext",
+//?} else {
+/*            method = "tryAdvance",
+*///?}
+
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/level/BlockGetter;getBlockState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;"))
     private BlockState biblioteca$foldCollisionLookup(
@@ -63,4 +80,12 @@ public abstract class BlockCollisionsYLoopMixin {
 
         return original.call(chunk, SeamPositions.foldBlockPos(level, pos));
     }
+    //?} else {
+    /*@ModifyReturnValue(method = "getChunk", at = @At("RETURN"))
+    private BlockGetter biblioteca$readThroughLevel(BlockGetter chunk) {
+        // Preserve unloaded-chunk handling; a present chunk is read through the periodic level.
+        return chunk != null && this.collisionGetter instanceof Level level && LoopingRegistry.isLooping(level)
+                ? level : chunk;
+    }
+    *///?}
 }

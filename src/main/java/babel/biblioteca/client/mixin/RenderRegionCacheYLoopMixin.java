@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.renderer.chunk.RenderRegionCache;
@@ -32,7 +34,7 @@ public abstract class RenderRegionCacheYLoopMixin {
     private int biblioteca$foldRegionSectionY(int sectionY, @Local(argsOnly = true) Level level) {
         if (!LoopingRegistry.isLooping(level)) return sectionY;
 
-        int minSection = SectionPos.blockToSectionCoord(level.getMinY());
+        int minSection = SectionPos.blockToSectionCoord(Compat.minY(level));
         int count      = level.getSectionsCount();
 
         // Vanilla constructs and caches the immutable snapshot under its canonical section key.

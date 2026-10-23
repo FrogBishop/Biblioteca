@@ -1,5 +1,7 @@
 package babel.biblioteca.client;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import net.minecraft.client.Minecraft;
 
@@ -22,7 +24,7 @@ public final class CloudFold {
         if (minecraft.level == null || minecraft.player == null) return cloudHeight;
         if (!LoopingRegistry.isLooping(minecraft.level)) return cloudHeight;
 
-        int period = minecraft.level.getHeight();
+        int period = Compat.height(minecraft.level);
         if (period <= 0) return cloudHeight;
 
         long layers = Math.round((minecraft.player.getEyeY() - cloudHeight) / period);
@@ -34,7 +36,7 @@ public final class CloudFold {
         if (minecraft.level == null || minecraft.player == null) return cloudHeight;
         if (!LoopingRegistry.isLooping(minecraft.level)) return cloudHeight;
 
-        int period = minecraft.level.getHeight();
+        int period = Compat.height(minecraft.level);
         if (period <= 0) return cloudHeight;
 
         long layers = Math.round((minecraft.player.getEyeY() - cloudHeight) / period);

@@ -1,11 +1,15 @@
 package babel.biblioteca.client;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.PendingLoopingConfig;
 import net.minecraft.client.Minecraft;
 //? if >=26.1 {
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-//?} else {
+//?} else if >=1.20 {
 /*import net.minecraft.client.gui.GuiGraphics;
+*///?} else {
+/*import com.mojang.blaze3d.vertex.PoseStack;
 *///?}
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -30,7 +34,7 @@ import java.util.Set;
 public class LoopingConfigScreen extends Screen {
 
     private static final Component TITLE =
-            Component.translatable("biblioteca.gui.looping_config.title");
+            Compat.translatable("biblioteca.gui.looping_config.title");
 
     // Text colors are ARGB. GuiGraphicsExtractor.text() returns early when the alpha is
     // zero, so these must stay opaque or the whole line becomes invisible.
@@ -102,23 +106,32 @@ public class LoopingConfigScreen extends Screen {
             for (int column = 0; column < COLUMNS; column++) {
                 final int r = row;
                 final int c = column;
-                addRenderableWidget(Button.builder(stateLabel(c, values[r][c]), button -> {
+                biblioteca$add(ClientCompat.button(stateLabel(c, values[r][c]),
+                        buttonX(column), rowY(row), BUTTON_W, BUTTON_H, button -> {
                     values[r][c] = !values[r][c];
                     button.setMessage(stateLabel(c, values[r][c]));
-                }).bounds(buttonX(column), rowY(row), BUTTON_W, BUTTON_H).build());
+                }));
             }
         }
 
-        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> applyAndClose())
-                .bounds(width / 2 - 75, rowY(DIMENSIONS.size()) + 10, 150, 20).build());
+        biblioteca$add(ClientCompat.button(CommonComponents.GUI_DONE, width / 2 - 75,
+                rowY(DIMENSIONS.size()) + 10, 150, 20, button -> applyAndClose()));
+    }
+
+    private void biblioteca$add(Button button) {
+        //? if >=1.17 {
+        addRenderableWidget(button);
+        //?} else {
+        /*addButton(button);
+        *///?}
     }
 
     private Component stateLabel(int column, boolean value) {
         return switch (column) {
-            case 2 -> Component.translatable(value
+            case 2 -> Compat.translatable(value
                     ? "biblioteca.gui.looping_config.no_void_fog_on"
                     : "biblioteca.gui.looping_config.no_void_fog_off");
-            case 3 -> Component.translatable(value
+            case 3 -> Compat.translatable(value
                     ? "biblioteca.gui.looping_config.no_sky_light_on"
                     : "biblioteca.gui.looping_config.no_sky_light_off");
             default -> value ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
@@ -161,22 +174,22 @@ Minecraft.getInstance().setScreenAndShow(parent);
 
         for (int column = 0; column < COLUMNS; column++) {
             graphics.centeredText(font,
-                    Component.translatable(HEADER_KEYS[column]),
+                    Compat.translatable(HEADER_KEYS[column]),
                     buttonX(column) + BUTTON_W / 2, rowY(0) - 18, TEXT_COLOR);
         }
 
         for (int row = 0; row < DIMENSIONS.size(); row++) {
-            Component name = Component.translatable(DIMENSION_KEYS[row]);
+            Component name = Compat.translatable(DIMENSION_KEYS[row]);
             graphics.text(font, name,
                     gridX() + LABEL_W - 10 - font.width(name),
                     rowY(row) + 6, TEXT_COLOR);
         }
 
         graphics.centeredText(font,
-                Component.translatable("biblioteca.gui.looping_config.note"),
+                Compat.translatable("biblioteca.gui.looping_config.note"),
                 width / 2, rowY(DIMENSIONS.size()) + 40, NOTE_COLOR);
     }
-//?} else {
+//?} else if >=1.20 {
 /*    @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
@@ -185,19 +198,43 @@ Minecraft.getInstance().setScreenAndShow(parent);
 
         for (int column = 0; column < COLUMNS; column++) {
             graphics.drawCenteredString(font,
-                    Component.translatable(HEADER_KEYS[column]),
+                    Compat.translatable(HEADER_KEYS[column]),
                     buttonX(column) + BUTTON_W / 2, rowY(0) - 18, TEXT_COLOR);
         }
 
         for (int row = 0; row < DIMENSIONS.size(); row++) {
-            Component name = Component.translatable(DIMENSION_KEYS[row]);
+            Component name = Compat.translatable(DIMENSION_KEYS[row]);
             graphics.drawString(font, name,
                     gridX() + LABEL_W - 10 - font.width(name),
                     rowY(row) + 6, TEXT_COLOR);
         }
 
         graphics.drawCenteredString(font,
-                Component.translatable("biblioteca.gui.looping_config.note"),
+                Compat.translatable("biblioteca.gui.looping_config.note"),
+                width / 2, rowY(DIMENSIONS.size()) + 40, NOTE_COLOR);
+    }
+*///?} else {
+/*    @Override
+    public void render(PoseStack graphics, int mouseX, int mouseY, float partialTick) {
+        super.render(graphics, mouseX, mouseY, partialTick);
+
+        drawCenteredString(graphics, font, title, width / 2, rowY(0) - 46, TEXT_COLOR);
+
+        for (int column = 0; column < COLUMNS; column++) {
+            drawCenteredString(graphics, font,
+                    Compat.translatable(HEADER_KEYS[column]),
+                    buttonX(column) + BUTTON_W / 2, rowY(0) - 18, TEXT_COLOR);
+        }
+
+        for (int row = 0; row < DIMENSIONS.size(); row++) {
+            Component name = Compat.translatable(DIMENSION_KEYS[row]);
+            drawString(graphics, font, name,
+                    gridX() + LABEL_W - 10 - font.width(name),
+                    rowY(row) + 6, TEXT_COLOR);
+        }
+
+        drawCenteredString(graphics, font,
+                Compat.translatable("biblioteca.gui.looping_config.note"),
                 width / 2, rowY(DIMENSIONS.size()) + 40, NOTE_COLOR);
     }
 *///?}

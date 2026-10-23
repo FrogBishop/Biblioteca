@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.ClientCompat;
 import net.minecraft.client.Minecraft;
@@ -44,7 +46,7 @@ public abstract class EntityRenderYLoopMixin {
         if (minecraft.level == null) return;
         if (!LoopingRegistry.isLooping(minecraft.level)) return;
 
-        int period = minecraft.level.getHeight();
+        int period = Compat.height(minecraft.level);
         if (period <= 0) return;
 
         double camY  = ClientCompat.cameraPosition().y;

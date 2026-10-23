@@ -5,7 +5,6 @@ import babel.biblioteca.client.PeriodicTerrainPlan;
 import babel.biblioteca.client.QuadCenters;
 import babel.biblioteca.client.TranslucentQuadOrder;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3f;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -111,8 +110,14 @@ public final class TerrainChecks {
         check(captured.size() == 2 && captured.x(0) == 2 && captured.y(1) == 15 && captured.z(1) == -20,
                 "classic VBO centroid extraction/byte offsets");
         check(vertexBytes.position() == 16, "centroid capture consumed source upload");
-        QuadCenters vectors = QuadCenters.of(new Vector3f[]{new Vector3f(1, 2, 3), new Vector3f(4, 5, 6)});
-        check(vectors.size() == 2 && vectors.z(1) == 6, "Vector3f centroid adapter");
+        try {
+            Class<?> vector = Class.forName("org.joml.Vector3f");
+            Object array = java.lang.reflect.Array.newInstance(vector, 2);
+            java.lang.reflect.Array.set(array, 0, vector.getConstructor(float.class, float.class, float.class).newInstance(1f, 2f, 3f));
+            java.lang.reflect.Array.set(array, 1, vector.getConstructor(float.class, float.class, float.class).newInstance(4f, 5f, 6f));
+            QuadCenters vectors = (QuadCenters) QuadCenters.class.getMethod("of", array.getClass()).invoke(null, array);
+            check(vectors.size() == 2 && vectors.z(1) == 6, "Vector3f centroid adapter");
+        } catch (ClassNotFoundException expected) { /* Before 1.19.3, uploaded vertex bytes supply the centroids. */ }
         try {
             Class<?> type = Class.forName("com.mojang.blaze3d.vertex.CompactVectorArray");
             Object compact = type.getConstructor(int.class).newInstance(2);

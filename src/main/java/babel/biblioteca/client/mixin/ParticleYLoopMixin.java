@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.client.ClientCompat;
 
 import babel.biblioteca.LoopingRegistry;
@@ -43,7 +45,7 @@ public abstract class ParticleYLoopMixin {
         if (minecraft.level == null) return y;
         if (!LoopingRegistry.isLooping(minecraft.level)) return y;
 
-        int period = minecraft.level.getHeight();
+        int period = Compat.height(minecraft.level);
         if (period <= 0) return y;
 
         double cameraY = ClientCompat.cameraPosition().y;

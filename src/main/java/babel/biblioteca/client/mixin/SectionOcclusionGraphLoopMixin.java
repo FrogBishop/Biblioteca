@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.ClientCompat;
 import babel.biblioteca.client.LoopingClientSettings;
@@ -35,7 +37,7 @@ public abstract class SectionOcclusionGraphLoopMixin {
             @Local(argsOnly = true, ordinal = 0) List<SectionRenderDispatcher.RenderSection> visible) {
         Level level = Minecraft.getInstance().level;
         if (this.viewArea == null || level == null || !LoopingRegistry.isLooping(level)) return;
-        int period = level.getHeight();
+        int period = Compat.height(level);
         if (period <= 0) return;
         FrustumInvoker camera = (FrustumInvoker) frustum;
         int cameraX = SectionPos.blockToSectionCoord(camera.biblioteca$cameraX());
@@ -44,7 +46,7 @@ public abstract class SectionOcclusionGraphLoopMixin {
         int radius = this.viewArea.getViewDistance();
         double slack = LoopingClientSettings.preloadBlocks();
         double reach = radius * 16.0 + slack;
-        int minSectionY = level.getMinY() >> 4;
+        int minSectionY = Compat.minY(level) >> 4;
         int count = period >> 4;
         this.biblioteca$present.clear();
         for (SectionRenderDispatcher.RenderSection section : visible) {

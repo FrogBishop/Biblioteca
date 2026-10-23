@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.ClassicTerrainBackend;
 import babel.biblioteca.client.ClientCompat;
@@ -29,9 +31,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** Adds copies within the existing terrain pass and substitutes a globally sorted alpha stream. */
 @Mixin(LevelRenderer.class)
 public abstract class ClassicTerrainYLoopMixin {
+    //? if >=1.20.2 {
     @Shadow @Final private ObjectArrayList<SectionRenderDispatcher.RenderSection> visibleSections;
+    //?}
+    private java.util.List<SectionRenderDispatcher.RenderSection> biblioteca$sources() {
+        //? if >=1.20.2 {
+        return this.visibleSections;
+        //?} else {
+        /*return ((babel.biblioteca.client.LegacyTerrainSources) this).biblioteca$terrainSources();
+        *///?}
+    }
+    //? if >=1.20.2 {
     @Shadow private Frustum cullingFrustum;
     @Shadow private Frustum capturedFrustum;
+    //?}
     @Unique private ClassicTerrainBackend biblioteca$backend;
     @Unique private boolean biblioteca$sorted;
 
@@ -49,13 +62,18 @@ public abstract class ClassicTerrainYLoopMixin {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || !LoopingRegistry.isLooping(minecraft.level)) return;
         if (this.biblioteca$backend == null) this.biblioteca$backend = new ClassicTerrainBackend();
-        this.biblioteca$backend.drawSorted(this.visibleSections, layer, offset, minecraft.level.getHeight(),
-                new Vec3(x, y, z), minecraft.options.getEffectiveRenderDistance() * 16.0, biblioteca$visibility());
+        this.biblioteca$backend.drawSorted(biblioteca$sources(), layer, offset, Compat.height(minecraft.level),
+                new Vec3(x, y, z), ClientCompat.renderDistance() * 16.0, biblioteca$visibility());
         this.biblioteca$sorted = true;
     }
 
     @WrapOperation(method = "renderSectionLayer", at = @At(value = "INVOKE",
-            target = "Lcom/mojang/blaze3d/vertex/VertexBuffer;draw()V"))
+//? if >=1.19 {
+            target = "Lcom/mojang/blaze3d/vertex/VertexBuffer;draw()V"
+//?} else {
+/*            target = "Lcom/mojang/blaze3d/vertex/VertexBuffer;drawChunkLayer()V"
+*///?}
+))
     private void biblioteca$copyDraw(VertexBuffer buffer, Operation<Void> original,
             @Local Uniform offset, @Local SectionRenderDispatcher.RenderSection section,
             @Local(argsOnly = true) RenderType layer,
@@ -70,14 +88,14 @@ public abstract class ClassicTerrainYLoopMixin {
         }
         if (layer == RenderType.tripwire()) {
             if (this.biblioteca$backend == null) this.biblioteca$backend = new ClassicTerrainBackend();
-            this.biblioteca$backend.drawSorted(this.visibleSections, layer, offset, minecraft.level.getHeight(),
-                    new Vec3(x, y, z), minecraft.options.getEffectiveRenderDistance() * 16.0, biblioteca$visibility());
+            this.biblioteca$backend.drawSorted(biblioteca$sources(), layer, offset, Compat.height(minecraft.level),
+                    new Vec3(x, y, z), ClientCompat.renderDistance() * 16.0, biblioteca$visibility());
             this.biblioteca$sorted = true;
             return;
         }
         BlockPos origin = ClientCompat.origin(section);
-        int period = minecraft.level.getHeight();
-        double distance = minecraft.options.getEffectiveRenderDistance() * 16.0;
+        int period = Compat.height(minecraft.level);
+        double distance = ClientCompat.renderDistance() * 16.0;
         int first = (int) Math.ceil((y - distance - origin.getY() - 8.0) / period);
         int last = (int) Math.floor((y + distance - origin.getY() - 8.0) / period);
         var visible = biblioteca$visibility();
@@ -91,7 +109,11 @@ public abstract class ClassicTerrainYLoopMixin {
     }
 
     @Unique private PeriodicTerrainPlan.Visibility biblioteca$visibility() {
+        //? if >=1.20.2 {
         Frustum frustum = this.capturedFrustum != null ? this.capturedFrustum : this.cullingFrustum;
+        //?} else {
+        /*Frustum frustum = ((babel.biblioteca.client.LegacyTerrainSources) this).biblioteca$terrainFrustum();
+        *///?}
         return (x0, y0, z0, x1, y1, z1) -> frustum == null || SeamCull.plainlyVisible(frustum, x0, y0, z0, x1, y1, z1);
     }
 

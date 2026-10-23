@@ -30,4 +30,5 @@ jobs:
             build/validation/artifacts.json
             build/validation/**/loader.log
             build/validation/**/checks-compile.log
+            build/validation/**/verifier-compile.log
           if-no-files-found: error

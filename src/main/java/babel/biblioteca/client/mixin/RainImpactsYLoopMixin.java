@@ -42,7 +42,7 @@ public abstract class RainImpactsYLoopMixin {
         ClientLevel level = (ClientLevel) (Object) this;
         long ticks = level.getGameTime();
         Camera camera = ClientCompat.camera();
-        ParticleStatus particles = Minecraft.getInstance().options.particles().get();
+        ParticleStatus particles = ClientCompat.particles();
         int radius = Minecraft.getInstance().options.weatherRadius().get();
     //?} else if >=1.21.2 {
     /*@Inject(method = "tickRainParticles", at = @At("HEAD"), cancellable = true)
@@ -58,7 +58,7 @@ public abstract class RainImpactsYLoopMixin {
     /*@Inject(method = "tickRain", at = @At("HEAD"), cancellable = true)
     private void biblioteca$impacts(Camera camera, CallbackInfo ci) {
         ClientLevel level = Minecraft.getInstance().level;
-        ParticleStatus particles = Minecraft.getInstance().options.particles().get();
+        ParticleStatus particles = ClientCompat.particles();
         int radius = 10;
     *///?}
         if (level == null || !LoopingRegistry.isLooping(level)) return;

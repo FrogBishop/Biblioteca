@@ -9,6 +9,19 @@ stonecutter parameters {
     // keeps the shared sources readable and avoids a conditional around every
     // import.
     replacements {
+        string(current.parsed < "1.20.2") {
+            replace("SectionRenderDispatcher.RenderSection", "ChunkRenderDispatcher.RenderChunk")
+            replace("SectionRenderDispatcher\$RenderSection", "ChunkRenderDispatcher\$RenderChunk")
+            replace("net.minecraft.client.renderer.chunk.SectionRenderDispatcher;", "net.minecraft.client.renderer.chunk.ChunkRenderDispatcher;")
+            replace("getRenderSectionAt", "getRenderChunkAt")
+            replace("renderSectionLayer", "renderChunkLayer")
+        }
+        string(current.parsed < "1.19") {
+            replace("net.minecraft.util.RandomSource", "java.util.Random")
+            replace("RandomSource.create(", "new Random(")
+            replace("RandomSource random", "Random random")
+        }
+
         string(current.parsed < "1.21") {
             replace("client.gui.screens.options.OptionsSubScreen", "client.gui.screens.OptionsSubScreen")
             replace("client.gui.screens.options.VideoSettingsScreen", "client.gui.screens.VideoSettingsScreen")

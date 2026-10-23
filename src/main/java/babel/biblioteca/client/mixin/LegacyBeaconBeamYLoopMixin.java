@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.ClientCompat;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -53,10 +55,10 @@ public abstract class LegacyBeaconBeamYLoopMixin {
         *///?}
         int height = 0;
         for (var section : sections) height += section.getHeight();
-        int period = level.getHeight();
+        int period = Compat.height(level);
         if (height <= 0 || period <= 0) return;
         double cameraY = ClientCompat.cameraPosition().y;
-        double reach = minecraft.options.getEffectiveRenderDistance() * 16.0;
+        double reach = ClientCompat.renderDistance() * 16.0;
         int origin = entity.getBlockPos().getY();
         int lowest = (int) Math.floor((cameraY - reach - origin - height) / period);
         int highest = (int) Math.ceil((cameraY + reach - origin) / period);

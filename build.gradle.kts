@@ -17,6 +17,8 @@ base.archivesName = property("mod.id") as String
 
 val accessWidener = when {
     sc.current.parsed >= "26.3" -> "biblioteca.accesswidener"
+    sc.current.parsed < "1.17" -> "biblioteca-classic116.accesswidener"
+    sc.current.parsed < "1.20.2" -> "biblioteca-classic.accesswidener"
     sc.current.parsed >= "1.21.2" && sc.current.parsed < "1.21.9" -> "biblioteca-weather.accesswidener"
     else -> null
 }
@@ -31,6 +33,15 @@ val requiredJava: JavaVersion = when {
 }
 
 repositories {
+    // Prefer the exact cached intermediary artifact when a cold Maven download stalls.
+    if (rootProject.file("local-repo/net/fabricmc/intermediary/${sc.current.version}/intermediary-${sc.current.version}-v2.jar").isFile) {
+        exclusiveContent {
+            forRepository {
+                maven { name = "Cached intermediary"; url = uri(rootProject.file("local-repo")) }
+            }
+            filter { includeModule("net.fabricmc", "intermediary") }
+        }
+    }
     // Fallback for the occasional Fabric Maven artifact that times out on a
     // cold download; populated by tools/fetch-intermediary.ps1.
     maven {
@@ -84,25 +95,18 @@ fun fabricApiModules(fabricApiVersion: String, bundleUrl: String): List<File> {
         }
     }
 
-    var jars = cache.listFiles { file -> file.isFile && file.extension == "jar" && file.name != "fabric-api.jar" }
-        ?.sortedBy { it.name }
-        .orEmpty()
-
-    if (jars.isEmpty()) {
-        ZipFile(bundle).use { zip ->
-            for (entry in zip.entries()) {
-                val name = entry.name.substringAfterLast('/')
-                if (!entry.name.startsWith("META-INF/jars/") || !entry.name.endsWith(".jar")) continue
-                if (wanted.none { name.startsWith(it) }) continue
-                File(cache, name).outputStream().use { output ->
-                    zip.getInputStream(entry).use { input -> input.copyTo(output) }
-                }
+    ZipFile(bundle).use { zip ->
+        for (entry in zip.entries()) {
+            val name = entry.name.substringAfterLast('/')
+            if (!entry.name.startsWith("META-INF/jars/") || !entry.name.endsWith(".jar")) continue
+            val target = File(cache, name)
+            if (!target.isFile) target.outputStream().use { output ->
+                zip.getInputStream(entry).use { input -> input.copyTo(output) }
             }
         }
-        jars = cache.listFiles { file -> file.isFile && file.extension == "jar" && file.name != "fabric-api.jar" }
-            ?.sortedBy { it.name }
-            .orEmpty()
     }
+    val jars = cache.listFiles { file -> file.isFile && file.extension == "jar"
+            && wanted.any { file.name.startsWith(it) } }?.sortedBy { it.name }.orEmpty()
     check(jars.isNotEmpty()) { "No Fabric API modules were extracted for $fabricApiVersion" }
     return jars
 }
@@ -116,9 +120,15 @@ dependencies {
 
     val fabricApiVersion = sc.properties["deps.fabric_api"] as String
     val fabricApiUrl = sc.properties["deps.fabric_api_url"] as String
-    for (jar in fabricApiModules(fabricApiVersion, fabricApiUrl)) {
-        modImplementation(files(jar))
+    val compileModules = fabricApiModules(fabricApiVersion, fabricApiUrl)
+    for (jar in compileModules) modImplementation(files(jar))
+    val apiCache = rootProject.file(".gradle/fabric-api/$fabricApiVersion")
+    for (jar in apiCache.listFiles { file -> file.extension == "jar" && file.name != "fabric-api.jar" }.orEmpty()) {
+        if (jar !in compileModules) modRuntimeOnly(files(jar))
     }
+    // Loom prepares the complete runtime bundle, including nested modules, in the node's mappings.
+    // This also makes runClient/runServer satisfy the dependency on the Fabric API umbrella mod.
+    modRuntimeOnly(files(rootProject.file(".gradle/fabric-api/$fabricApiVersion/fabric-api.jar")))
 }
 
 java {
@@ -131,6 +141,18 @@ java {
 // the inapplicable one. The generated mixin config is filtered to match, because
 // Mixin would otherwise fail to load the class.
 val excludedServerMixins = buildSet {
+    if (sc.current.parsed >= "1.19.3") add("LegacyServerSoundsMixin")
+    if (sc.current.parsed < "1.17") add("DripstoneYLoopMixin")
+    if (sc.current.parsed < "1.19") add("NeighborUpdaterYLoopMixin") else add("LegacyNeighborYLoopMixin")
+    if (sc.current.parsed < "1.20.2") add("MobMeleeRangeYLoopMixin") else add("LegacyLivingInterpolationYLoopMixin")
+
+    if (sc.current.parsed < "26.3") add("LinearInterpolationYLoopMixin")
+    if (sc.current.parsed < "1.19.4" || sc.current.parsed >= "1.20.5") add("LegacyEntityReachMixin")
+    if (sc.current.parsed < "1.21.5" || sc.current.parsed >= "26.3") add("InterpolationHandlerYLoopMixin")
+    if (sc.current.parsed < "1.21.11") add("AttackRangeYLoopMixin")
+    if (sc.current.parsed < "1.20.5") add("PlayerEntityInteractionMixin")
+    if (sc.current.parsed < "26.1") addAll(listOf("PlayerInteractionLocationYLoopMixin", "SaplingBlockYLoopMixin"))
+    if (sc.current.parsed >= "1.21" && sc.current.parsed < "1.21.9") add("ItemFrameYLoopMixin")
     if (sc.current.parsed < "1.20.5") add("ServerPlayerGameModeMixin")
     if (sc.current.parsed >= "1.20.5") add("LegacyInlineBlockReachMixin")
     // Player.canInteractWithBlock exists from 1.20.5 through 1.21.10; outside
@@ -182,24 +204,38 @@ if (excludedServerMixins.isNotEmpty()) {
 
 // A single selection drives both compilation and runtime registration. No absent
 // renderer hook is hidden by require=0, and unselected implementations are not packaged.
-val clientUiAndAudioMixins = setOf(
-    "ClientLevelDirtyMixin", "CreateWorldScreenMoreTabMixin", "GridLayoutTabAccessor",
+val clientCoreMixins = buildSet {
+    // Earlier subtitles have no audibility gate; the sound engine already gates their events.
+    if (sc.current.parsed >= "1.20.3") add("SubtitleDistanceYLoopMixin")
+    if (sc.current.parsed >= "1.19.4") addAll(listOf("CreateWorldScreenMoreTabMixin", "GridLayoutTabAccessor"))
+    else add("LegacyCreateWorldScreenMixin")
+    addAll(listOf(
+    "ClientLevelDirtyMixin",
+    "ProjectileUtilYLoopMixin",
     "OptionsSubScreenAccessor", "VideoSettingsScreenMixin",
     "ClientLevelSoundYLoopMixin", "SoundEngineYLoopMixin",
-    "SubtitleDirectionYLoopMixin", "SubtitleDistanceYLoopMixin",
-)
+    "SubtitleDirectionYLoopMixin",
+    ))
+    if (sc.current.parsed >= "1.21.2") add("ClientPacketListenerYLoopMixin")
+    if (sc.current.parsed < "26.1") add("LegacyInteractionLocationYLoopMixin")
+}
 val selectedClientMixins = buildSet {
-    addAll(clientUiAndAudioMixins)
+    addAll(clientCoreMixins)
+    add("EntityRenderDispatcherYLoopMixin")
+    if (sc.current.parsed >= "1.21.6") add("TrackedWaypointYLoopMixin")
     addAll(listOf("FrustumInvoker", "FrustumYLoopMixin", "EntityShouldRenderYLoopMixin",
-            "ParticleYLoopMixin", "ClientHorizonYLoopMixin", "SectionOcclusionGraphLoopMixin", "ViewAreaAccessor"))
+            "ParticleYLoopMixin", "ClientHorizonYLoopMixin", "ViewAreaAccessor"))
     if (sc.current.parsed >= "1.21.6") add("VoidFogMixin") else add("LegacyVoidFogMixin")
     if (sc.current.parsed >= "1.21.2") add("CloudRendererLoopMixin") else add("LegacyClouds1211Mixin")
     add("RainImpactsYLoopMixin")
+    add(if (sc.current.parsed >= "1.20.2") "SectionOcclusionGraphLoopMixin" else "LegacyTerrainVisibilityMixin")
     add(if (sc.current.parsed >= "1.21.2") "WeatherEffectRendererYLoopMixin" else "ClassicWeatherYLoopMixin")
 
-    if (sc.current.parsed < "1.21.5") addAll(listOf(
-        "ClassicTerrainYLoopMixin", "LegacyVertexBufferMixin", "LegacySectionBufferMixin",
-    ))
+    if (sc.current.parsed < "1.21.5") {
+        add("LegacySectionBufferMixin")
+        add(if (sc.current.parsed >= "1.19") "LegacyVertexBufferMixin" else "BufferedVertexYLoopMixin")
+        add(if (sc.current.parsed >= "1.17") "ClassicTerrainYLoopMixin" else "FixedTerrainYLoopMixin")
+    }
     if (sc.current.version == "1.21.5") addAll(listOf("GpuLayerTerrainYLoopMixin", "GpuCompiledSectionAccessor"))
     if (sc.current.parsed >= "1.21.6" && sc.current.parsed < "26.3") add("GpuTerrainYLoopMixin")
     if (sc.current.parsed < "1.21.9") {
@@ -207,7 +243,11 @@ val selectedClientMixins = buildSet {
         add(if (sc.current.parsed < "1.21.2") "LegacyEntityRender1211YLoopMixin" else "LegacyEntityRender1218YLoopMixin")
     }
     add("BlockEntityRenderRangeYLoopMixin")
-    add(if (sc.current.parsed >= "1.21.6") "RenderRegionCacheYLoopMixin" else "LegacyRenderChunkYLoopMixin")
+    add(when {
+        sc.current.parsed >= "1.21.6" -> "RenderRegionCacheYLoopMixin"
+        sc.current.parsed >= "1.18" -> "LegacyRenderChunkYLoopMixin"
+        else -> "LegacyRegionSnapshotMixin"
+    })
     if (sc.current.parsed >= "1.21.9") addAll(listOf(
         "EntityRenderYLoopMixin", "BlockEntityPositionYLoopMixin", "BeaconBeamRenderYLoopMixin",
     )) else add("LegacyBeaconBeamYLoopMixin")
@@ -217,10 +257,9 @@ val allClientMixins = rootProject.fileTree("src/main/java/babel/biblioteca/clien
     .matching { include("*.java") }.files.map { it.nameWithoutExtension }.toSet()
 sourceSets.named("main") {
     java.exclude((allClientMixins - selectedClientMixins).map { "babel/biblioteca/client/mixin/$it.java" })
-    if (sc.current.parsed >= "1.21.5") java.exclude(
-        "babel/biblioteca/client/ClassicTerrainBackend.java",
-        "babel/biblioteca/client/LegacyVertexData.java",
-    )
+    if (sc.current.parsed >= "1.21.5" || sc.current.parsed < "1.17") java.exclude("babel/biblioteca/client/ClassicTerrainBackend.java")
+    if (sc.current.parsed >= "1.21.5") java.exclude("babel/biblioteca/client/LegacyVertexData.java")
+    if (sc.current.parsed >= "1.17") java.exclude("babel/biblioteca/client/FixedTerrainBackend.java")
     if (sc.current.parsed < "26.3") java.exclude("babel/biblioteca/client/LoopingTranslucency.java")
     if (sc.current.parsed < "1.21.5" || sc.current.parsed >= "26.3") java.exclude("babel/biblioteca/client/GpuTerrainIndices.java")
     if (sc.current.parsed < "1.21.5" || sc.current.parsed >= "26.3") java.exclude(
@@ -240,7 +279,14 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.processResources {
+    val apiVersion = sc.properties["deps.fabric_api"] as String
+    val apiBundle = rootProject.file(".gradle/fabric-api/$apiVersion/fabric-api.jar")
+    val apiId = ZipFile(apiBundle).use { zip ->
+        val json = zip.getInputStream(zip.getEntry("fabric.mod.json")).bufferedReader().use { it.readText() }
+        (groovy.json.JsonSlurper().parseText(json) as Map<*, *>)["id"] as String
+    }
     val props = mapOf(
+        "fabric_api_id" to apiId,
         "version" to project.version.toString(),
         "minecraft" to (sc.properties["mod.mc_compat"] as String),
         "loader" to (project.property("deps.fabric_loader") as String),
@@ -251,7 +297,7 @@ tasks.processResources {
     inputs.property("selectedClientMixins", selectedClientMixins.sorted().joinToString(","))
     filesMatching("fabric.mod.json") { expand(props) }
     filesMatching("*.mixins.json") { expand("java" to "JAVA_${requiredJava.majorVersion}") }
-    listOf("biblioteca.accesswidener", "biblioteca-weather.accesswidener").filter { it != accessWidener }.forEach { exclude(it) }
+    listOf("biblioteca.accesswidener", "biblioteca-weather.accesswidener", "biblioteca-classic.accesswidener", "biblioteca-classic116.accesswidener").filter { it != accessWidener }.forEach { exclude(it) }
 
     doLast {
         val outputDir = destinationDirectory.get().asFile
@@ -299,7 +345,7 @@ tasks.jar {
 // ---------------------------------------------------------------------------
 // The dedicated-server jar carries the same logic with the client renderer
 // mixins removed. It is cut from the finished jar so the two cannot drift.
-val noRenderMixins = selectedClientMixins - clientUiAndAudioMixins
+val noRenderMixins = selectedClientMixins - clientCoreMixins
 
 val noRenderDir = layout.buildDirectory.dir("generated/noRender")
 
@@ -429,6 +475,7 @@ tasks.register("writeValidationConfig") {
     group = "verification"
     dependsOn(tasks.classes)
     dependsOn(tasks.matching { it.name == "configureLaunch" })
+    dependsOn(tasks.matching { it.name == "extractNatives" })
     val report = rootProject.layout.buildDirectory.file("validation/runtime/${sc.current.version}.json")
     outputs.file(report)
     outputs.upToDateWhen { false }
@@ -437,7 +484,17 @@ tasks.register("writeValidationConfig") {
         val serverRun = tasks.named("runServer").get() as JavaExec
         val fabricApiVersion = sc.properties["deps.fabric_api"] as String
         val bundle = rootProject.file(".gradle/fabric-api/$fabricApiVersion/fabric-api.jar")
+        val apiModules = bundle.parentFile.listFiles { file -> file.extension == "jar" && file.name != "fabric-api.jar" }
+            .orEmpty().mapNotNull { jar ->
+                ZipFile(jar).use { zip ->
+                    val metadata = zip.getEntry("fabric.mod.json") ?: return@use null
+                    val json = zip.getInputStream(metadata).bufferedReader().use { it.readText() }
+                    val mod = groovy.json.JsonSlurper().parseText(json) as Map<*, *>
+                    mapOf("id" to mod["id"], "environment" to (mod["environment"] ?: "*"))
+                }
+            }
         val data = mapOf(
+            "fabricApiModules" to apiModules,
             "minecraft" to sc.current.version,
             "java" to requiredJava.majorVersion,
             "classpath" to clientRun.classpath.files.map { it.absolutePath },
@@ -447,6 +504,7 @@ tasks.register("writeValidationConfig") {
             "resources" to layout.buildDirectory.dir("resources/main").get().asFile.absolutePath,
             "classes" to layout.buildDirectory.dir("classes/java/main").get().asFile.absolutePath,
             "fabricApi" to bundle.absolutePath,
+            "fabricApiOnClasspath" to true,
         )
         val file = report.get().asFile
         file.parentFile.mkdirs()

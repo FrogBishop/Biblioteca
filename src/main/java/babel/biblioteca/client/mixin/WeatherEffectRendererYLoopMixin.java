@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.LoopingWeather;
 import babel.biblioteca.client.WeatherCompat;
@@ -83,7 +85,7 @@ public abstract class WeatherEffectRendererYLoopMixin {
             List<WeatherEffectRenderer.ColumnInstance> rain, List<WeatherEffectRenderer.ColumnInstance> snow) {
         int cameraX = Mth.floor(camera.x);
         int cameraZ = Mth.floor(camera.z);
-        var slices = LoopingWeather.visibleSlices(Mth.floor(camera.y), radius, level.getMinY(), level.getHeight());
+        var slices = LoopingWeather.visibleSlices(Mth.floor(camera.y), radius, Compat.minY(level), Compat.height(level));
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         RandomSource random = RandomSource.create();
         for (int z = cameraZ - radius; z <= cameraZ + radius; z++) {

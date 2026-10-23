@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.CloudRenderer;
@@ -32,7 +34,7 @@ public abstract class CloudRendererLoopMixin {
         if (mc.level == null || mc.player == null) return cloudHeight;
         if (!LoopingRegistry.isLooping(mc.level)) return cloudHeight;
 
-        int height = mc.level.getHeight();
+        int height = Compat.height(mc.level);
         double camY = mc.player.getEyeY();
         int n = (int) Math.round((camY - cloudHeight) / height);
         return cloudHeight + n * height;

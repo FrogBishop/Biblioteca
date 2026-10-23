@@ -1,6 +1,11 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SeamPositions;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.Minecraft;
@@ -33,6 +38,7 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(BlockEntityRenderDispatcher.class)
 public abstract class BlockEntityRenderRangeYLoopMixin {
 
+//? if >=1.17 {
     @WrapOperation(
             //? if >=1.21.9 {
             method = "tryExtractRenderState",
@@ -58,7 +64,7 @@ public abstract class BlockEntityRenderRangeYLoopMixin {
         if (minecraft.level == null) return false;
         if (!LoopingRegistry.isLooping(minecraft.level)) return false;
 
-        int period = minecraft.level.getHeight();
+        int period = Compat.height(minecraft.level);
         if (period <= 0) return false;
 
         double offset = blockEntity.getBlockPos().getY() - cameraPos.y;
@@ -68,4 +74,15 @@ public abstract class BlockEntityRenderRangeYLoopMixin {
         return original.call(renderer, blockEntity,
                 new Vec3(cameraPos.x, cameraPos.y + shift, cameraPos.z));
     }
+
+//?} else {
+/*    @ModifyExpressionValue(method = "render", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/Camera;getPosition()Lnet/minecraft/world/phys/Vec3;"))
+    private Vec3 biblioteca$legacyCamera(Vec3 position, @Local(argsOnly = true) BlockEntity entity) {
+        var level = entity.getLevel();
+        return level != null && LoopingRegistry.isLooping(level)
+                ? SeamPositions.foldToward(level, position, entity.getBlockPos().getY() + 0.5) : position;
+    }
+
+*///?}
 }

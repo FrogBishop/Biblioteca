@@ -5,7 +5,12 @@ import babel.biblioteca.world.LoopingDimensionManager;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.api.ModInitializer;
+//? if >=1.19 {
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+//?} else {
+/*import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
+*///?}
+
 //? if >=1.20.5 {
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 //?}
@@ -14,7 +19,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.IdentifierArgument;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -25,8 +29,14 @@ import net.minecraft.server.permissions.Permission;
 import net.minecraft.server.permissions.PermissionLevel;
 //?}
 import net.minecraft.world.level.Level;
+//? if >=1.18.2 {
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+//?} else {
+/*import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+*///?}
+
 
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -45,7 +55,12 @@ import java.util.stream.Collectors;
 public class Biblioteca implements ModInitializer {
 
     public static final String MOD_ID = "biblioteca";
+//? if >=1.18.2 {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+//?} else {
+/*    public static final Logger LOGGER = LogManager.getLogger(MOD_ID);
+*///?}
+
 
     @Override
     public void onInitialize() {
@@ -62,8 +77,13 @@ public class Biblioteca implements ModInitializer {
         /*PayloadTypeRegistry.playS2C().register(LoopingStatePayload.TYPE, LoopingStatePayload.STREAM_CODEC);
         *///?}
 
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                sendState(handler.getPlayer(), currentPayload()));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            //? if >=1.17 {
+            sendState(handler.getPlayer(), currentPayload());
+            //?} else {
+            /*sendState(handler.player, currentPayload());
+            *///?}
+        });
 
         registerCommands();
         LOGGER.info("[Biblioteca] Y-looping mod initialized.");
@@ -104,7 +124,12 @@ public class Biblioteca implements ModInitializer {
         Permission opPermission = new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS);
         //?}
 
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+        //? if >=1.19 {
+CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+//?} else {
+/*CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) ->
+*///?}
+
                 dispatcher.register(
                         Commands.literal("biblioteca")
                                 .requires(source -> {
@@ -136,8 +161,8 @@ public class Biblioteca implements ModInitializer {
                                     .map(key -> Compat.keyId(key).toString())
                                     .sorted()
                                     .collect(Collectors.joining(", "));
-                            ctx.getSource().sendSuccess(
-                                    () -> Component.literal("Looping dimensions: " + list),
+                            Compat.sendSuccess(ctx.getSource(),
+                                    () -> Compat.literal("Looping dimensions: " + list),
                                     false);
                             return dimensions.size();
                         }))
@@ -147,11 +172,11 @@ public class Biblioteca implements ModInitializer {
                                         .executes(ctx -> {
                                             Identifier id = IdentifierArgument.getId(ctx, "dimension");
                                             ResourceKey<Level> dimension =
-                                                    ResourceKey.create(Registries.DIMENSION, id);
+                                                    Compat.dimensionKey(id);
                                             boolean enabled = BoolArgumentType.getBool(ctx, "enabled");
                                             LoopingDimensionManager.setLooping(dimension, enabled);
                                             broadcastState(ctx.getSource().getServer());
-                                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                            Compat.sendSuccess(ctx.getSource(), () -> Compat.literal(
                                                     "Set looping for " + id + " = " + enabled), true);
                                             return 1;
                                         }))));
@@ -174,8 +199,8 @@ public class Biblioteca implements ModInitializer {
                 .executes(ctx -> {
                     ResourceKey<Level> dimension = ctx.getSource().getLevel().dimension();
                     boolean value = query.test(dimension);
-                    ctx.getSource().sendSuccess(
-                            () -> Component.literal(
+                    Compat.sendSuccess(ctx.getSource(),
+                            () -> Compat.literal(
                                     label + " in " + Compat.keyId(dimension) + " = " + value),
                             false);
                     return value ? 1 : 0;
@@ -186,8 +211,8 @@ public class Biblioteca implements ModInitializer {
                             boolean value = BoolArgumentType.getBool(ctx, argument);
                             setter.accept(dimension, value);
                             broadcastState(ctx.getSource().getServer());
-                            ctx.getSource().sendSuccess(
-                                    () -> Component.literal(
+                            Compat.sendSuccess(ctx.getSource(),
+                                    () -> Compat.literal(
                                             label + " in " + Compat.keyId(dimension) + " = " + value),
                                     true);
                             return 1;

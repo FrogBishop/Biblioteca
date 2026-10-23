@@ -1,5 +1,9 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.client.ClientCompat;
+
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.GpuTerrainIndices;
 import babel.biblioteca.client.GpuTerrainBuffer;
@@ -64,8 +68,8 @@ public abstract class GpuLayerTerrainYLoopMixin {
                     state == null ? null : QuadCenters.of(state.centroids())));
         }
         Frustum frustum = capturedFrustum == null ? cullingFrustum : capturedFrustum;
-        var copies = PeriodicTerrainPlan.copies(sources, minecraft.level.getHeight(), camera,
-                minecraft.options.getEffectiveRenderDistance() * 16.0,
+        var copies = PeriodicTerrainPlan.copies(sources, Compat.height(minecraft.level), camera,
+                ClientCompat.renderDistance() * 16.0,
                 (x, y, z, xx, yy, zz) -> frustum == null || SeamCull.plainlyVisible(frustum, x, y, z, xx, yy, zz));
         List<PeriodicTerrainPlan.Draw<GpuTerrainBuffer>> draws;
         GpuBuffer sortedIndices = null;

@@ -44,9 +44,13 @@ public abstract class LegacyVertexBufferMixin implements LegacyVertexData {
     }
     @Override public QuadCenters biblioteca$centers() { return this.biblioteca$centers; }
     @Override public int biblioteca$indexCount() { return this.indexCount; }
-    @Override public VertexFormat.IndexType biblioteca$indexType() {
+    private VertexFormat.IndexType biblioteca$indexType() {
         return this.sequentialIndices != null ? this.sequentialIndices.type() : this.indexType;
     }
+    @Override public int biblioteca$indexBytes() { return biblioteca$indexType().bytes; }
+    @Override public int biblioteca$indexGlType() { return biblioteca$indexType().asGLType; }
+    @Override public boolean biblioteca$valid() { return !((VertexBuffer) (Object) this).isInvalid(); }
+    @Override public void biblioteca$bindForDraw() { ((VertexBuffer) (Object) this).bind(); }
     @Override public void biblioteca$restoreIndices() {
         if (this.sequentialIndices != null) this.sequentialIndices.bind(this.indexCount);
         else {

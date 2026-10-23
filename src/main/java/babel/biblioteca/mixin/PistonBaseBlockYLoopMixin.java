@@ -1,5 +1,7 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamPositions;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -47,8 +49,8 @@ public abstract class PistonBaseBlockYLoopMixin {
 
         if (!LoopingRegistry.isLooping(level)) return;
 
-        int minY   = level.getMinY();
-        int height = level.getHeight();
+        int minY   = Compat.minY(level);
+        int height = Compat.height(level);
         int maxY   = minY + height - 1; // Legacy getMaxBuildHeight() is exclusive.
         int y      = pos.getY();
 
@@ -69,6 +71,7 @@ public abstract class PistonBaseBlockYLoopMixin {
         }
     }
 
+    //? if >=1.17 {
     @WrapOperation(
             method = "moveBlocks",
             at = @At(value = "INVOKE",
@@ -88,4 +91,5 @@ public abstract class PistonBaseBlockYLoopMixin {
                 : position;
         return original.call(target, blockState, movedState, direction, extending, isSourcePiston);
     }
+    //?}
 }

@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -20,7 +22,7 @@ public abstract class BlockEntityPositionYLoopMixin {
             @Local BlockEntityRenderState state) {
         var level = Minecraft.getInstance().level;
         if (!(state instanceof BeaconRenderState) && level != null && LoopingRegistry.isLooping(level)) {
-            int period = level.getHeight();
+            int period = Compat.height(level);
             if (period > 0) y -= Math.round(y / period) * (double) period;
         }
         original.call(pose, x, y, z);

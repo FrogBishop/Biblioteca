@@ -1,5 +1,7 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.SeamCull;
 import net.minecraft.client.Minecraft;
@@ -71,7 +73,7 @@ if (cir.getReturnValue() < 0) return;
         if (minecraft.level == null) return;
         if (!LoopingRegistry.isLooping(minecraft.level)) return;
 
-        double period  = minecraft.level.getHeight();
+        double period  = Compat.height(minecraft.level);
         double centreY = (minY + maxY) * 0.5;
         long   nearest = Math.round((camY - centreY) / period);
 

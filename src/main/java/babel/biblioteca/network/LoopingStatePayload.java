@@ -57,7 +57,7 @@ public record LoopingStatePayload(Set<String> loopingDimensions, Set<String> bea
     private static Set<String> readSet(FriendlyByteBuf buffer) {
         int count = buffer.readVarInt();
         Set<String> values = new HashSet<>(count);
-        for (int i = 0; i < count; i++) values.add(buffer.readUtf());
+        for (int i = 0; i < count; i++) values.add(buffer.readUtf(32767));
         return values;
     }
 }

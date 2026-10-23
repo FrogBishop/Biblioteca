@@ -5,24 +5,31 @@ import hashlib
 import json
 import re
 import struct
+import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSIONS = ['1.20.4', '1.20.5', '1.20.6', '1.21'] + [f'1.21.{i}' for i in range(1, 12)] + ['26.1', '26.1.1', '26.1.2', '26.2', '26.3']
-UI_AUDIO = {'ClientLevelDirtyMixin', 'CreateWorldScreenMoreTabMixin', 'GridLayoutTabAccessor', 'OptionsSubScreenAccessor',
-            'VideoSettingsScreenMixin', 'ClientLevelSoundYLoopMixin', 'SoundEngineYLoopMixin', 'SubtitleDirectionYLoopMixin', 'SubtitleDistanceYLoopMixin'}
+CONFIG = tomllib.loads((ROOT / 'stonecutter.properties.toml').read_text(encoding='utf-8'))
+VERSIONS = [key for key in CONFIG if re.fullmatch(r'\d+(?:\.\d+)+', key)]
+UI_AUDIO = {'ClientLevelDirtyMixin', 'OptionsSubScreenAccessor', 'VideoSettingsScreenMixin',
+            'ClientLevelSoundYLoopMixin', 'SoundEngineYLoopMixin', 'SubtitleDirectionYLoopMixin'}
 
 
 def inspect(version, no_render, mod_version):
     suffix = '-norender' if no_render else ''
     file = ROOT / f'build/distributions/biblioteca-{mod_version}+{version}{suffix}.jar'
-    java = 25 if version.startswith('26.') else 17 if version == '1.20.4' else 21
+    node = tuple(map(int, version.split('.')))
+    java = 25 if node >= (26, 1) else 21 if node >= (1, 20, 5) else 17
     with zipfile.ZipFile(file) as jar:
         names = set(jar.namelist())
         meta = json.loads(jar.read('fabric.mod.json'))
         assert meta['version'] == f'{mod_version}+{version}{suffix}', (file, 'version')
         assert meta['depends']['minecraft'] == version, (file, 'unsafe Minecraft range')
         assert meta['depends']['java'] == f'>={java}', (file, 'Java version')
+        api_version = CONFIG[version]['deps']['fabric_api']
+        with zipfile.ZipFile(ROOT / '.gradle/fabric-api' / api_version / 'fabric-api.jar') as api:
+            api_id = json.loads(api.read('fabric.mod.json'))['id']
+        assert api_id in meta['depends'], (file, 'Fabric API dependency id', api_id)
         client = json.loads(jar.read('biblioteca.client.mixins.json'))
         common = json.loads(jar.read('biblioteca.mixins.json'))
         for config, key in [(client, 'client'), (common, 'mixins')]:
@@ -36,10 +43,24 @@ def inspect(version, no_render, mod_version):
             assert refmap['mappings'], (file, 'empty refmap')
             assert 'net/minecraft/class_' in json.dumps(refmap), (file, 'refmap not intermediary')
         if no_render:
-            assert set(client['client']) == UI_AUDIO, (file, 'no-render hook drift')
+            core = UI_AUDIO | {'ProjectileUtilYLoopMixin'}
+            if node >= (1, 19, 4):
+                core.update({'CreateWorldScreenMoreTabMixin', 'GridLayoutTabAccessor'})
+            else:
+                core.add('LegacyCreateWorldScreenMixin')
+            if node >= (1, 20, 3):
+                core.add('SubtitleDistanceYLoopMixin')
+            if node >= (1, 21, 2):
+                core.add('ClientPacketListenerYLoopMixin')
+            if node < (26, 1):
+                core.add('LegacyInteractionLocationYLoopMixin')
+            assert set(client['client']) == core, (file, 'no-render hook drift')
         else:
-            assert {'RainImpactsYLoopMixin', 'SectionOcclusionGraphLoopMixin', 'BlockEntityRenderRangeYLoopMixin'} <= set(client['client']), (file, 'missing visuals')
-            expected = 'LevelRendererYLoopMixin' if version == '26.3' else 'GpuTerrainYLoopMixin' if version.startswith('26.') or version in [f'1.21.{i}' for i in range(6, 12)] else 'GpuLayerTerrainYLoopMixin' if version == '1.21.5' else 'ClassicTerrainYLoopMixin'
+            visibility = 'SectionOcclusionGraphLoopMixin' if node >= (1, 20, 2) else 'LegacyTerrainVisibilityMixin'
+            assert {'RainImpactsYLoopMixin', visibility, 'BlockEntityRenderRangeYLoopMixin'} <= set(client['client']), (file, 'missing visuals')
+            expected = ('LevelRendererYLoopMixin' if node >= (26, 3) else 'GpuTerrainYLoopMixin' if node >= (1, 21, 6)
+                        else 'GpuLayerTerrainYLoopMixin' if node >= (1, 21, 5) else 'ClassicTerrainYLoopMixin' if node >= (1, 17)
+                        else 'FixedTerrainYLoopMixin')
             assert expected in client['client'], (file, 'wrong terrain backend')
         assert 'ImprovedTransparencyYLoopMixin' not in client['client'], (file, 'forced OIT')
         if 'accessWidener' in meta:
@@ -59,7 +80,7 @@ def main():
     args = parser.parse_args()
     versions = args.versions.split(',') if args.versions else VERSIONS
     assert set(versions) <= set(VERSIONS), 'Unknown Minecraft version'
-    mod_version = re.search(r'^mod.version\s*=\s*"([^"]+)"', (ROOT / 'stonecutter.properties.toml').read_text(), re.M)[1]
+    mod_version = CONFIG['mod']['version']
     result = [inspect(v, no_render, mod_version) for v in versions for no_render in (False, True)]
     output = ROOT / 'build/validation/artifacts.json'
     output.parent.mkdir(parents=True, exist_ok=True)

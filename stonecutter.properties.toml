@@ -3,10 +3,101 @@
 mod.id = "biblioteca"
 mod.name = "Biblioteca"
 mod.group = "babel.biblioteca"
-mod.version = "0.67.0"
+mod.version = "0.676.7"
 
 deps.fabric_loader = "0.19.5"
 loomx.loom_version = "1.18-SNAPSHOT"
+
+
+["1.16.5"]
+mod.mc_compat = "1.16.5"
+mod.mc_releases = ["1.16.5"]
+deps.fabric_api = "0.42.0+1.16"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/0.42.0%2B1.16/fabric-api-0.42.0%2B1.16.jar"
+
+["1.17"]
+mod.mc_compat = "1.17"
+mod.mc_releases = ["1.17"]
+deps.fabric_api = "0.36.0+1.17"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/0.36.0%2B1.17/fabric-api-0.36.0%2B1.17.jar"
+
+["1.17.1"]
+mod.mc_compat = "1.17.1"
+mod.mc_releases = ["1.17.1"]
+deps.fabric_api = "0.46.1+1.17"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/0.46.1%2B1.17/fabric-api-0.46.1%2B1.17.jar"
+
+["1.18"]
+mod.mc_compat = "1.18"
+mod.mc_releases = ["1.18"]
+deps.fabric_api = "0.44.0+1.18"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/0.44.0%2B1.18/fabric-api-0.44.0%2B1.18.jar"
+
+["1.18.1"]
+mod.mc_compat = "1.18.1"
+mod.mc_releases = ["1.18.1"]
+deps.fabric_api = "0.46.6+1.18"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/0.46.6%2B1.18/fabric-api-0.46.6%2B1.18.jar"
+
+["1.18.2"]
+mod.mc_compat = "1.18.2"
+mod.mc_releases = ["1.18.2"]
+deps.fabric_api = "0.77.0+1.18.2"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/qk28POfr/fabric-api-0.77.0%2B1.18.2.jar"
+
+["1.19"]
+mod.mc_compat = "1.19"
+mod.mc_releases = ["1.19"]
+deps.fabric_api = "0.58.0+1.19"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/0.58.0%2B1.19/fabric-api-0.58.0%2B1.19.jar"
+
+["1.19.1"]
+mod.mc_compat = "1.19.1"
+mod.mc_releases = ["1.19.1"]
+deps.fabric_api = "0.58.5+1.19.1"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/0.58.5%2B1.19.1/fabric-api-0.58.5%2B1.19.1.jar"
+
+["1.19.2"]
+mod.mc_compat = "1.19.2"
+mod.mc_releases = ["1.19.2"]
+deps.fabric_api = "0.77.0+1.19.2"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/6g95K303/fabric-api-0.77.0%2B1.19.2.jar"
+
+["1.19.3"]
+mod.mc_compat = "1.19.3"
+mod.mc_releases = ["1.19.3"]
+deps.fabric_api = "0.76.1+1.19.3"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/jyKnHEDY/fabric-api-0.76.1%2B1.19.3.jar"
+
+["1.19.4"]
+mod.mc_compat = "1.19.4"
+mod.mc_releases = ["1.19.4"]
+deps.fabric_api = "0.87.2+1.19.4"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/nyAmoHlr/fabric-api-0.87.2%2B1.19.4.jar"
+
+["1.20"]
+mod.mc_compat = "1.20"
+mod.mc_releases = ["1.20"]
+deps.fabric_api = "0.83.0+1.20"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/n2c5lxAo/fabric-api-0.83.0%2B1.20.jar"
+
+["1.20.1"]
+mod.mc_compat = "1.20.1"
+mod.mc_releases = ["1.20.1"]
+deps.fabric_api = "0.92.12+1.20.1"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/rvI2dfzR/fabric-api-0.92.12%2B1.20.1.jar"
+
+["1.20.2"]
+mod.mc_compat = "1.20.2"
+mod.mc_releases = ["1.20.2"]
+deps.fabric_api = "0.91.6+1.20.2"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/8GVp7wDk/fabric-api-0.91.6%2B1.20.2.jar"
+
+["1.20.3"]
+mod.mc_compat = "1.20.3"
+mod.mc_releases = ["1.20.3"]
+deps.fabric_api = "0.91.1+1.20.3"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/Yolngp3s/fabric-api-0.91.1%2B1.20.3.jar"
 
 ["1.20.4"]
 mod.mc_compat = "1.20.4"

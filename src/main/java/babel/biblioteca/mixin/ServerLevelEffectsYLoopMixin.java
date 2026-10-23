@@ -1,11 +1,15 @@
 package babel.biblioteca.mixin;
 
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamEffects;
 import babel.biblioteca.SeamPositions;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.core.BlockPos;
+//? if >=1.19.3 {
 import net.minecraft.core.Holder;
+//?}
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
@@ -54,6 +58,7 @@ public abstract class ServerLevelEffectsYLoopMixin {
         }
     }
 
+    //? if >=1.19.3 {
     @Inject(
             //? if >=1.21.5 {
             method = "playSeededSound(Lnet/minecraft/world/entity/Entity;DDDLnet/minecraft/core/Holder;Lnet/minecraft/sounds/SoundSource;FFJ)V",
@@ -96,26 +101,30 @@ public abstract class ServerLevelEffectsYLoopMixin {
                 sourceEntity.getZ(), sound.value().getRange(volume), y -> packet)) ci.cancel();
     }
 
+    //?}
+
     @Inject(method = "globalLevelEvent", at = @At("HEAD"), cancellable = true)
     private void biblioteca$globalEventAcrossBoundary(int type, BlockPos pos, int data, CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
         if (!LoopingRegistry.isLooping(level)) return;
         //? if >=1.21.11 {
         boolean global = level.getGameRules().get(GameRules.GLOBAL_SOUND_EVENTS);
-        //?} else {
+        //?} else if >=1.19.3 {
         /*boolean global = level.getGameRules().getBoolean(GameRules.RULE_GLOBAL_SOUND_EVENTS);
+        *///?} else {
+        /*boolean global = true;
         *///?}
         if (!global) return; // Vanilla routes this case through the periodic levelEvent hook.
         Vec3 center = Vec3.atCenterOf(pos);
         for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
             Vec3 source = player.position();
-            if (player.level() == level) {
-                source = new Vec3(center.x, SeamPositions.foldToward(center.y, player.getY(), level.getHeight()), center.z);
+            if (Compat.level(player) == level) {
+                source = new Vec3(center.x, SeamPositions.foldToward(center.y, player.getY(), Compat.height(level)), center.z);
                 if (source.distanceToSqr(player.position()) >= 32.0 * 32.0) {
                     source = player.position().add(source.subtract(player.position()).normalize().scale(32.0));
                 }
             }
-            player.connection.send(new ClientboundLevelEventPacket(type, BlockPos.containing(source), data, true));
+            player.connection.send(new ClientboundLevelEventPacket(type, Compat.blockPos(source), data, true));
         }
         ci.cancel();
     }
@@ -125,7 +134,7 @@ public abstract class ServerLevelEffectsYLoopMixin {
     private double biblioteca$targetedParticleY(double y, @Local(argsOnly = true) ServerPlayer player) {
         ServerLevel level = (ServerLevel) (Object) this;
         return LoopingRegistry.isLooping(level)
-                ? SeamPositions.foldToward(y, player.blockPosition().getY() + 0.5, level.getHeight()) : y;
+                ? SeamPositions.foldToward(y, player.blockPosition().getY() + 0.5, Compat.height(level)) : y;
     }
 
     @Inject(

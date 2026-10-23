@@ -1,5 +1,9 @@
 package babel.biblioteca.client.mixin;
 
+import babel.biblioteca.client.ClientCompat;
+
+import babel.biblioteca.Compat;
+
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.LoopingTranslucency;
 import babel.biblioteca.client.SeamCull;
@@ -136,10 +140,10 @@ public abstract class LevelRendererYLoopMixin {
         int sourceCount = sectionInfos.size();
         if (sourceCount == 0) return;
 
-        int period = minecraft.level.getHeight();
+        int period = Compat.height(minecraft.level);
         if (period <= 0) return;
         double cameraY = renderState.cameraRenderState.pos.y;
-        double viewDistanceBlocks = minecraft.options.getEffectiveRenderDistance() * 16.0;
+        double viewDistanceBlocks = ClientCompat.renderDistance() * 16.0;
 
         // How many periodic copies can possibly fall inside the render distance. With a long
         // render distance this grows, and that is the point: the world is a ring, so a player with
@@ -234,7 +238,7 @@ public abstract class LevelRendererYLoopMixin {
             List<LevelRenderer.ChunkDrawGroup> translucent = drawGroups.get(ChunkSectionLayer.TRANSLUCENT);
             if (translucent != null) {
                 this.biblioteca$translucency.rebuild(sectionInfos, translucent, this.biblioteca$translucentSources,
-                        minecraft.level.getMinY(), period, renderState.cameraRenderState.pos,
+                        Compat.minY(minecraft.level), period, renderState.cameraRenderState.pos,
                         info -> biblioteca$worthDrawing(frustum, info.x(), info.y(), info.z(), cameraY, viewDistanceBlocks));
             }
         }

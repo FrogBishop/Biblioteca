@@ -4,7 +4,6 @@ import babel.biblioteca.Compat;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -49,6 +48,9 @@ public class LoopingWorldData extends SavedData {
             Set<ResourceKey<Level>> beaconIgnoresSky,
             Set<ResourceKey<Level>> noVoidFog,
             Set<ResourceKey<Level>> noSkyLight) {
+        //? if <1.17 {
+        /*super("biblioteca_looping");
+        *///?}
         this.loopingDimensions = new HashSet<>(loopingDimensions);
         this.beaconIgnoresSky = new HashSet<>(beaconIgnoresSky);
         this.noVoidFog = new HashSet<>(noVoidFog);
@@ -56,23 +58,23 @@ public class LoopingWorldData extends SavedData {
     }
 
     private static final Codec<LoopingWorldData> RECORD = RecordCodecBuilder.create(instance -> instance.group(
-            ResourceKey.codec(Registries.DIMENSION).listOf()
+            Compat.dimensionCodec().listOf()
                     .optionalFieldOf("looping", List.of())
                     .forGetter(data -> List.copyOf(data.loopingDimensions)),
-            ResourceKey.codec(Registries.DIMENSION).listOf()
+            Compat.dimensionCodec().listOf()
                     .optionalFieldOf("beacon_ignores_sky", List.of())
                     .forGetter(data -> List.copyOf(data.beaconIgnoresSky)),
-            ResourceKey.codec(Registries.DIMENSION).listOf()
+            Compat.dimensionCodec().listOf()
                     .optionalFieldOf("no_void_fog", List.of())
                     .forGetter(data -> List.copyOf(data.noVoidFog)),
-            ResourceKey.codec(Registries.DIMENSION).listOf()
+            Compat.dimensionCodec().listOf()
                     .optionalFieldOf("no_sky_light", List.of())
                     .forGetter(data -> List.copyOf(data.noSkyLight))
     ).apply(instance, (looping, beacon, noVoidFog, noSkyLight) -> new LoopingWorldData(
             new HashSet<>(looping), new HashSet<>(beacon), new HashSet<>(noVoidFog), new HashSet<>(noSkyLight))));
 
     /** Worlds written before the later attributes existed hold a bare list of dimensions. */
-    private static final Codec<LoopingWorldData> LEGACY = ResourceKey.codec(Registries.DIMENSION)
+    private static final Codec<LoopingWorldData> LEGACY = Compat.dimensionCodec()
             .listOf()
             .xmap(looping -> new LoopingWorldData(new HashSet<>(looping), Set.of(), Set.of(), Set.of()),
                     data -> List.copyOf(data.loopingDimensions));
@@ -105,7 +107,7 @@ public class LoopingWorldData extends SavedData {
             DataFixTypes.LEVEL
     );
     *///?}
-    //? if <1.20.5 {
+    //? if >=1.20.2 <1.20.5 {
     /*public static final SavedData.Factory<LoopingWorldData> TYPE = new SavedData.Factory<>(
             () -> new LoopingWorldData(Set.of(), Set.of(), Set.of(), Set.of()),
             tag -> decode(tag),
@@ -114,7 +116,7 @@ public class LoopingWorldData extends SavedData {
     *///?}
 
     //? if <1.21.5 {
-    /*private static LoopingWorldData decode(CompoundTag tag) {
+    /*public static LoopingWorldData decode(CompoundTag tag) {
         return CODEC.parse(NbtOps.INSTANCE, tag)
                 .result()
                 .orElseGet(() -> new LoopingWorldData(Set.of(), Set.of(), Set.of(), Set.of()));
@@ -140,6 +142,21 @@ public class LoopingWorldData extends SavedData {
     /*@Override
     public CompoundTag save(CompoundTag tag) {
         return writeTo(tag);
+    }
+    *///?}
+
+    public static LoopingWorldData empty() {
+        return new LoopingWorldData(Set.of(), Set.of(), Set.of(), Set.of());
+    }
+
+    //? if <1.17 {
+    /*@Override
+    public void load(CompoundTag tag) {
+        LoopingWorldData decoded = decode(tag);
+        this.loopingDimensions.clear(); this.loopingDimensions.addAll(decoded.loopingDimensions);
+        this.beaconIgnoresSky.clear(); this.beaconIgnoresSky.addAll(decoded.beaconIgnoresSky);
+        this.noVoidFog.clear(); this.noVoidFog.addAll(decoded.noVoidFog);
+        this.noSkyLight.clear(); this.noSkyLight.addAll(decoded.noSkyLight);
     }
     *///?}
 
