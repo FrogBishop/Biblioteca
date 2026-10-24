@@ -2,6 +2,7 @@ package babel.biblioteca.world;
 
 import babel.biblioteca.Biblioteca;
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.SkyLightMode;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -9,6 +10,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.SavedDataStorage;
 
 import java.util.Set;
+import java.util.Map;
 
 /**
  * Server-side singleton that owns the LoopingWorldData and exposes the per-dimension
@@ -29,7 +31,7 @@ public final class LoopingDimensionManager {
     private static volatile Set<ResourceKey<Level>> loopingSnapshot = Set.of();
     private static volatile Set<ResourceKey<Level>> beaconIgnoresSkySnapshot = Set.of();
     private static volatile Set<ResourceKey<Level>> noVoidFogSnapshot = Set.of();
-    private static volatile Set<ResourceKey<Level>> noSkyLightSnapshot = Set.of();
+    private static volatile Map<ResourceKey<Level>, SkyLightMode> skyLightSnapshot = Map.of();
 
     private LoopingDimensionManager() {}
 
@@ -46,7 +48,7 @@ public final class LoopingDimensionManager {
         Biblioteca.LOGGER.info("[Biblioteca] Looping dimensions: {}", loopingSnapshot);
         Biblioteca.LOGGER.info("[Biblioteca] Beacon ignores sky: {}", beaconIgnoresSkySnapshot);
         Biblioteca.LOGGER.info("[Biblioteca] No void fog: {}", noVoidFogSnapshot);
-        Biblioteca.LOGGER.info("[Biblioteca] No sky light: {}", noSkyLightSnapshot);
+        Biblioteca.LOGGER.info("[Biblioteca] Sky light modes (default: looping): {}", skyLightSnapshot);
 
         // The data only became readable now, so anything cached before this point is stale.
         LoopingRegistry.bumpRevision();
@@ -63,7 +65,7 @@ public final class LoopingDimensionManager {
         loopingSnapshot = data == null ? Set.of() : data.getLoopingDimensions();
         beaconIgnoresSkySnapshot = data == null ? Set.of() : data.getBeaconIgnoresSky();
         noVoidFogSnapshot = data == null ? Set.of() : data.getNoVoidFogDimensions();
-        noSkyLightSnapshot = data == null ? Set.of() : data.getNoSkyLightDimensions();
+        skyLightSnapshot = data == null ? Map.of() : data.getSkyLightModes();
     }
 
     public static boolean isLooping(ResourceKey<Level> dimension) {
@@ -114,19 +116,19 @@ public final class LoopingDimensionManager {
         return noVoidFogSnapshot;
     }
 
-    public static boolean hasNoSkyLight(ResourceKey<Level> dimension) {
-        return noSkyLightSnapshot.contains(dimension);
+    public static SkyLightMode getSkyLightMode(ResourceKey<Level> dimension) {
+        return skyLightSnapshot.getOrDefault(dimension, SkyLightMode.DEFAULT);
     }
 
-    public static void setNoSkyLight(ResourceKey<Level> dimension, boolean disabled) {
+    public static void setSkyLightMode(ResourceKey<Level> dimension, SkyLightMode mode) {
         if (serverData != null) {
-            serverData.setNoSkyLight(dimension, disabled);
+            serverData.setSkyLightMode(dimension, mode);
             republishSnapshots();
             LoopingRegistry.bumpRevision();
         }
     }
 
-    public static Set<ResourceKey<Level>> getNoSkyLightDimensions() {
-        return noSkyLightSnapshot;
+    public static Map<ResourceKey<Level>, SkyLightMode> getSkyLightModes() {
+        return skyLightSnapshot;
     }
 }

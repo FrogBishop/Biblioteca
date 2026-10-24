@@ -4,6 +4,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -19,7 +21,7 @@ public final class PendingLoopingConfig {
     private static final Set<ResourceKey<Level>> pendingLooping = new HashSet<>();
     private static final Set<ResourceKey<Level>> pendingBeaconIgnoresSky = new HashSet<>();
     private static final Set<ResourceKey<Level>> pendingNoVoidFog = new HashSet<>();
-    private static final Set<ResourceKey<Level>> pendingNoSkyLight = new HashSet<>();
+    private static final Map<ResourceKey<Level>, SkyLightMode> pendingSkyLightModes = new HashMap<>();
 
     private PendingLoopingConfig() {}
 
@@ -28,15 +30,15 @@ public final class PendingLoopingConfig {
             Set<ResourceKey<Level>> looping,
             Set<ResourceKey<Level>> beaconIgnoresSky,
             Set<ResourceKey<Level>> noVoidFog,
-            Set<ResourceKey<Level>> noSkyLight) {
+            Map<ResourceKey<Level>, SkyLightMode> skyLightModes) {
         pendingLooping.clear();
         pendingLooping.addAll(looping);
         pendingBeaconIgnoresSky.clear();
         pendingBeaconIgnoresSky.addAll(beaconIgnoresSky);
         pendingNoVoidFog.clear();
         pendingNoVoidFog.addAll(noVoidFog);
-        pendingNoSkyLight.clear();
-        pendingNoSkyLight.addAll(noSkyLight);
+        pendingSkyLightModes.clear();
+        pendingSkyLightModes.putAll(skyLightModes);
         hasPending = true;
     }
 
@@ -56,8 +58,8 @@ public final class PendingLoopingConfig {
         return Set.copyOf(pendingNoVoidFog);
     }
 
-    public static Set<ResourceKey<Level>> getPendingNoSkyLight() {
-        return Set.copyOf(pendingNoSkyLight);
+    public static Map<ResourceKey<Level>, SkyLightMode> getPendingSkyLightModes() {
+        return Map.copyOf(pendingSkyLightModes);
     }
 
     /** Consume and clear — called once the server has applied the pending config. */
@@ -66,6 +68,6 @@ public final class PendingLoopingConfig {
         pendingLooping.clear();
         pendingBeaconIgnoresSky.clear();
         pendingNoVoidFog.clear();
-        pendingNoSkyLight.clear();
+        pendingSkyLightModes.clear();
     }
 }

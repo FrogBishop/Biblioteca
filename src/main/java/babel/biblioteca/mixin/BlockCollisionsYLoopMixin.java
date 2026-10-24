@@ -9,6 +9,7 @@ import net.minecraft.world.level.BlockCollisions;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.CollisionGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.PathNavigationRegion;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -48,6 +49,12 @@ public abstract class BlockCollisionsYLoopMixin {
                     target = "Lnet/minecraft/world/level/BlockGetter;getBlockState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;"))
     private BlockState biblioteca$foldCollisionLookup(
             BlockGetter chunk, BlockPos pos, Operation<BlockState> original) {
+
+        // Pathfinding performs the same chunk-based collision query. Its own block getter folds
+        // the lookup while the collision iterator keeps the shape at the unwrapped path node.
+        if (collisionGetter instanceof PathNavigationRegion region) {
+            return region.isOutsideBuildHeight(pos) ? region.getBlockState(pos) : original.call(chunk, pos);
+        }
 
         if (!(collisionGetter instanceof Level level)) {
             return original.call(chunk, pos);

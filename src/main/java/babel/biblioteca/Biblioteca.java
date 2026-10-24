@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.DimensionArgument;
 import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -33,9 +34,8 @@ import java.util.stream.Collectors;
  * {@code /biblioteca} command tree.
  *
  * <p>Four attributes exist per dimension: whether the Y axis loops, whether beacon beams ignore the
- * sky, whether vanilla void fog is disabled, and whether the vanilla sky-light channel is disabled.
- * The two lighting overrides default to false, preserving vanilla effects. Turning one on disables
- * that effect in the looping dimension.
+ * sky, whether vanilla void fog is disabled, and the sky-light source mode. Sky-light choices are
+ * disabled, a fully periodic sky, or vanilla sky exposure with periodic propagation.
  */
 public class Biblioteca implements ModInitializer {
 
@@ -47,7 +47,7 @@ public class Biblioteca implements ModInitializer {
         LoopingRegistry.setServerChecker(LoopingDimensionManager::isLooping);
         LoopingRegistry.setServerBeaconChecker(LoopingDimensionManager::beaconIgnoresSky);
         LoopingRegistry.setServerNoVoidFogChecker(LoopingDimensionManager::hasNoVoidFog);
-        LoopingRegistry.setServerNoSkyLightChecker(LoopingDimensionManager::hasNoSkyLight);
+        LoopingRegistry.setServerSkyLightModeGetter(LoopingDimensionManager::getSkyLightMode);
 
         SeamStats.init();
 
@@ -66,7 +66,8 @@ public class Biblioteca implements ModInitializer {
                 keysOf(LoopingDimensionManager.getLoopingDimensions()),
                 keysOf(LoopingDimensionManager.getBeaconIgnoresSkyDimensions()),
                 keysOf(LoopingDimensionManager.getNoVoidFogDimensions()),
-                keysOf(LoopingDimensionManager.getNoSkyLightDimensions()));
+                LoopingDimensionManager.getSkyLightModes().entrySet().stream().collect(Collectors.toMap(
+                        entry -> entry.getKey().identifier().toString(), java.util.Map.Entry::getValue)));
     }
 
     private static Set<String> keysOf(Set<ResourceKey<Level>> dimensions) {
@@ -96,9 +97,29 @@ public class Biblioteca implements ModInitializer {
                                 .then(dimensionAttribute("no_void_fog", "disabled", "No void fog",
                                         LoopingDimensionManager::hasNoVoidFog,
                                         LoopingDimensionManager::setNoVoidFog))
-                                .then(dimensionAttribute("no_sky_light", "disabled", "No sky light",
-                                        LoopingDimensionManager::hasNoSkyLight,
-                                        LoopingDimensionManager::setNoSkyLight))));
+                                .then(skyLightCommand())));
+    }
+
+    /** Literal mode names synchronize and complete on clients without a custom argument type. */
+    private static LiteralArgumentBuilder<CommandSourceStack> skyLightCommand() {
+        var command = Commands.literal("sky_light").executes(ctx -> {
+            ResourceKey<Level> dimension = ctx.getSource().getLevel().dimension();
+            SkyLightMode mode = LoopingDimensionManager.getSkyLightMode(dimension);
+            ctx.getSource().sendSuccess(() -> Component.translatable("biblioteca.command.sky_light.query",
+                    dimension.identifier().toString(), Component.translatable(mode.translationKey()), mode.id()), false);
+            return 1;
+        });
+        for (SkyLightMode mode : SkyLightMode.values()) {
+            command.then(Commands.literal(mode.id()).executes(ctx -> {
+                ResourceKey<Level> dimension = ctx.getSource().getLevel().dimension();
+                LoopingDimensionManager.setSkyLightMode(dimension, mode);
+                broadcastState(ctx.getSource().getServer());
+                ctx.getSource().sendSuccess(() -> Component.translatable("biblioteca.command.sky_light.set",
+                        dimension.identifier().toString(), Component.translatable(mode.translationKey()), mode.id()), true);
+                return 1;
+            }));
+        }
+        return command;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> loopingCommand() {
@@ -117,7 +138,7 @@ public class Biblioteca implements ModInitializer {
                             return dimensions.size();
                         }))
                 .then(Commands.literal("set")
-                        .then(Commands.argument("dimension", IdentifierArgument.id())
+                        .then(Commands.argument("dimension", DimensionArgument.dimension())
                                 .then(Commands.argument("enabled", BoolArgumentType.bool())
                                         .executes(ctx -> {
                                             Identifier id = IdentifierArgument.getId(ctx, "dimension");

@@ -212,6 +212,43 @@ tasks.named('assemble') {
 	dependsOn noRenderJar
 }
 
+// Export the exact Loom launches for headless Mixin and seam regression checks. The checks load
+// native game classes through Fabric, but do not start a Minecraft window or a saved world.
+tasks.register('writeSeamValidationConfig') {
+	group = 'verification'
+	dependsOn tasks.named('classes'), tasks.named('clientClasses')
+	dependsOn tasks.matching { it.name == 'configureLaunch' || it.name == 'extractNatives' }
+	def report = layout.buildDirectory.file('seam-regression/runtime.json')
+	outputs.file(report)
+	outputs.upToDateWhen { false }
+	notCompatibleWithConfigurationCache('Exports the resolved Loom run tasks.')
+	doLast {
+		def client = tasks.named('runClient').get()
+		def server = tasks.named('runServer').get()
+		def data = [
+			minecraft: project.minecraft_version,
+			classpath: client.classpath.files.collect { it.absolutePath },
+			serverClasspath: server.classpath.files.collect { it.absolutePath },
+			clientJvmArgs: client.allJvmArgs + client.jvmArgumentProviders.collectMany { it.asArguments() },
+			serverJvmArgs: server.allJvmArgs + server.jvmArgumentProviders.collectMany { it.asArguments() },
+			resources: layout.buildDirectory.dir('resources/main').get().asFile.absolutePath,
+			classes: layout.buildDirectory.dir('classes/java/main').get().asFile.absolutePath,
+			clientResources: layout.buildDirectory.dir('resources/client').get().asFile.absolutePath,
+			clientClasses: layout.buildDirectory.dir('classes/java/client').get().asFile.absolutePath,
+		]
+		def file = report.get().asFile
+		file.parentFile.mkdirs()
+		file.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data)), 'UTF-8')
+	}
+}
+
+tasks.register('verifySeams', Exec) {
+	group = 'verification'
+	description = 'Checks client/server Mixin targets and seam behavior without starting the game.'
+	dependsOn tasks.named('writeSeamValidationConfig')
+	commandLine 'python', 'tools/verify_seams.py'
+}
+
 // ---------------------------------------------------------------------------
 // Local deployment
 // ---------------------------------------------------------------------------

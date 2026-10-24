@@ -1,11 +1,14 @@
 package babel.biblioteca.client.mixin;
 
 import babel.biblioteca.LoopingRegistry;
-import net.minecraft.client.Minecraft;
+import babel.biblioteca.SeamPositions;
+import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -32,6 +35,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRenderYLoopMixin {
 
+    @Shadow public Camera camera;
+
     @Inject(method = "extractEntity", at = @At("RETURN"))
     private void biblioteca$renderAtNearestRingLayer(
             Entity entity, float partialTicks, CallbackInfoReturnable<EntityRenderState> cir) {
@@ -39,14 +44,22 @@ public abstract class EntityRenderYLoopMixin {
         EntityRenderState state = cir.getReturnValue();
         if (state == null) return;
 
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null) return;
-        if (!LoopingRegistry.isLooping(minecraft.level)) return;
+        Level level = entity.level();
+        if (level == null || !LoopingRegistry.isLooping(level)) return;
 
-        int period = minecraft.level.getHeight();
+        int period = level.getHeight();
         if (period <= 0) return;
 
-        double camY  = minecraft.gameRenderer.mainCamera().position().y;
+        // Leashes are drawn from their endpoint difference relative to the rendered body. Keep
+        // both endpoints in the same period, including when the body already needs no camera shift.
+        if (state.leashStates != null) {
+            for (EntityRenderState.LeashState leash : state.leashStates) {
+                leash.end = SeamPositions.foldToward(level, leash.end, leash.start.y);
+            }
+        }
+
+        if (this.camera == null) return;
+        double camY  = this.camera.position().y;
         long   layer = Math.round((camY - state.y) / period);
         if (layer == 0) return;
 

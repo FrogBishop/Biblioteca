@@ -2,6 +2,7 @@ package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamPositions;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,6 +23,22 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  */
 @Mixin(LivingEntity.class)
 public abstract class LivingEntitySightYLoopMixin {
+
+    /** Endermen and creakings test a gaze cone before casting their otherwise periodic sight ray. */
+    @ModifyVariable(method = "isLookingAtMe", at = @At("HEAD"), argsOnly = true)
+    private double[] biblioteca$nearGazeHeights(double[] heights, @Local(argsOnly = true) LivingEntity observer) {
+        Level level = ((LivingEntity)(Object)this).level();
+        if (!LoopingRegistry.isLooping(level)) return heights;
+        double[] result = heights;
+        for (int i = 0; i < heights.length; i++) {
+            double y = SeamPositions.foldForDistance(level, heights[i], observer.getEyeY());
+            if (y != heights[i]) {
+                if (result == heights) result = heights.clone();
+                result[i] = y;
+            }
+        }
+        return result;
+    }
 
     @ModifyVariable(
             method = "hasLineOfSight(Lnet/minecraft/world/entity/Entity;"

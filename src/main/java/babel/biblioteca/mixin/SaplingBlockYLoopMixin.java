@@ -18,16 +18,10 @@ import org.spongepowered.asm.mixin.injection.At;
  * there is no row that is "outside the world", so there is nothing to reject - the same reasoning
  * as the door, tall plant and vine hooks, all of which answer the height query with "no edge".
  *
- * <p>The random-tick light check is deliberately left alone. It samples the cell above the sapling,
- * which for the top row is the first row past the stored period, and the sky-light channel answers
- * 15 there - the same value a sapling standing in the open on an ordinary row sees. No folding or
- * special case is needed, and folding it to the bottom row would wrongly make an exposed sapling
- * depend on the light of the world's floor.
- *
- * <p>With the {@code no_sky_light} attribute the sky channel is zeroed for every position in the
- * dimension, so the cell above answers with block light only and a top-row sapling needs a light
- * source exactly like any other sapling there. Block light still reaches that cell across the seam,
- * because its queries are folded onto the ring.
+ * <p>The random-tick light check stays native. Its sample above a top-row sapling is folded to
+ * the bottom row, for both sky and block light. Direct sky follows the dimension's selected
+ * exposure rule; there is no implicit level-15 sample outside the stored world.
+ * With sky light disabled, the same sample contains block light only.
  *
  * <p>The remaining ceiling on tree growth is in {@code TreeFeature}, which has its own hook.
  */

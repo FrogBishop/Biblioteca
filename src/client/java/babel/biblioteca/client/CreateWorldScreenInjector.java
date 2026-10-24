@@ -31,12 +31,13 @@ public final class CreateWorldScreenInjector {
 
     private static void openConfig(CreateWorldScreen parent) {
         // The getters are empty until the screen has been confirmed once, so a fresh world opens
-        // every toggle off without a separate "nothing pending" branch.
+        // boolean toggles off and the default sky mode without a separate "nothing pending" branch.
         Minecraft.getInstance().setScreenAndShow(new LoopingConfigScreen(
                 parent,
-                PendingLoopingConfig.getPendingLooping(),
-                PendingLoopingConfig.getPendingBeaconIgnoresSky(),
-                PendingLoopingConfig.getPendingNoVoidFog(),
-                PendingLoopingConfig.getPendingNoSkyLight()));
+                new DimensionConfigModel(parent.getUiState()::getSettings,
+                        PendingLoopingConfig.getPendingLooping(),
+                        PendingLoopingConfig.getPendingBeaconIgnoresSky(),
+                        PendingLoopingConfig.getPendingNoVoidFog(),
+                        PendingLoopingConfig.getPendingSkyLightModes())));
     }
 }

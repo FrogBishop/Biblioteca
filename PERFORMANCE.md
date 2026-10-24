@@ -42,6 +42,11 @@ there is no per-tick check for it and none for entities either.
 - **Distances:** entity-to-entity and entity-to-point distances fold the other row only when the two
   rows are closer around the ring than in absolute space. The common case is two comparisons on
   top of the vanilla arithmetic.
+- **Ranged aim and gaze:** target deltas are folded before ballistic compensation or direction
+  normalization; this runs when aiming or firing, without a new world scan. Gaze height arrays
+  are copied only when a sample needs another periodic copy. Projectile hit tests and initial
+  owner checks shift the existing candidate boxes into the ray's frame; candidate discovery
+  continues to use the normal periodic entity search.
 - **Entity searches:** a query whose box comes within 16 rows of a seam is evaluated over one extra
   world height and then filtered by each entity's ring position. Queries further from the seams run
   the vanilla code path, so ordinary AI, collision and item queries are unaffected.
@@ -57,6 +62,25 @@ there is no per-tick check for it and none for entities either.
   its area leaves the world; ordinary spawning keeps the vanilla path. A hanging entity's support
   and collision checks run when it is placed and every 100 ticks, and read only the cells its box
   covers.
+
+## Periodic sky light
+
+Looping dimensions retain sky data for every canonical vertical section, including empty sections,
+so client packets can represent dark air above a blocked column. Vanilla's compact homogeneous
+layers are kept for uniformly dark or fully lit sections; mixed sections materialize their nibble
+arrays. This increases light-storage and packet costs compared with vanilla's implicit sky above
+the highest occupied section. A 256-entry array of source heights is cached per enabled chunk and discarded
+on unload; physically nonempty section records are retained for restoring vanilla lighting.
+
+Initial loading, a looping toggle and a sky-mode change rebuild sky data on the normal lighting
+worker. Hybrid source tests use the native cached column height map; full-period sources also
+check the edge joining the bottom and top. A changed source height rewrites the affected range
+of that column and seeds native increase/decrease queues, including the two vertical boundaries
+of a partially exposed column. Diffuse
+propagation loses at least one light level per step, so a closed cycle cannot maintain light by
+itself. Clients apply server light packets rather than running a second sky solver. Profiling
+should include loading old fully lit chunks and opening or closing many full-height shafts in
+one tick; these are more expensive than ordinary local light queries.
 
 ## Known ceiling
 

@@ -2,12 +2,15 @@ package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamPositions;
+import net.minecraft.core.PositionAndRotation;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.PositionPath;
 import net.minecraft.world.entity.PositionStep;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -44,6 +47,8 @@ public abstract class EntityInterpolationYLoopMixin {
 
     @Shadow public abstract Vec3 position();
 
+    @Shadow @Final protected InterpolationHandler interpolationHandler;
+
     /**
      * Chooses the copy of an interpolation target nearest the entity, so the interpolation runs
      * over one ring step rather than a whole world height.
@@ -66,6 +71,12 @@ public abstract class EntityInterpolationYLoopMixin {
         if (period <= 0) return path;
 
         double currentY = this.position().y;
+        // Appended packets must continue in the buffered path's frame, even after setPosRaw has
+        // folded the visible entity into another period halfway through that path.
+        if (this.interpolationHandler.hasActiveInterpolation()) {
+            PositionAndRotation target = this.interpolationHandler.target();
+            if (target != null) currentY = target.position().y;
+        }
 
         return switch (path) {
             case PositionPath.Linear linear -> {

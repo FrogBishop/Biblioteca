@@ -48,11 +48,10 @@ public abstract class EntityYLoopMixin {
             // folded before it was sent, or an interpolated step that arrived after a dropped
             // packet. The renderer interpolates from the previous row, so without this the body
             // sweeps through the world and vanishes for a frame or two.
-            shift = this.biblioteca$previousRowShift(level, y);
-            if (shift == 0.0) return y;
-
-            this.yo -= shift;
-            this.yOld -= shift;
+            // absSnapTo writes yo before setPosRaw, whereas yOld can still name the old period.
+            // Shift each history field independently so the already-current one stays current.
+            this.yo -= biblioteca$previousRowShift(level, this.yo, y);
+            this.yOld -= biblioteca$previousRowShift(level, this.yOld, y);
             return y;
         }
 
@@ -64,8 +63,10 @@ public abstract class EntityYLoopMixin {
         // Collapsing the previous row to the new one instead - what a teleport does - would hold
         // the camera still for one tick and then jump. Shifting both previous-position fields
         // preserves the short interpolation interval across the boundary.
-        this.yo -= shift;
-        this.yOld -= shift;
+        // Buffered paths can write several unwrapped rows after the first crossing. The old
+        // positions may already be folded, so subtracting the incoming shift again corrupts them.
+        this.yo = SeamPositions.foldToward(this.yo, folded, level.getHeight());
+        this.yOld = SeamPositions.foldToward(this.yOld, folded, level.getHeight());
 
         return folded;
     }
@@ -78,11 +79,11 @@ public abstract class EntityYLoopMixin {
      * genuine jump of a few hundred blocks - a teleport within the world - leaves a large
      * remainder and is left alone, so it still snaps the way it always did.
      */
-    private double biblioteca$previousRowShift(Level level, double y) {
+    private static double biblioteca$previousRowShift(Level level, double previousY, double y) {
         int period = level.getHeight();
         if (period <= 0) return 0.0;
 
-        double gap = this.yOld - y;
+        double gap = previousY - y;
         double half = (double) period * 0.5;
         if (gap <= half && gap >= -half) return 0.0;
 

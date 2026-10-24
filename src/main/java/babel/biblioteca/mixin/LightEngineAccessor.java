@@ -1,5 +1,6 @@
 package babel.biblioteca.mixin;
 
+import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
 import org.spongepowered.asm.mixin.Mixin;
@@ -16,4 +17,10 @@ public interface LightEngineAccessor {
 
     @Accessor("chunkSource")
     LightChunkGetter biblioteca$chunkSource();
+
+    @Accessor("increaseQueue")
+    LongArrayFIFOQueue biblioteca$increaseQueue();
+
+    @Accessor("decreaseQueue")
+    LongArrayFIFOQueue biblioteca$decreaseQueue();
 }

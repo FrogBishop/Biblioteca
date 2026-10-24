@@ -1,6 +1,7 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.LoopingLevel;
 import babel.biblioteca.SeamPositions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -25,9 +26,14 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  * the snapshot still decides what the pathfinder sees.
  */
 @Mixin(PathNavigationRegion.class)
-public abstract class PathNavigationRegionYLoopMixin {
+public abstract class PathNavigationRegionYLoopMixin implements LoopingLevel {
 
     @Shadow @Final protected Level level;
+
+    @Override
+    public boolean biblioteca$isLooping() {
+        return LoopingRegistry.isLooping(this.level);
+    }
 
     @ModifyVariable(method = "getBlockState", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$foldBlockStateQuery(BlockPos pos) {

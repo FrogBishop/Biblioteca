@@ -28,8 +28,8 @@ import org.spongepowered.asm.mixin.injection.At;
  * around the loop terminates on its own because each step loses at least one level.
  *
  * Applied to both directions of the walk: increases spread a new source, decreases retract one.
- * The sky-light channel is handled by LightEngineYLoopMixin instead: it is kept by default and
- * can be disabled per dimension with the no_sky_light attribute.
+ * SkyLightEngineYLoopMixin supplies the sky channel's periodic sources and propagation.
+ * LightEngineYLoopMixin folds both query channels and applies the disabled sky-light mode.
  */
 @Mixin(BlockLightEngine.class)
 public abstract class BlockLightEngineYLoopMixin {

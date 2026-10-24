@@ -2,6 +2,7 @@ package babel.biblioteca.mixin;
 
 import babel.biblioteca.Biblioteca;
 import babel.biblioteca.PendingLoopingConfig;
+import babel.biblioteca.SkyLightMode;
 import babel.biblioteca.world.LoopingDimensionManager;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -44,10 +45,11 @@ public class MinecraftServerMixin {
                     PendingLoopingConfig.getPendingNoVoidFog(),
                     LoopingDimensionManager.getNoVoidFogDimensions(),
                     LoopingDimensionManager::setNoVoidFog);
-            biblioteca$applyPending(
-                    PendingLoopingConfig.getPendingNoSkyLight(),
-                    LoopingDimensionManager.getNoSkyLightDimensions(),
-                    LoopingDimensionManager::setNoSkyLight);
+            var wantedSky = PendingLoopingConfig.getPendingSkyLightModes();
+            for (ResourceKey<Level> dimension : LoopingDimensionManager.getSkyLightModes().keySet()) {
+                if (!wantedSky.containsKey(dimension)) LoopingDimensionManager.setSkyLightMode(dimension, SkyLightMode.DEFAULT);
+            }
+            wantedSky.forEach(LoopingDimensionManager::setSkyLightMode);
 
             PendingLoopingConfig.consume();
         }
