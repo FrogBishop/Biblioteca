@@ -57,6 +57,30 @@ public final class Compat {
         *///?}
     }
 
+    public static int maxY(BlockGetter level) { return minY(level) + height(level) - 1; }
+    public static int minSection(BlockGetter level) { return minY(level) >> 4; }
+    public static int maxSection(BlockGetter level) { return maxY(level) >> 4; }
+    public static int sectionCount(BlockGetter level) { return height(level) >> 4; }
+    public static long chunkKey(int x, int z) { return (x & 0xffffffffL) | ((z & 0xffffffffL) << 32); }
+    public static net.minecraft.world.level.ChunkPos chunkPos(long key) { return new net.minecraft.world.level.ChunkPos((int)key, (int)(key >>> 32)); }
+    public static int chunkX(net.minecraft.world.level.ChunkPos pos) {
+        //? if >=26.1 {
+        return pos.x();
+        //?} else {
+        /*return pos.x;
+        *///?}
+    }
+    public static int chunkZ(net.minecraft.world.level.ChunkPos pos) {
+        //? if >=26.1 {
+        return pos.z();
+        //?} else {
+        /*return pos.z;
+        *///?}
+    }
+    public static long chunkKey(net.minecraft.world.level.ChunkPos pos) { return chunkKey(chunkX(pos), chunkZ(pos)); }
+    public static int chunkBlockX(net.minecraft.world.level.ChunkPos pos, int x) { return chunkX(pos) * 16 + x; }
+    public static int chunkBlockZ(net.minecraft.world.level.ChunkPos pos, int z) { return chunkZ(pos) * 16 + z; }
+
     public static BlockPos blockPos(double x, double y, double z) {
         //? if >=1.19.4 {
         return BlockPos.containing(x, y, z);

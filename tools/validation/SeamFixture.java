@@ -51,6 +51,7 @@ public final class SeamFixture implements Opcodes {
         levelClass.getField("minimum").setInt(level, minimum);
         levelClass.getField("period").setInt(level, period);
         levelClass.getField("looping").setBoolean(level, true);
+        levelClass.getField("client").setBoolean(level, true);
         try { Field side = Level.class.getDeclaredField("isClientSide"); side.setAccessible(true); side.setBoolean(level, true); }
         catch (NoSuchFieldException ignored) { }
         Data data = new Data(); DATA.put(level, data);
@@ -111,7 +112,7 @@ public final class SeamFixture implements Opcodes {
     private static Class<?> createLevelClass() throws Exception {
         String name = "babel/biblioteca/validation/SeamTestLevel";
         ClassWriter w = writer(name, "net/minecraft/world/level/Level");
-        for (String f : new String[]{"minimum", "period", "looping"}) w.visitField(ACC_PUBLIC, f, f.equals("looping") ? "Z" : "I", null, null).visitEnd();
+        for (String f : new String[]{"minimum", "period", "looping", "client"}) w.visitField(ACC_PUBLIC, f, f.equals("minimum") || f.equals("period") ? "I" : "Z", null, null).visitEnd();
         String minName;
         try { Level.class.getMethod("getMinY"); minName = "getMinY"; }
         catch (NoSuchMethodException ignored) { minName = "getMinBuildHeight"; }
@@ -119,7 +120,7 @@ public final class SeamFixture implements Opcodes {
         fieldGetter(w, name, "getHeight", "period", "I");
         if (!hasSections()) fieldGetter(w, name, "getMaxBuildHeight", "period", "I");
         fieldGetter(w, name, "biblioteca$isLooping", "looping", "Z");
-        constant(w, "isClientSide", "()Z", ICONST_1, IRETURN);
+        fieldGetter(w, name, "isClientSide", "client", "Z");
         constant(w, "getRelativeTickSpeed", "()F", FCONST_1, FRETURN);
         constant(w, "getNextEntityId", "()I", ICONST_1, IRETURN);
         constant(w, "noCollision", "(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;)Z", ICONST_1, IRETURN);
@@ -186,7 +187,7 @@ public final class SeamFixture implements Opcodes {
                 .newInstance(net.minecraft.world.entity.EntityType.class.getField("ARMOR_STAND").get(null), level);
     }
 
-    private static Object allocate(Class<?> type) throws Exception {
+    public static Object allocate(Class<?> type) throws Exception {
         Class<?> unsafe = Class.forName("sun.misc.Unsafe"); Field field = unsafe.getDeclaredField("theUnsafe"); field.setAccessible(true);
         return unsafe.getMethod("allocateInstance", Class.class).invoke(field.get(null), type);
     }

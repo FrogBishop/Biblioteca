@@ -5,6 +5,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 
 import java.util.function.Predicate;
+import java.util.function.Function;
 
 /**
  * Side-agnostic access to the four per-dimension attributes.
@@ -26,8 +27,8 @@ public final class LoopingRegistry {
     private static Predicate<ResourceKey<Level>> serverNoVoidFogCheck = dim -> false;
     private static Predicate<ResourceKey<Level>> clientNoVoidFogCheck = dim -> false;
 
-    private static Predicate<ResourceKey<Level>> serverNoSkyLightCheck = dim -> false;
-    private static Predicate<ResourceKey<Level>> clientNoSkyLightCheck = dim -> false;
+    private static Function<ResourceKey<Level>, SkyLightMode> serverSkyLightMode = dim -> SkyLightMode.DEFAULT;
+    private static Function<ResourceKey<Level>, SkyLightMode> clientSkyLightMode = dim -> SkyLightMode.DEFAULT;
 
     /** Bumped whenever a dimension attribute changes. Lets hot paths cache the answer. */
     private static volatile int revision;
@@ -72,12 +73,12 @@ public final class LoopingRegistry {
         clientNoVoidFogCheck = check;
     }
 
-    public static void setServerNoSkyLightChecker(Predicate<ResourceKey<Level>> check) {
-        serverNoSkyLightCheck = check;
+    public static void setServerSkyLightModeGetter(Function<ResourceKey<Level>, SkyLightMode> getter) {
+        serverSkyLightMode = getter;
     }
 
-    public static void setClientNoSkyLightChecker(Predicate<ResourceKey<Level>> check) {
-        clientNoSkyLightCheck = check;
+    public static void setClientSkyLightModeGetter(Function<ResourceKey<Level>, SkyLightMode> getter) {
+        clientSkyLightMode = getter;
     }
 
     /**
@@ -124,10 +125,10 @@ public final class LoopingRegistry {
                 : serverNoVoidFogCheck.test(level.dimension());
     }
 
-    /** Should the vanilla sky-light channel be disabled in this dimension? */
-    public static boolean hasNoSkyLight(Level level) {
+    /** The selected sky source rule; consumers apply it only in looping dimensions. */
+    public static SkyLightMode skyLightMode(Level level) {
         return level.isClientSide()
-                ? clientNoSkyLightCheck.test(level.dimension())
-                : serverNoSkyLightCheck.test(level.dimension());
+                ? clientSkyLightMode.apply(level.dimension())
+                : serverSkyLightMode.apply(level.dimension());
     }
 }

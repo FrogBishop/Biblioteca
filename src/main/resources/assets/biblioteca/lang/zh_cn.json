@@ -7,12 +7,18 @@
   "biblioteca.gui.looping_config.header_looping": "Y 轴循环",
   "biblioteca.gui.looping_config.header_beacon": "信标忽略天空判定",
   "biblioteca.gui.looping_config.header_no_void_fog": "禁用虚空迷雾",
-  "biblioteca.gui.looping_config.header_no_sky_light": "禁用天空光照",
   "biblioteca.gui.looping_config.no_void_fog_on": "禁用迷雾",
   "biblioteca.gui.looping_config.no_void_fog_off": "保留迷雾",
-  "biblioteca.gui.looping_config.no_sky_light_on": "禁用光照",
-  "biblioteca.gui.looping_config.no_sky_light_off": "保留光照",
-  "biblioteca.gui.looping_config.note": "迷雾与天空光照：false 保留原版效果，true 禁用；默认 false。",
+  "biblioteca.gui.looping_config.note": "也可以在游戏内通过 /biblioteca 命令修改",
   "biblioteca.options.preload": "边界预加载（区段）",
-  "stat.biblioteca.seam_crossings": "穿过边界次数"
+  "stat.biblioteca.seam_crossings": "穿过边界次数",
+  "biblioteca.gui.looping_config.header_sky_light": "天空光照",
+  "biblioteca.sky_light.disabled": "禁用",
+  "biblioteca.sky_light.looping": "全循环",
+  "biblioteca.sky_light.hybrid": "原版露天",
+  "biblioteca.sky_light.disabled.description": "禁用天空光照；方块光源仍正常工作。",
+  "biblioteca.sky_light.looping.description": "竖直方向绕完整一圈都无遮挡的列才提供直射天空光；光照跨边界循环传播。",
+  "biblioteca.sky_light.hybrid.description": "按原版判断露天：从这一格向上到维度顶层无遮挡。光照传播、遮挡、衰减和越界采样仍按循环空间处理。",
+  "biblioteca.command.sky_light.query": "%s 的天空光照：%s（%s）",
+  "biblioteca.command.sky_light.set": "已将 %s 的天空光照设为 %s（%s）"
 }

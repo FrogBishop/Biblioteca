@@ -5,6 +5,7 @@ import babel.biblioteca.Compat;
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.SeamPositions;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,6 +26,33 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  */
 @Mixin(LivingEntity.class)
 public abstract class LivingEntitySightYLoopMixin {
+
+    //? if >=1.21.4 {
+    /** Endermen and creakings test a gaze cone before casting their otherwise periodic sight ray. */
+    @ModifyVariable(method = "isLookingAtMe", at = @At("HEAD"), argsOnly = true)
+    private double[] biblioteca$nearGazeHeights(double[] heights, @Local(argsOnly = true) LivingEntity observer) {
+        Level level = Compat.level((LivingEntity)(Object)this);
+        if (!LoopingRegistry.isLooping(level)) return heights;
+        double[] result = heights;
+        for (int i = 0; i < heights.length; i++) {
+            double y = SeamPositions.foldForDistance(level, heights[i], observer.getEyeY());
+            if (y != heights[i]) {
+                if (result == heights) result = heights.clone();
+                result[i] = y;
+            }
+        }
+        return result;
+    }
+
+    //?} else if >=1.21.2 {
+    /*@ModifyExpressionValue(method = "isLookingAtMe", at = @At(value = "INVOKE", target = "Ljava/util/function/DoubleSupplier;getAsDouble()D"))
+    private double biblioteca$nearSuppliedGaze(double y, @Local(argsOnly = true) LivingEntity observer) {
+        Level level = Compat.level((LivingEntity)(Object)this);
+        return LoopingRegistry.isLooping(level) ? SeamPositions.foldForDistance(level, y, observer.getEyeY()) : y;
+    }
+    *///?}
+
+
 
 //? if >=1.21.4 {
     @ModifyVariable(

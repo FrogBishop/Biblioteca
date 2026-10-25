@@ -29,18 +29,18 @@ public final class CreateWorldScreenInjector {
     }
 
     public static void openConfig(CreateWorldScreen parent) {
-        Set<ResourceKey<Level>> looping = PendingLoopingConfig.hasPending()
-                ? PendingLoopingConfig.getPendingLooping()
-                : Set.of();
-        Set<ResourceKey<Level>> beaconIgnoresSky = PendingLoopingConfig.hasPending()
-                ? PendingLoopingConfig.getPendingBeaconIgnoresSky()
-                : Set.of();
-        //? if >=26.1 {
-        Minecraft.getInstance().setScreenAndShow(new LoopingConfigScreen(parent, looping, beaconIgnoresSky,
-                PendingLoopingConfig.getPendingNoVoidFog(), PendingLoopingConfig.getPendingNoSkyLight()));
+        DimensionConfigModel model = new DimensionConfigModel(() -> CreateWorldDimensions.loaded(parent),
+                PendingLoopingConfig.getPendingLooping(), PendingLoopingConfig.getPendingBeaconIgnoresSky(),
+                PendingLoopingConfig.getPendingNoVoidFog(), PendingLoopingConfig.getPendingSkyLightModes());
+        //? if >=26.3 {
+        var screen = new LoopingConfigScreen(parent, model);
         //?} else {
-        /*Minecraft.getInstance().setScreen(new LoopingConfigScreen(parent, looping, beaconIgnoresSky,
-                PendingLoopingConfig.getPendingNoVoidFog(), PendingLoopingConfig.getPendingNoSkyLight()));
+        /*var screen = new LegacyDimensionConfigScreen(parent, model);
+        *///?}
+        //? if >=26.1 {
+        Minecraft.getInstance().setScreenAndShow(screen);
+        //?} else {
+        /*Minecraft.getInstance().setScreen(screen);
         *///?}
     }
 }

@@ -141,6 +141,15 @@ java {
 // the inapplicable one. The generated mixin config is filtered to match, because
 // Mixin would otherwise fail to load the class.
 val excludedServerMixins = buildSet {
+    if (sc.current.parsed < "1.20") add("SkyLightEngineYLoopMixin")
+    else addAll(listOf("LegacySkyLightEngineYLoopMixin", "LegacyLightStorageYLoopMixin"))
+    if (sc.current.parsed < "1.21.6") add("LeashableYLoopMixin")
+    if (sc.current.parsed < "1.21" || sc.current.parsed >= "1.21.6") add("LegacyLeashSpringYLoopMixin")
+    if (sc.current.parsed < "1.20.3") add("BreezeAimYLoopMixin")
+    if (sc.current.parsed < "1.21.9") add("ProjectileOwnerYLoopMixin")
+    if (sc.current.parsed < "1.20.5") add("CrossbowAimYLoopMixin") else add("LegacyCrossbowAimYLoopMixin")
+    if (sc.current.parsed >= "1.21.2") add("LegacyEndermanGazeYLoopMixin")
+    if (sc.current.parsed < "1.20.5") add("WalkNodeEvaluatorYLoopMixin") else add("LegacyWalkNodeEvaluatorYLoopMixin")
     if (sc.current.parsed >= "1.19.3") add("LegacyServerSoundsMixin")
     if (sc.current.parsed < "1.17") add("DripstoneYLoopMixin")
     if (sc.current.parsed < "1.19") add("NeighborUpdaterYLoopMixin") else add("LegacyNeighborYLoopMixin")
@@ -221,6 +230,8 @@ val clientCoreMixins = buildSet {
 }
 val selectedClientMixins = buildSet {
     addAll(clientCoreMixins)
+    if (sc.current.parsed < "1.21.2") add("LegacyLeashRenderYLoopMixin")
+    else if (sc.current.parsed < "1.21.9") add("LeashRenderStateYLoopMixin")
     add("EntityRenderDispatcherYLoopMixin")
     if (sc.current.parsed >= "1.21.6") add("TrackedWaypointYLoopMixin")
     addAll(listOf("FrustumInvoker", "FrustumYLoopMixin", "EntityShouldRenderYLoopMixin",
@@ -256,6 +267,8 @@ val selectedClientMixins = buildSet {
 val allClientMixins = rootProject.fileTree("src/main/java/babel/biblioteca/client/mixin")
     .matching { include("*.java") }.files.map { it.nameWithoutExtension }.toSet()
 sourceSets.named("main") {
+    if (sc.current.parsed < "26.3") java.exclude("babel/biblioteca/client/LoopingConfigScreen.java")
+    else java.exclude("babel/biblioteca/client/LegacyDimensionConfigScreen.java")
     java.exclude((allClientMixins - selectedClientMixins).map { "babel/biblioteca/client/mixin/$it.java" })
     if (sc.current.parsed >= "1.21.5" || sc.current.parsed < "1.17") java.exclude("babel/biblioteca/client/ClassicTerrainBackend.java")
     if (sc.current.parsed >= "1.21.5") java.exclude("babel/biblioteca/client/LegacyVertexData.java")

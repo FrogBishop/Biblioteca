@@ -1,13 +1,15 @@
 package babel.biblioteca.client;
 
 import babel.biblioteca.LoopingRegistry;
-import babel.biblioteca.Compat;
+import babel.biblioteca.SkyLightMode;
 import babel.biblioteca.network.LoopingStatePayload;
+import babel.biblioteca.Compat;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
-import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Client-side mirror of the server's {@code LoopingWorldData}, populated by
@@ -20,51 +22,49 @@ import java.util.Set;
  */
 public final class LoopingDimensionCache {
 
-    private static final Set<ResourceKey<Level>> loopingDimensions = new HashSet<>();
-    private static final Set<ResourceKey<Level>> beaconIgnoresSky = new HashSet<>();
-    private static final Set<ResourceKey<Level>> noVoidFog = new HashSet<>();
-    private static final Set<ResourceKey<Level>> noSkyLight = new HashSet<>();
+    private record Snapshot(Set<ResourceKey<Level>> looping, Set<ResourceKey<Level>> beacon,
+                            Set<ResourceKey<Level>> noVoidFog, Map<ResourceKey<Level>, SkyLightMode> skyModes) {}
+    private static final Snapshot EMPTY = new Snapshot(Set.of(), Set.of(), Set.of(), Map.of());
+    // Light and mesh workers read a complete immutable snapshot while the client replaces it.
+    private static volatile Snapshot snapshot = EMPTY;
 
     private LoopingDimensionCache() {}
 
     /** Replaces every set with the server's current snapshot. */
     public static void applyPayload(LoopingStatePayload payload) {
-        fill(loopingDimensions, payload.loopingDimensions());
-        fill(beaconIgnoresSky, payload.beaconIgnoresSky());
-        fill(noVoidFog, payload.noVoidFog());
-        fill(noSkyLight, payload.noSkyLight());
+        snapshot = new Snapshot(keys(payload.loopingDimensions()), keys(payload.beaconIgnoresSky()),
+                keys(payload.noVoidFog()), payload.skyLightModes().entrySet().stream().collect(
+                        Collectors.toUnmodifiableMap(entry -> key(entry.getKey()), Map.Entry::getValue)));
         LoopingRegistry.bumpRevision();
     }
 
     /** Drops what the last server said; called on disconnect. */
     public static void clear() {
-        loopingDimensions.clear();
-        beaconIgnoresSky.clear();
-        noVoidFog.clear();
-        noSkyLight.clear();
+        snapshot = EMPTY;
         LoopingRegistry.bumpRevision();
     }
 
-    private static void fill(Set<ResourceKey<Level>> target, Set<String> keys) {
-        target.clear();
-        for (String key : keys) {
-            target.add(Compat.dimensionKey(Compat.parseId(key)));
-        }
+    private static ResourceKey<Level> key(String id) {
+        return Compat.dimensionKey(Compat.parseId(id));
+    }
+
+    private static Set<ResourceKey<Level>> keys(Set<String> keys) {
+        return keys.stream().map(LoopingDimensionCache::key).collect(Collectors.toUnmodifiableSet());
     }
 
     public static boolean isLooping(ResourceKey<Level> dimension) {
-        return loopingDimensions.contains(dimension);
+        return snapshot.looping().contains(dimension);
     }
 
     public static boolean beaconsIgnoreSky(ResourceKey<Level> dimension) {
-        return beaconIgnoresSky.contains(dimension);
+        return snapshot.beacon().contains(dimension);
     }
 
     public static boolean hasNoVoidFog(ResourceKey<Level> dimension) {
-        return noVoidFog.contains(dimension);
+        return snapshot.noVoidFog().contains(dimension);
     }
 
-    public static boolean hasNoSkyLight(ResourceKey<Level> dimension) {
-        return noSkyLight.contains(dimension);
+    public static SkyLightMode getSkyLightMode(ResourceKey<Level> dimension) {
+        return snapshot.skyModes().getOrDefault(dimension, SkyLightMode.DEFAULT);
     }
 }

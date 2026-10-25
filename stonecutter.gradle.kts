@@ -31,6 +31,14 @@ stonecutter parameters {
         string(current.parsed < "1.21.11") {
             replace("Identifier", "ResourceLocation")
             replace(".identifier()", ".location()")
+            replace("world.entity.animal.golem.SnowGolem", "world.entity.animal.SnowGolem")
+            replace("world/entity/animal/golem/SnowGolem", "world/entity/animal/SnowGolem")
+            replace("world.entity.animal.equine.Llama", "world.entity.animal.horse.Llama")
+            replace("world.entity.monster.skeleton.AbstractSkeleton", "world.entity.monster.AbstractSkeleton")
+            replace("world.entity.monster.zombie.Drowned", "world.entity.monster.Drowned")
+            replace("world.entity.monster.illager.Illusioner", "world.entity.monster.Illusioner")
+            replace("world.entity.projectile.throwableitemprojectile.Snowball", "world.entity.projectile.Snowball")
+            replace("world/entity/projectile/throwableitemprojectile/Snowball", "world/entity/projectile/Snowball")
         }
 
         string(current.parsed < "1.21.2") {

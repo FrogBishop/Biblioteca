@@ -1,7 +1,7 @@
 # Multi-version implementation
 
 `main` remains the single-version Minecraft 26.3 branch. `multiversion` contains the adaptation
-of `main` commit `844eb61` (0.676.7, including the 0.67.67 seam fixes) to all 35 formal-release nodes in `settings.gradle.kts`.
+of `main` commit `603f9a7` (1.0.0) to all 35 formal-release nodes in `settings.gradle.kts`.
 The feature and validation audit is in [PARITY.md](PARITY.md).
 
 ## Distribution model
@@ -139,9 +139,31 @@ it for better performance. Earlier Minecraft versions use the sorted path withou
 | Decoration pop box at 1.21.10; section support scan at 26.3 | Read collision/support rows through Level and preserve native overlap/border rules |
 | Sapling bone-meal height guard at 26.1 | Remove this guard where present; TreeFeature height hooks apply on every node |
 
-All four attributes, inverse lighting defaults, GUI labels, snapshots and client reset semantics
-match 0.676.7. Movement statistics are registered on every node. The server/client initializer
+The three boolean attributes, three sky-light modes, GUI labels, snapshots and client reset semantics
+match main 1.0.0. Old disabled-sky entries migrate through the shared save codec. Movement statistics are registered on every node. The server/client initializer
 and regression checks are run through Fabric in the validation matrix.
+
+## 1.0.0 gameplay and settings adapters
+
+| Releases / API boundary | Implementation |
+|---|---|
+| Through 1.18.2: `WorldGenSettingsComponent.makeSettings`; 1.19–1.19.2: context `worldGenSettings`; 1.19.3: selected/data-pack dimensions; 1.19.4+: `getUiState` | `CreateWorldDimensions` reads the same current valid settings used by world creation. `DimensionConfigModel` owns ID-keyed drafts, ordering, three-state sky choices and filtering on apply. |
+| GUI rendering before 1.20 / 1.20+ / 26.1+ | Native PoseStack, GuiGraphics and extraction APIs. Deferred tooltips start in 1.21.6. The pre-26.3 bounded list scrolls with the wheel and arrow buttons; 26.3 retains main's native container list. |
+| Boolean sky flag to mode enum | `sky_light_mode` stores disabled/looping/hybrid. Legacy `no_sky_light` values migrate; explicit new modes win. The command is only `sky_light`, with native literal completion. |
+| Light graph through 1.19.4 / light queues from 1.20 | Separate native solvers share periodic queries, storage, packet layers and notification rules. The legacy graph uses inverse levels and must seed through `checkEdge` to publish pending work. |
+| Native cached sky-source heights from 1.20 | Modern sources reuse the native cache; old engines scan bounded columns and coalesce changes by column. Both add the bottom/top edge for full-loop exposure and preserve native exposure in hybrid mode. |
+| Lighting shapes/opacity simplified in 1.21.2; ChunkPos record in 26.1; renderer invalidation moves in 26.2 | Explicit helper/signature branches preserve the inclusive maximum and the native lighting/render thread lifecycle. |
+| Leash physics before 1.21 / 1.21–1.21.5 / 1.21.6+ | Inline PathfinderMob spring/following and restriction positions; shared legacy spring; then Wrench attachment forces and center distance. |
+| Leash renderer owner before 1.21 / 1.21+; render states from 1.21.2 | MobRenderer then EntityRenderer use periodic vertical differences. Single render states through 1.21.5 and list states afterward fold leash endpoints. |
+| Old scalar fireball constructors / later vector constructors | Target/origin coordinates are corrected before normalization, independent of constructor shape. Other ranged attacks correct raw displacement before native ballistic lift. |
+| Snowballs before 1.21.2 / 1.21.2–1.21.11 / 26.1–26.2 / 26.3 | Inline muzzle lookup; intermediary synthetic `method_63010`; static official callback; then instance callback. Synthetic method selectors carry no guessed named mapping. |
+| Projectile hit margin from 1.17; multi-hit API from 1.21.11; extra projection flag in 26.3 | Exact overload descriptors fold candidate boxes. Owner-stream checks from 1.21.9 retain pickability/passenger filtering; older owner checks already use the periodic entity query. |
+| Gaze before 1.21.2 / 1.21.2–1.21.3 / 1.21.4+ | Enderman eye lookup, generalized supplier samples, then scalar height arrays. Breeze exists from 1.20.3. Direct look targets and homing choose nearby coordinates. |
+| Walk support before 1.17 / through 1.20.4 / 1.20.5+ | Fixed-floor constant/slice adapters, old combined evaluator methods, then split PathfindingContext methods. Support reads wrap and downward scans cover at most one period. |
+
+All applicable injections remain required. Features with no native counterpart in an older game
+are excluded explicitly; existing older paths are used where they already provide the behavior.
+Reflection used by the validation fixtures is not used to discover production method names.
 
 ## Dependency and validation setup
 

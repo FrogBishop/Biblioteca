@@ -7,12 +7,18 @@
   "biblioteca.gui.looping_config.header_looping": "Y-axis loops",
   "biblioteca.gui.looping_config.header_beacon": "Beacon ignores sky",
   "biblioteca.gui.looping_config.header_no_void_fog": "No void fog",
-  "biblioteca.gui.looping_config.header_no_sky_light": "No sky light",
   "biblioteca.gui.looping_config.no_void_fog_on": "Disable fog",
   "biblioteca.gui.looping_config.no_void_fog_off": "Keep fog",
-  "biblioteca.gui.looping_config.no_sky_light_on": "Disable skylight",
-  "biblioteca.gui.looping_config.no_sky_light_off": "Keep skylight",
-  "biblioteca.gui.looping_config.note": "Fog and skylight: false keeps vanilla effects; true disables them. Default: false.",
+  "biblioteca.gui.looping_config.note": "You can also change these settings using /biblioteca while playing.",
   "biblioteca.options.preload": "Seam preload (sections)",
-  "stat.biblioteca.seam_crossings": "Seam crossings"
+  "stat.biblioteca.seam_crossings": "Seam crossings",
+  "biblioteca.gui.looping_config.header_sky_light": "Sky light",
+  "biblioteca.sky_light.disabled": "Disabled",
+  "biblioteca.sky_light.looping": "Periodic",
+  "biblioteca.sky_light.hybrid": "Vanilla sky",
+  "biblioteca.sky_light.disabled.description": "No sky light; block lights still work.",
+  "biblioteca.sky_light.looping.description": "Direct sky requires a transparent column through the entire vertical loop. Light propagates across the boundary.",
+  "biblioteca.sky_light.hybrid.description": "Direct sky uses vanilla exposure: unobstructed from this cell to the dimension's top. Light propagation and sampling still wrap across the boundary.",
+  "biblioteca.command.sky_light.query": "Sky light in %s: %s (%s)",
+  "biblioteca.command.sky_light.set": "Set sky light in %s to %s (%s)"
 }

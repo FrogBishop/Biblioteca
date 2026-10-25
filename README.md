@@ -2,7 +2,7 @@
 
 **A periodic Y axis for Minecraft dimensions, with version-specific vanilla renderer adapters.**
 
-Biblioteca **0.676.7** connects a dimension's top and bottom. The server stores one period;
+Biblioteca **1.0.0** connects a dimension's top and bottom. The server stores one period;
 the client displays the visible periodic copies. No blocks, items, dimensions or generation
 presets are added, and existing terrain (including bedrock) is retained.
 
@@ -10,9 +10,10 @@ presets are added, and existing terrain (including bedrock) is retained.
 to **all 35 releases from 1.16.5 through 26.3**. Each release has an exact-version artifact; a JAR
 compiled for one release is not relabelled to accept a broader API range.
 
-This README covers development. [modrinth.md](modrinth.md) is the player-facing project page.
-[PARITY.md](PARITY.md) records the feature audit against `main` commit `844eb61`, including
-the changes through 0.676.7. [PORTING.md](PORTING.md) describes the version breakpoints.
+This README is developer documentation for GitHub. [modrinth.md](modrinth.md) is the shared
+user-facing project description for Modrinth and CurseForge.
+[PARITY.md](PARITY.md) records the feature audit against `main` commit `603f9a7`, including
+the changes through 1.0.0. [PORTING.md](PORTING.md) describes the version breakpoints.
 
 ## Toolchain and builds
 
@@ -51,8 +52,8 @@ On Linux/macOS use `./gradlew`; `SC_VERSIONS=1.21.5,26.3 ./gradlew :1.21.5:build
 The verifier accepts `--java` and `--javac` paths and uses Python 3.11 or newer together with the artifact auditor.
 The 1.16.5 and 1.17 artifacts also require Java 17 or newer at game runtime.
 
-Outputs are named `biblioteca-0.676.7+<minecraft>.jar` and
-`biblioteca-0.676.7+<minecraft>-norender.jar`. The normal JAR works on clients and servers.
+Outputs are named `biblioteca-1.0.0+<minecraft>.jar` and
+`biblioteca-1.0.0+<minecraft>-norender.jar`. The normal JAR works on clients and servers.
 The no-render variant removes visual Mixins but retains gameplay, prediction, audio and
 configuration UI. Both use the same mod ID; install only one per instance. Clients need the
 normal artifact for the visual loop. Source JARs stay in each node's `build/libs` directory.
@@ -100,16 +101,16 @@ support checks read wrapped level rows.
 
 ## Attributes and persistence
 
-| Key | Meaning when true | Default |
+| Key | Meaning | Default |
 |---|---|---|
 | `looping` | Make the dimension's Y axis periodic | false |
 | `beacon_ignores_sky` | Allow a periodic beacon beam scan | false |
 | `no_void_fog` | Suppress vanilla void-fog darkening in a looping dimension | false |
-| `no_sky_light` | Suppress the vanilla sky-light channel in a looping dimension | false |
+| `sky_light_mode` | `disabled`, `looping`, or `hybrid` sky-light sources | `looping` |
 
-These are dimension-key sets in overworld `SavedData`. 26.1+ uses
+The three boolean attributes are dimension-key sets; sky modes form a dimension-to-enum map in overworld `SavedData`. 26.1+ uses
 `<world>/data/biblioteca/looping.dat`; older nodes use `<world>/data/biblioteca_looping.dat`.
-The older `SavedData.Factory`/NBT and newer codec storage APIs share the four-field codec.
+The older `SavedData.Factory`/NBT and newer codec storage APIs share the same codec and legacy-flag migration.
 The complete snapshot is sent on join and after commands; the client clears it on disconnect.
 1.16.5–1.20.4 use the legacy channel transport; later nodes use `CustomPacketPayload`/`StreamCodec`.
 
@@ -120,10 +121,43 @@ integrated server. Commands require permission level 2 and can address modded di
 /biblioteca looping set minecraft:overworld true
 /biblioteca beacon true
 /biblioteca no_void_fog true
-/biblioteca no_sky_light false
+/biblioteca sky_light hybrid
 ```
 
-Old lighting flags are not automatically migrated. See [manual migration](CHANGELOG.md#manual-migration).
+`no_sky_light=true` saved by previous releases migrates to `disabled`; false/absent stays
+`looping`. An explicit `sky_light_mode` entry wins. The old command alias is removed: `sky_light`
+uses the three mode names and offers Tab completion; without an argument it reports the mode.
+`looping set` uses the native dimension argument and suggests currently loaded dimension IDs.
+The earlier pre-0.67 flags still have [historical migration notes](CHANGELOG.md#manual-migration).
+
+`CreateWorldDimensions` reads the current successful world-preset/data-pack context using each
+release's native API. `DimensionConfigModel` retains drafts by dimension ID and filters removed
+rows when applying. 26.3 uses the native scrolling list from main; older releases use a bounded
+list with native buttons, mouse-wheel scrolling and up/down controls. Only sky-setting buttons
+have tooltips. The shared footer points users to `/biblioteca` for changes during play.
+
+## Periodic sky light and ranged interactions
+
+`looping` supplies direct sky only in columns transparent through a full vertical circuit.
+`hybrid` uses native exposure from a cell to that dimension's physical top, while propagation,
+attenuation, occlusion and sampling remain periodic. `disabled` masks the channel. A complete
+bedrock floor closes all direct sources in `looping`; `hybrid` retains daylight above the floor.
+Dimensions without a sky channel do not gain one, and non-looping worlds keep vanilla rules.
+
+`SkyLightEngineYLoopMixin` uses the native increase/decrease queues from 1.20 onward.
+`LegacySkyLightEngineYLoopMixin` implements the same source and neighbor rules with the older
+inverse-level graph. Initial light and loaded borders enter through `checkEdge`, which publishes
+its work flag. The solvers preserve explicit empty-section light data for packets, clear stale
+saved light on rebuild, restore native behavior when looping stops, and invalidate the opposite
+seam's mesh. All writes run on the normal lighting thread; clients apply server light layers.
+
+Ranged mob aim corrects target-minus-origin coordinates before ballistic compensation or
+normalization. Version adapters cover the older scalar projectile constructors and later vector
+constructors. Projectile hits use periodic candidate boxes; initial owner protection compares
+nearby boxes too. Gaze cones, direct look targets and shulker homing use the same nearest-copy
+rule. Leash adapters cover the old inline spring, the intermediate shared spring and modern
+attachment-point forces. Ground pathfinding reads support and collisions across the bottom,
+with downward scans bounded to one period.
 
 ## Renderer architecture
 
@@ -173,9 +207,16 @@ runtime, checks complete Fabric API module loading, loads every registered targe
 injection counts, checks common method/field references against the actual side, bootstraps registries, and
 executes the version's regression checks. It does not open a game window or render to a GPU.
 
-Checks include all four saved/payload fields and false defaults, pending/client cache lifecycle,
+Checks include three boolean sets and the sky-mode map, legacy-save migration, defaults,
+pending/client cache lifecycle, native command completion and live dimension-model changes,
 coordinate folding, transformed entity searches and result limits, continuous interpolation,
 spawn/path surfaces, path-node positions and decoration anchors in 16- and 384-row test levels (16/256 with floor zero on 1.16.5).
+`SkyChecks` runs native light engines on every node: all three modes, saved-light replacement,
+block changes, source removal, both seam directions, client layers and neighboring/reloaded
+chunks. The 26.3 node additionally runs the relocated main 1.0.0 suite in `tools/validation/main100`,
+including native leash ticks, full walking paths, ranged mob attacks, water-vertex samples and
+67-row GUI layouts. Older nodes retain native source/injection/API coverage for those gameplay
+adapters; the complete 26.3 fixture is not presented as an older-version gameplay test.
 Rendering checks cover weather slice coverage, centroid formats, exhaustive reference alpha ordering,
 16/32-bit indices and copy visibility. GPU draw records are inspected for buffer/uniform/address
 preservation; 26.3 also exercises direct/indirect command data, OIT selection and buffer/fence cleanup
@@ -196,8 +237,12 @@ intersecting faces and cyclic overlap.
 - [PORTING.md](PORTING.md): version boundaries and implementation decisions.
 - [PARITY.md](PARITY.md): feature-by-feature audit and per-version validation.
 - [PERFORMANCE.md](PERFORMANCE.md): cost model and profiling scenarios.
-- [modrinth.md](modrinth.md): player installation, settings and commands.
+- [modrinth.md](modrinth.md): shared Modrinth/CurseForge user copy covering installation, settings and commands.
 - [CHANGELOG.md](CHANGELOG.md): release history and manual setting migration.
+
+Keep implementation details and verification evidence in the GitHub developer documentation.
+Use complete HTTPS URLs for every hyperlink and image in `modrinth.md`, so the same user-facing
+Markdown can be published on Modrinth and CurseForge. Repository-relative links are suitable here.
 
 Author: **FrogBishop**. Inspired by Jorge Luis Borges' *The Library of Babel*.
 Bug fixes and rendering work: DeepSeek-v4.1-flash, GPT-6-Astra. Licensed under [GPLv3](LICENSE).

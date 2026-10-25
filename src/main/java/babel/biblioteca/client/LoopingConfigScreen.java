@@ -1,241 +1,191 @@
 package babel.biblioteca.client;
 
-import babel.biblioteca.Compat;
-
-import babel.biblioteca.PendingLoopingConfig;
-import net.minecraft.client.Minecraft;
-//? if >=26.1 {
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-//?} else if >=1.20 {
-/*import net.minecraft.client.gui.GuiGraphics;
-*///?} else {
-/*import com.mojang.blaze3d.vertex.PoseStack;
-*///?}
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.ContainerObjectSelectionList;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.level.Level;
 
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
-/**
- * World-creation sub-screen for the per-dimension attributes of this mod.
- *
- * One row per vanilla dimension and one column per attribute. Every attribute is off for a new
- * dimension. The two lighting columns are "No void fog" and "No sky light": false preserves the
- * vanilla effect and true disables it. Their buttons name the resulting behaviour directly.
- *
- * Opens from the "Dimension Attributes…" button injected into CreateWorldScreen.
- */
+/** Attributes for the dimensions in the current world preset and successfully loaded data packs. */
 public class LoopingConfigScreen extends Screen {
-
-    private static final Component TITLE =
-            Compat.translatable("biblioteca.gui.looping_config.title");
-
-    // Text colors are ARGB. GuiGraphicsExtractor.text() returns early when the alpha is
-    // zero, so these must stay opaque or the whole line becomes invisible.
-    private static final int TEXT_COLOR = 0xFFFFFFFF;
-    private static final int NOTE_COLOR = 0xFFAAAAAA;
-
-    private static final List<ResourceKey<Level>> DIMENSIONS = List.of(
-            Level.OVERWORLD, Level.NETHER, Level.END);
-    private static final String[] DIMENSION_KEYS = {
-            "biblioteca.gui.looping_config.overworld",
-            "biblioteca.gui.looping_config.nether",
-            "biblioteca.gui.looping_config.end"
-    };
+    private static final Component TITLE = Component.translatable("biblioteca.gui.looping_config.title");
     private static final String[] HEADER_KEYS = {
             "biblioteca.gui.looping_config.header_looping",
             "biblioteca.gui.looping_config.header_beacon",
             "biblioteca.gui.looping_config.header_no_void_fog",
-            "biblioteca.gui.looping_config.header_no_sky_light"
+            "biblioteca.gui.looping_config.header_sky_light"
     };
-
+    private static final int TEXT_COLOR = 0xFFFFFFFF;
+    private static final int NOTE_COLOR = 0xFFAAAAAA;
     private static final int COLUMNS = HEADER_KEYS.length;
-    private static final int BUTTON_W = 86;
-    private static final int BUTTON_H = 20;
     private static final int COL_GAP = 6;
-    private static final int ROW_H = 24;
-    private static final int LABEL_W = 84;
-
+    private static final int ROW_H = 44;
+    private static final int HEADER_Y = 34;
     private final Screen parent;
+    private final DimensionConfigModel model;
+    private final List<List<FormattedCharSequence>> headers = new ArrayList<>();
+    private List<FormattedCharSequence> note = List.of();
+    private DimensionList dimensionList;
+    private int noteY;
 
-    /** [dimension][attribute], in the order of DIMENSIONS and HEADER_KEYS. */
-    private final boolean[][] values = new boolean[DIMENSIONS.size()][COLUMNS];
-
-    public LoopingConfigScreen(
-            Screen parent,
-            Set<ResourceKey<Level>> initialLooping,
-            Set<ResourceKey<Level>> initialBeaconIgnoresSky,
-            Set<ResourceKey<Level>> initialNoVoidFog,
-            Set<ResourceKey<Level>> initialNoSkyLight) {
+    public LoopingConfigScreen(Screen parent, DimensionConfigModel model) {
         super(TITLE);
         this.parent = parent;
-        for (int row = 0; row < DIMENSIONS.size(); row++) {
-            ResourceKey<Level> dimension = DIMENSIONS.get(row);
-            values[row][0] = initialLooping.contains(dimension);
-            values[row][1] = initialBeaconIgnoresSky.contains(dimension);
-            values[row][2] = initialNoVoidFog.contains(dimension);
-            values[row][3] = initialNoSkyLight.contains(dimension);
-        }
-    }
-
-    private int gridWidth() {
-        return LABEL_W + COLUMNS * (BUTTON_W + COL_GAP) - COL_GAP;
-    }
-
-    private int gridX() {
-        return (width - gridWidth()) / 2;
-    }
-
-    private int buttonX(int column) {
-        return gridX() + LABEL_W + column * (BUTTON_W + COL_GAP);
-    }
-
-    private int rowY(int row) {
-        return height / 2 - 34 + row * ROW_H;
+        this.model = model;
     }
 
     @Override
     protected void init() {
-        for (int row = 0; row < DIMENSIONS.size(); row++) {
-            for (int column = 0; column < COLUMNS; column++) {
-                final int r = row;
-                final int c = column;
-                biblioteca$add(ClientCompat.button(stateLabel(c, values[r][c]),
-                        buttonX(column), rowY(row), BUTTON_W, BUTTON_H, button -> {
-                    values[r][c] = !values[r][c];
-                    button.setMessage(stateLabel(c, values[r][c]));
-                }));
-            }
+        model.refresh();
+        double scroll = dimensionList == null ? 0 : dimensionList.scrollAmount();
+        int listWidth = Math.min(width, 560);
+        int contentWidth = listWidth - 32;
+        int buttonWidth = columnWidth(contentWidth);
+        headers.clear();
+        int headerLines = 1;
+        for (String key : HEADER_KEYS) {
+            List<FormattedCharSequence> lines = font.split(Component.translatable(key), buttonWidth);
+            headers.add(lines);
+            headerLines = Math.max(headerLines, lines.size());
         }
-
-        biblioteca$add(ClientCompat.button(CommonComponents.GUI_DONE, width / 2 - 75,
-                rowY(DIMENSIONS.size()) + 10, 150, 20, button -> applyAndClose()));
+        note = font.split(Component.translatable("biblioteca.gui.looping_config.note"), width - 24);
+        noteY = height - 36 - note.size() * font.lineHeight;
+        int listTop = HEADER_Y + headerLines * font.lineHeight + 6;
+        dimensionList = new DimensionList(listWidth, Math.max(ROW_H, noteY - listTop - 6), listTop);
+        dimensionList.setX((width - listWidth) / 2);
+        refreshRows(scroll);
+        addRenderableWidget(dimensionList);
+        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> {
+            model.apply();
+            onClose();
+        }).bounds(width / 2 - 75, height - 28, 150, 20).build());
     }
 
-    private void biblioteca$add(Button button) {
-        //? if >=1.17 {
-        addRenderableWidget(button);
-        //?} else {
-        /*addButton(button);
-        *///?}
+    @Override
+    public void tick() {
+        // Read the parent's live context. Failed/in-progress pack reloads leave the previous
+        // valid context in place; a successful reload replaces it on the client thread.
+        if (model.refresh() && dimensionList != null) refreshRows(dimensionList.scrollAmount());
     }
 
-    private Component stateLabel(int column, boolean value) {
+    private void refreshRows(double scroll) {
+        dimensionList.setFocused(null);
+        dimensionList.replaceEntries(model.dimensions().stream().map(DimensionRow::new).toList());
+        dimensionList.setScrollAmount(scroll);
+    }
+
+    private static int columnWidth(int width) { return Math.max(1, (width - (COLUMNS - 1) * COL_GAP) / COLUMNS); }
+
+    private static Component dimensionName(ResourceKey<Level> dimension) {
+        if (dimension.equals(Level.OVERWORLD)) return Component.translatable("biblioteca.gui.looping_config.overworld");
+        if (dimension.equals(Level.NETHER)) return Component.translatable("biblioteca.gui.looping_config.nether");
+        if (dimension.equals(Level.END)) return Component.translatable("biblioteca.gui.looping_config.end");
+        return Component.literal(dimension.identifier().toString());
+    }
+
+    private Component stateLabel(ResourceKey<Level> dimension, int column) {
+        if (column == 3) return Component.translatable(model.skyLightMode(dimension).translationKey());
+        boolean value = model.enabled(dimension, column);
         return switch (column) {
-            case 2 -> Compat.translatable(value
-                    ? "biblioteca.gui.looping_config.no_void_fog_on"
-                    : "biblioteca.gui.looping_config.no_void_fog_off");
-            case 3 -> Compat.translatable(value
-                    ? "biblioteca.gui.looping_config.no_sky_light_on"
-                    : "biblioteca.gui.looping_config.no_sky_light_off");
+            case 2 -> Component.translatable(value
+                    ? "biblioteca.gui.looping_config.no_void_fog_on" : "biblioteca.gui.looping_config.no_void_fog_off");
             default -> value ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
         };
     }
 
-    private void applyAndClose() {
-        Set<ResourceKey<Level>> looping = new HashSet<>();
-        Set<ResourceKey<Level>> beaconIgnoresSky = new HashSet<>();
-        Set<ResourceKey<Level>> noVoidFog = new HashSet<>();
-        Set<ResourceKey<Level>> noSkyLight = new HashSet<>();
-
-        for (int row = 0; row < DIMENSIONS.size(); row++) {
-            ResourceKey<Level> dimension = DIMENSIONS.get(row);
-            if (values[row][0]) looping.add(dimension);
-            if (values[row][1]) beaconIgnoresSky.add(dimension);
-            if (values[row][2]) noVoidFog.add(dimension);
-            if (values[row][3]) noSkyLight.add(dimension);
-        }
-
-        PendingLoopingConfig.set(looping, beaconIgnoresSky, noVoidFog, noSkyLight);
-        onClose();
-    }
-
     @Override
-    public void onClose() {
-        //? if >=26.1 {
-Minecraft.getInstance().setScreenAndShow(parent);
-//?} else {
-/*Minecraft.getInstance().setScreen(parent);
-*///?}
-    }
+    public void onClose() { minecraft.setScreenAndShow(parent); }
 
-//? if >=26.1 {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-
-        graphics.centeredText(font, title, width / 2, rowY(0) - 46, TEXT_COLOR);
-
+        graphics.centeredText(font, title, width / 2, 14, TEXT_COLOR);
+        int contentX = dimensionList.getRowLeft() + 2;
+        int buttonWidth = columnWidth(dimensionList.getRowWidth() - 4);
         for (int column = 0; column < COLUMNS; column++) {
-            graphics.centeredText(font,
-                    Compat.translatable(HEADER_KEYS[column]),
-                    buttonX(column) + BUTTON_W / 2, rowY(0) - 18, TEXT_COLOR);
+            int center = contentX + column * (buttonWidth + COL_GAP) + buttonWidth / 2;
+            List<FormattedCharSequence> lines = headers.get(column);
+            for (int line = 0; line < lines.size(); line++) {
+                graphics.centeredText(font, lines.get(line), center, HEADER_Y + line * font.lineHeight, TEXT_COLOR);
+            }
         }
-
-        for (int row = 0; row < DIMENSIONS.size(); row++) {
-            Component name = Compat.translatable(DIMENSION_KEYS[row]);
-            graphics.text(font, name,
-                    gridX() + LABEL_W - 10 - font.width(name),
-                    rowY(row) + 6, TEXT_COLOR);
+        for (int line = 0; line < note.size(); line++) {
+            graphics.centeredText(font, note.get(line), width / 2, noteY + line * font.lineHeight, NOTE_COLOR);
         }
-
-        graphics.centeredText(font,
-                Compat.translatable("biblioteca.gui.looping_config.note"),
-                width / 2, rowY(DIMENSIONS.size()) + 40, NOTE_COLOR);
     }
-//?} else if >=1.20 {
-/*    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
 
-        graphics.drawCenteredString(font, title, width / 2, rowY(0) - 46, TEXT_COLOR);
-
-        for (int column = 0; column < COLUMNS; column++) {
-            graphics.drawCenteredString(font,
-                    Compat.translatable(HEADER_KEYS[column]),
-                    buttonX(column) + BUTTON_W / 2, rowY(0) - 18, TEXT_COLOR);
+    private final class DimensionList extends ContainerObjectSelectionList<DimensionRow> {
+        DimensionList(int width, int height, int y) {
+            super(LoopingConfigScreen.this.minecraft, width, height, y, ROW_H);
         }
-
-        for (int row = 0; row < DIMENSIONS.size(); row++) {
-            Component name = Compat.translatable(DIMENSION_KEYS[row]);
-            graphics.drawString(font, name,
-                    gridX() + LABEL_W - 10 - font.width(name),
-                    rowY(row) + 6, TEXT_COLOR);
-        }
-
-        graphics.drawCenteredString(font,
-                Compat.translatable("biblioteca.gui.looping_config.note"),
-                width / 2, rowY(DIMENSIONS.size()) + 40, NOTE_COLOR);
+        @Override public int getRowWidth() { return getWidth() - 28; }
     }
-*///?} else {
-/*    @Override
-    public void render(PoseStack graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
 
-        drawCenteredString(graphics, font, title, width / 2, rowY(0) - 46, TEXT_COLOR);
+    private final class DimensionRow extends ContainerObjectSelectionList.Entry<DimensionRow> {
+        private final Component name;
+        private final Component identifier;
+        private final List<Button> buttons = new ArrayList<>();
 
-        for (int column = 0; column < COLUMNS; column++) {
-            drawCenteredString(graphics, font,
-                    Compat.translatable(HEADER_KEYS[column]),
-                    buttonX(column) + BUTTON_W / 2, rowY(0) - 18, TEXT_COLOR);
+        DimensionRow(ResourceKey<Level> dimension) {
+            name = dimensionName(dimension);
+            identifier = Component.literal(dimension.identifier().toString());
+            for (int column = 0; column < COLUMNS; column++) {
+                int c = column;
+                Component header = Component.translatable(HEADER_KEYS[c]);
+                buttons.add(Button.builder(stateLabel(dimension, c), button -> {
+                            if (c == 3) model.cycleSkyLightMode(dimension);
+                            else model.toggle(dimension, c);
+                            button.setMessage(stateLabel(dimension, c));
+                            button.setTooltip(settingTooltip(dimension, c));
+                        })
+                        .bounds(0, 0, 1, 20)
+                        .tooltip(settingTooltip(dimension, c))
+                        .createNarration(supplier -> Component.empty().append(name).append(", ").append(header)
+                                .append(": ").append(supplier.get()))
+                        .build());
+            }
         }
 
-        for (int row = 0; row < DIMENSIONS.size(); row++) {
-            Component name = Compat.translatable(DIMENSION_KEYS[row]);
-            drawString(graphics, font, name,
-                    gridX() + LABEL_W - 10 - font.width(name),
-                    rowY(row) + 6, TEXT_COLOR);
+        private Tooltip settingTooltip(ResourceKey<Level> dimension, int column) {
+            if (column != 3) return null;
+            var text = Component.empty().append(identifier).append(" — ").append(Component.translatable(HEADER_KEYS[column]));
+            text.append("\n").append(Component.translatable(model.skyLightMode(dimension).translationKey() + ".description"));
+            return Tooltip.create(text);
         }
 
-        drawCenteredString(graphics, font,
-                Compat.translatable("biblioteca.gui.looping_config.note"),
-                width / 2, rowY(DIMENSIONS.size()) + 40, NOTE_COLOR);
+        private void positionButtons() {
+            int buttonWidth = columnWidth(getContentWidth());
+            for (int column = 0; column < buttons.size(); column++) {
+                Button button = buttons.get(column);
+                button.setPosition(getContentX() + column * (buttonWidth + COL_GAP), getContentY() + 14);
+                button.setWidth(buttonWidth);
+            }
+        }
+
+        @Override public void setX(int x) { super.setX(x); positionButtons(); }
+        @Override public void setY(int y) { super.setY(y); positionButtons(); }
+        @Override public void setWidth(int width) { super.setWidth(width); positionButtons(); }
+
+        @Override
+        public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
+            graphics.text(font, Language.getInstance().getVisualOrder(font.substrByWidth(name, getContentWidth())),
+                    getContentX(), getContentY() + 1, TEXT_COLOR);
+            if (hovered && mouseY < getContentY() + 13) graphics.setTooltipForNextFrame(identifier, mouseX, mouseY);
+            for (Button button : buttons) button.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        }
+
+        @Override public List<? extends GuiEventListener> children() { return buttons; }
+        @Override public List<? extends NarratableEntry> narratables() { return buttons; }
     }
-*///?}
 }

@@ -1,6 +1,9 @@
 package babel.biblioteca.mixin;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.LoopingLevel;
+import babel.biblioteca.Compat;
+import net.minecraft.world.level.PathNavigationRegion;
 import babel.biblioteca.SeamPositions;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -66,6 +69,10 @@ public abstract class BlockCollisionsYLoopMixin {
     private BlockState biblioteca$foldCollisionLookup(
             BlockGetter chunk, BlockPos pos, Operation<BlockState> original) {
 
+        if (collisionGetter instanceof PathNavigationRegion region && ((LoopingLevel)region).biblioteca$isLooping()) {
+            return pos.getY() < Compat.minY(region) || pos.getY() >= Compat.minY(region) + Compat.height(region)
+                    ? region.getBlockState(pos) : original.call(chunk, pos);
+        }
         if (!(collisionGetter instanceof Level level)) {
             return original.call(chunk, pos);
         }
@@ -84,8 +91,9 @@ public abstract class BlockCollisionsYLoopMixin {
     /*@ModifyReturnValue(method = "getChunk", at = @At("RETURN"))
     private BlockGetter biblioteca$readThroughLevel(BlockGetter chunk) {
         // Preserve unloaded-chunk handling; a present chunk is read through the periodic level.
-        return chunk != null && this.collisionGetter instanceof Level level && LoopingRegistry.isLooping(level)
-                ? level : chunk;
+        if (chunk == null) return null;
+        if (collisionGetter instanceof PathNavigationRegion region && ((LoopingLevel)region).biblioteca$isLooping()) return region;
+        return this.collisionGetter instanceof Level level && LoopingRegistry.isLooping(level) ? level : chunk;
     }
     *///?}
 }

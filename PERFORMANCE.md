@@ -52,6 +52,31 @@ collision/support scans are bounded by their query boxes. Interpolation targets 
 they are consumed; 26.3 stepped paths are unwrapped when a packet arrives and append in the
 existing buffered path's frame.
 
+## Periodic sky light
+
+Looping dimensions retain sky data for every canonical vertical section, including empty sections,
+so client packets can represent dark air above a blocked column. From 1.20, compact homogeneous layers are kept for uniformly dark or fully lit sections;
+mixed sections materialize their nibble arrays. Older DataLayer objects retain their native
+empty/allocated representation. This increases light-storage and packet costs compared with vanilla's implicit sky above
+the highest occupied section. A 256-entry array of source heights is cached per enabled chunk and discarded
+on unload; physically nonempty section records are retained for restoring vanilla lighting.
+
+Initial loading, a looping toggle and a sky-mode change rebuild sky data on the normal lighting
+worker. Hybrid source tests use the native cached column height map; full-period sources also
+check the edge joining the bottom and top. A changed source height rewrites the affected range
+of that column and seeds native increase/decrease queues, including the two vertical boundaries
+of a partially exposed column. Diffuse
+propagation loses at least one light level per step, so a closed cycle cannot maintain light by
+itself. Clients apply server light packets rather than running a second sky solver. Profiling
+should include loading old fully lit chunks and opening or closing many full-height shafts in
+one tick; these are more expensive than ordinary local light queries.
+
+On pre-1.20 engines, source-column changes use a bounded scan because the newer native sky
+source-height cache does not exist. Repeated block checks are coalesced by column in a light
+update. Diffuse propagation stays in the native inverse-level graph; source and border seeds
+use its public scheduling entry point. Profile large simultaneous column changes on those nodes
+as well as mode changes and old-chunk loading.
+
 ## Known ceiling
 
 Draw-command submission remains a ceiling, especially in short worlds. Height 16 at 32 chunks

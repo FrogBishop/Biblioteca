@@ -2,6 +2,8 @@
 
 **Turn a dimension's vertical space into a loop.**
 
+**Version 1.0.0 · Minecraft 1.16.5–26.3 · Fabric**
+
 > *"La biblioteca es ilimitada y periódica."* — Jorge Luis Borges, *Ficciones* (1944)
 
 Travel past the top of the world and continue from the bottom, or fall through the bottom and
@@ -19,14 +21,16 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 
 - Enable looping independently for the Overworld, Nether, End or a modded dimension.
 - Build and interact across the boundary, with block and entity collisions in the right places.
-- Attack and interact with creatures across the boundary; explosions, mob sight and navigation
-  use their nearby positions around the loop.
-- Watch players and mobs cross smoothly, with nearby name tags and, on versions that include
-  it, correct locator-bar distances and arrows.
-- Place paintings and item frames across the boundary, spawn creatures above the top rows,
-  grow top-row saplings and let falling blocks cross before settling.
 - Use fluids, redstone, pistons and supported plant growth across the top and bottom.
+- Decorate and spawn across the boundary: paintings and item frames hang across the seam at any
+  height, and a spawn egg puts the mob on the block you clicked instead of inside it.
 - See repeated terrain, nearby entities and block entities, periodic beacon beams and clouds.
+- Fight mobs and trade with villagers on the other side: they see you, path to you, hit you and
+  cross the boundary without a visible jump.
+- Lead leashed mobs across the boundary and fight with arrows, snowballs, potions and other
+  projectiles. Ranged mobs aim and projectiles hit across the top/bottom seam.
+- Choose how sky light behaves: disable it, make it fully periodic, or keep vanilla sky exposure
+  while light still travels across the boundary.
 - See rain and snow across the boundary, with rain splashes, hot-surface smoke and impact sounds.
 - Hear positional sounds and see effects from the other side, with matching sound subtitles.
 - Track your crossings with **Seam crossings** in the vanilla statistics screen.
@@ -35,25 +39,30 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 
 - **Fabric Loader 0.19.5 or newer** and **Fabric API** for your Minecraft version.
 - Supported releases: **1.16.5**, **1.17–1.17.1**, **1.18–1.18.2**, **1.19–1.19.4**, **1.20–1.20.6**, **1.21–1.21.11**, **26.1–26.1.2**, **26.2**, **26.3**.
-- Java **17** for 1.16.5–1.20.4, **21** for 1.20.5–1.21.11, or **25** for 26.1 and newer.
+- Java **17 or newer** for 1.16.5–1.20.4, **21 or newer** for 1.20.5–1.21.11, or **25 or newer** for 26.1 and later. The 1.16.5/1.17 builds also require Java 17.
 
-The 1.16.5 and 1.17 builds also need Java 17 or newer.
+Choose the file whose Minecraft suffix matches your game exactly, and install it with Fabric API
+in the instance's `mods` folder. Every supported release has its own full and no-render build:
 
-Choose the JAR whose `+<minecraft version>` suffix matches your game exactly. Every supported
-version includes the visual loop and sorted translucent terrain.
+| File pattern | Use it for |
+|---|---|
+| `biblioteca-1.0.0+<minecraft>.jar` | Singleplayer, multiplayer clients and servers; includes the looping world view. |
+| `biblioteca-1.0.0+<minecraft>-norender.jar` | Dedicated servers that do not need the world renderer. |
 
-Install Fabric API and the normal Biblioteca JAR in the client's `mods` folder. Multiplayer
-servers also need Biblioteca and Fabric API; use matching Biblioteca versions on both sides.
-
-Dedicated servers can use the `-norender` JAR. Clients need the normal JAR to see the looping
-world. Install only one Biblioteca JAR in each instance: both variants use the same mod ID.
+For example, Minecraft 1.16.5 uses `biblioteca-1.0.0+1.16.5.jar`, and Minecraft 26.3 uses
+`biblioteca-1.0.0+26.3.jar`. Install one Biblioteca variant per instance. Multiplayer clients and
+servers both need Biblioteca and Fabric API; match the Biblioteca release and Minecraft version.
 
 ## Enable looping
 
-For a new singleplayer world, open **Create New World → More → Dimension Attributes**. Choose
-the settings for the Overworld, Nether and End, press **Done**, and create the world.
+For a new singleplayer world, open **Create New World → More → Dimension Attributes**. Older
+Minecraft versions put the button in **More World Options**. Choose
+the settings for each dimension, press **Done**, and create the world. The list includes custom
+dimensions from your selected world preset and enabled data packs. After changing data packs,
+wait for validation to finish; the page uses the updated dimension list. Scroll to see more
+dimensions; older layouts also provide up/down buttons. The sky-setting tooltip includes the dimension ID.
 
-For an existing world, a server or a modded dimension, use commands. Cheats or operator
+For an existing world or a server, use commands. Cheats or operator
 permission level 2 are required:
 
 ```text
@@ -61,7 +70,9 @@ permission level 2 are required:
 ```
 
 Replace `minecraft:overworld` with the dimension ID you want, such as `minecraft:the_nether`,
-`minecraft:the_end` or an ID added by another mod. To turn looping off again:
+`minecraft:the_end` or an ID added by a data pack or another mod. Press **Tab** after
+`/biblioteca looping set `, or after part of an ID, to choose from the loaded dimensions.
+To turn looping off again:
 
 ```text
 /biblioteca looping set minecraft:overworld false
@@ -69,20 +80,31 @@ Replace `minecraft:overworld` with the dimension ID you want, such as `minecraft
 
 ## Dimension settings
 
-All four settings default to `false`. The three additional attributes affect dimensions where
-Y-axis looping is enabled.
+**Y-axis loops**, **Beacon ignores sky** and **No void fog** start off; **Sky light** defaults to
+**Periodic**. The beacon, fog and sky-light settings take effect when looping is enabled for that
+dimension.
 
-| Setting | When enabled (`true`) |
+| Setting | Behavior |
 |---|---|
 | **Y-axis loops** | Connect the world's top and bottom. |
 | **Beacon ignores sky** | Allow beacons to use beams that scan around the loop. Enable this to use beacons in a looping dimension. |
 | **No void fog** | Hide the vanilla darkening near the bottom of the world. |
-| **No sky light** | Remove sky light; the dimension then relies on block light sources. |
+| **Sky light** | Choose **Disabled**, **Periodic**, or **Vanilla sky**. Click to cycle modes; hover for details. |
 
-For **No void fog** and **No sky light**, `false` keeps the original effect and `true` disables
-it. The world-creation buttons show **Keep fog / Disable fog** and **Keep skylight / Disable
-skylight** to make the result clear. Keeping sky light does not add it to a dimension that
-normally has none.
+For **No void fog**, `false` keeps fog and `true` disables it. Sky light has three modes:
+
+| Mode | Effect |
+|---|---|
+| `disabled` — Disabled | Remove sky light; block light sources still work. |
+| `looping` — Periodic | Direct sky requires a column transparent through the whole vertical loop. |
+| `hybrid` — Vanilla sky | Direct sky uses vanilla exposure, checking from the cell up to the world's top (using that dimension's actual height). |
+
+Both lit modes spread light across the top/bottom boundary with normal attenuation and occlusion.
+Water and terrain samples outside the stored height read the corresponding row across the seam.
+A complete bedrock floor blocks all direct sky in `looping` mode; choose `hybrid` to keep normal
+daylight above the floor while retaining periodic propagation. Existing chunks rebuild their sky
+light when modes change. Dimensions without native sky light do not gain it, and non-looping
+dimensions retain vanilla lighting.
 
 | Command | Action |
 |---|---|
@@ -90,17 +112,18 @@ normally has none.
 | `/biblioteca looping set <dimension> <bool>` | Enable or disable looping for that dimension. |
 | `/biblioteca beacon <bool>` | Change Beacon ignores sky in the current dimension. |
 | `/biblioteca no_void_fog <bool>` | Change No void fog in the current dimension. |
-| `/biblioteca no_sky_light <bool>` | Change No sky light in the current dimension. |
+| `/biblioteca sky_light <disabled\|looping\|hybrid>` | Select the sky-light mode in the current dimension; Tab completes all three choices. |
 
-Use `true` or `false` for `<bool>`. Run `beacon`, `no_void_fog` or `no_sky_light` without a value
+Use `true` or `false` for `<bool>`. Run `beacon`, `no_void_fog` or `sky_light` without a value
 to see its current setting. These three commands act on the dimension you are standing in.
+`sky_light` replaces the old `no_sky_light` command and takes mode names instead of boolean arguments.
 
-For example, to use beacons and hide void fog while keeping sky light:
+For example, to use beacons and hide void fog with vanilla sky exposure and periodic light:
 
 ```text
 /biblioteca beacon true
 /biblioteca no_void_fog true
-/biblioteca no_sky_light false
+/biblioteca sky_light hybrid
 ```
 
 Settings are saved with the world and synchronized to connected players.
@@ -133,16 +156,22 @@ You can enable or disable looping in an existing world. It uses the dimension's 
 it does not generate extra vertical terrain or duplicate your blocks and entities. Ordinary
 entities and block entities are shown at the copy nearest you.
 
-In **0.67.0**, the old `void_fog` and `sky_light` settings were renamed and inverted. To preserve
-their previous effects, use the opposite boolean with `no_void_fog` and `no_sky_light`. For
-example, keeping the old defaults requires setting both new attributes to `true` in each looping
-dimension. See the [manual migration instructions](https://github.com/FrogBishop/Biblioteca/blob/multiversion/CHANGELOG.md#manual-migration)
-for the complete command table.
+When upgrading to **1.0.0**, dimensions that had sky light disabled keep **Disabled**. Other
+dimensions use **Periodic**; select **Vanilla sky** (`hybrid`) if you want ordinary daylight above
+a bedrock floor. These choices save automatically for each dimension, including custom dimensions
+from data packs. The sky-light command is now `/biblioteca sky_light`, using the three mode names
+instead of the old boolean command.
+
+In **0.67.0**, the earlier `void_fog` and `sky_light` settings were renamed and inverted. For worlds
+from before that change, the old defaults correspond to `/biblioteca no_void_fog true` and
+`/biblioteca sky_light disabled` today. See the historical
+[manual migration instructions](https://github.com/FrogBishop/Biblioteca/blob/multiversion/CHANGELOG.md#manual-migration)
+for the older boolean command table.
 
 ## Compatibility and feedback
 
 Biblioteca changes Minecraft's world and renderer internals. Mods that replace the same systems
-may need compatibility work. Voxy/far-LOD terrain is not repeated by this vanilla-renderer integration. Shader packs have not been comprehensively tested. The no-render
+may need compatibility work. Voxy and other far-LOD terrain are not repeated by this vanilla-renderer integration. Shader packs have not been comprehensively tested. The no-render
 variant is intended for servers and does not provide the visual loop on a client.
 
 For a bug report, include your Minecraft/mod versions, other installed mods, the log and steps
@@ -155,4 +184,4 @@ height and whether Improved Transparency is enabled.
 
 Author: **FrogBishop**. Inspired by Jorge Luis Borges' *The Library of Babel*.
 Bug fixes and rendering work: DeepSeek-v4.1-flash, GPT-6-Astra. Licensed under
-[GPLv3](https://github.com/FrogBishop/Biblioteca/blob/main/LICENSE).
+[GPLv3](https://github.com/FrogBishop/Biblioteca/blob/multiversion/LICENSE).

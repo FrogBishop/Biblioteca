@@ -1,5 +1,97 @@
 # Changelog
 
+## 1.0.0
+
+Fabric / all 35 formal releases from Minecraft 1.16.5 through 26.3. Synchronized with main commit `603f9a7`. This release includes three sky-light modes, live data-pack dimension
+settings, and fixes for movement, navigation, lighting and ranged combat across the boundary.
+
+### Added
+
+- Three sky-light modes: `disabled`, `looping` (the existing default), and `hybrid`. Hybrid uses
+  vanilla sky exposure up to the dimension's actual top while propagation, attenuation, occlusion
+  and sampling remain periodic. This preserves daylight above an ordinary bedrock floor.
+- `/biblioteca sky_light <disabled|looping|hybrid>` selects the current dimension's mode with Tab
+  completion; omitting the mode queries it. It replaces `no_sky_light` and requires mode names
+  instead of booleans. **Dimension Attributes** has a three-state Sky light button with translated
+  labels and mode explanations; the other settings buttons have no tooltips. The footer notes
+  that settings can also be changed using `/biblioteca` during play.
+- Sky-light modes persist in `sky_light_mode` and synchronize to clients. Old saved disabled
+  entries migrate to `disabled`; false/absent retains `looping`. Explicit new settings win over
+  legacy entries, and the older pre-0.67 `sky_light` key does not conflict with the new map.
+- `/biblioteca looping set` suggests loaded dimension IDs and supports Tab completion, including
+  custom dimensions. It uses the vanilla dimension argument so multiplayer clients receive the
+  same completion behavior.
+- The world-creation **Dimension Attributes** page includes dimensions from the selected world
+  preset and enabled data packs. It reads the latest successfully loaded context, updates after
+  pack changes, and retains edits by dimension ID when rows are reordered. A scrollable list,
+  wrapped column headings and full-ID tooltips support many dimensions and long custom IDs.
+
+### Fixed
+
+- Mobs standing on the top row now aim at the nearby periodic target instead of firing almost
+  vertically after their projectile's spawn position wraps to the bottom. Skeleton variants,
+  snow golems, drowned, witches, llamas, illusioners and mob crossbows correct the target delta
+  before applying vanilla ballistic compensation. Blaze, ghast and wither shots, breeze range
+  and aim, and shulker-bullet homing use the same nearby-copy rule.
+- Server projectile and multi-hit rays clip the periodic target hitbox. A projectile spawned
+  across the coordinate seam retains owner protection until it actually leaves the shooter and
+  passengers. Direct look targets and the gaze cones used by endermen/creakings also use nearby
+  eye coordinates. Ordinary dimensions, sight-distance limits and real block occlusion remain
+  unchanged.
+- Sky light now follows the vertical loop. In `looping` mode, only columns transparent through
+  the entire period supply direct sky; diffuse light crosses both seam directions with normal
+  opacity and shape occlusion. Queries above the top row no longer inject level-15 sky into water or terrain faces.
+  Closing a source retracts its light, and seam updates rebuild the opposite row's mesh.
+- Saved sky light is rebuilt when chunks load, looping changes or the sky mode changes; empty
+  sections retain explicit light data for client synchronization, and attribute changes refresh baked terrain lighting.
+  `disabled` suppresses sky light; non-looping worlds keep vanilla behavior.
+  **Behavior change:** a complete bedrock floor prevents all direct sky sources in `looping`
+  mode. Such worlds can select `hybrid`, open a full-period column, or use block lights.
+- Leashes remain attached when either endpoint crosses the boundary. The leash's own
+  bounding-box-center distance and attachment-point spring calculation now use the nearest
+  periodic copy. Slack-leash following and the rendered endpoints use that same direction;
+  a genuinely overlong leash still breaks at its normal distance.
+- Players and mobs no longer briefly disappear during repeated or buffered seam crossings.
+  Previous camera/body rows are folded independently, including absolute position packets;
+  linear interpolation keeps its remaining target nearby after a crossing, and appended
+  stepped packets continue in the buffered path's coordinate frame.
+- Ground mobs can pathfind down through the world's bottom to its top as well as in the
+  opposite direction. The walking evaluator recognizes support below the stored bottom row,
+  downward scans cover one periodic copy, and pathfinding collision checks read the matching
+  wrapped block. Maximum safe fall distances and non-looping dimensions retain vanilla rules.
+
+### Multiversion adaptation
+
+- Retain all 35 exact Minecraft targets and produce 70 full/no-render artifacts named
+  `biblioteca-1.0.0+<minecraft>[-norender].jar`.
+- Adapt three-mode sky light to both the pre-1.20 inverse-level graph and the later queued engine.
+  Saved-light rebuilds, explicit empty-section packets and periodic light notifications work in both.
+- Read live creation settings through each era's world-generation/preset context; older screens
+  use native buttons in a scrollable list with wheel and arrow controls.
+- Adapt leash forces/rendering, walk-support bounds, projectile constructors/hit tests and
+  gaze APIs at their native version boundaries. Features absent from old Minecraft, such as
+  breeze mobs, have no corresponding hook there.
+
+### Development
+
+- Updated the base mod version and artifact names to `1.0.0`; the no-render manifest reports
+  `1.0.0+<minecraft>-norender`. The GitHub README documents implementation and development; `modrinth.md`
+  provides shared user-facing copy for Modrinth and CurseForge, with complete HTTPS links.
+- Added native mob target-acquisition, sight, gaze, ranged-attack/spawn and projectile-hit checks
+  in 16- and 384-row fixtures. They compare seam shots with ordinary local trajectories, cover
+  both crossing directions, native fireball/breeze goals and shulker homing, and ensure ballistic
+  lift is preserved even when it exceeds half a short world's height.
+- Extended `verify_matrix.py --checks` with native light-engine, command and dimension-model
+  checks on every node. The 26.3 node also runs the relocated main 1.0.0 regression suite.
+  Reports are written to `build/validation`; no saved world or graphics device is started.
+- Added command completion and dimension-configuration regressions, including context changes,
+  all four saved attributes and a 67-row list at several GUI sizes.
+- Added native sky-light and water-vertex checks covering source/occlusion changes, both seam
+  directions, queue convergence, new/saved/reloaded chunks, client light layers, topology toggles,
+  three-mode rebuilds, vanilla exposure, custom heights and independent block-light propagation/removal.
+- Added enum command completion, three-state GUI cycling, old-save migration, SavedData/packet
+  round trips, and client mode/light-packet ordering checks.
+
 ## 0.676.7
 
 ### Expanded release coverage

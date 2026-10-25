@@ -1,7 +1,7 @@
 package babel.biblioteca;
 
 /**
- * A level that remembers whether its dimension loops.
+ * A level, or a pathfinding view of one, that reports whether its dimension loops.
  *
  * The question is asked on the hottest paths in the game - every block state lookup, every
  * collision query, every frustum test - and has to answer from a set of dimension keys each time.

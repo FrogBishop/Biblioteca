@@ -117,7 +117,20 @@ public class MatrixMixinVerifier {
                     .invoke(null, environment == EnvType.CLIENT);
             loader.loadClass("babel.biblioteca.validation.SeamChecks").getMethod("run", boolean.class)
                     .invoke(null, environment == EnvType.CLIENT);
+            loader.loadClass("babel.biblioteca.validation.SkyChecks").getMethod("run").invoke(null);
+            loader.loadClass("babel.biblioteca.validation.CommandChecks").getMethod("run").invoke(null);
+            if (config.get("minecraft").getAsString().equals("26.3")) {
+                String checksPackage = "babel.biblioteca.validation.main100.";
+                loader.loadClass(checksPackage + "SeamChecks").getMethod("run", boolean.class).invoke(null, environment == EnvType.CLIENT);
+                for (String check : java.util.List.of("MobTargetingChecks", "DimensionCommandChecks", "SkyLightSettingsChecks", "SkyLightChecks")) {
+                    loader.loadClass(checksPackage + check).getMethod("run").invoke(null);
+                }
+                if (environment == EnvType.CLIENT) for (String check : java.util.List.of("SeamClientChecks", "SkyLightClientChecks", "DimensionConfigChecks")) {
+                    loader.loadClass(checksPackage + check).getMethod("run").invoke(null);
+                }
+            }
             if (environment == EnvType.CLIENT) {
+                loader.loadClass("babel.biblioteca.validation.DimensionModelChecks").getMethod("run").invoke(null);
                 loader.loadClass("babel.biblioteca.validation.TerrainChecks").getMethod("run").invoke(null);
                 if (config.get("minecraft").getAsString().equals("26.3")) {
                     loader.loadClass("babel.biblioteca.validation.RenderingChecks").getMethod("run").invoke(null);

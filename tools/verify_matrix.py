@@ -78,6 +78,7 @@ def main():
             sources = list((ROOT / 'tools/validation').glob('*.java'))
             if config['minecraft'] == '26.3':
                 sources.append(ROOT / 'tools/validation/renderpearl/RenderingChecks.java')
+                sources.extend(sorted((ROOT / 'tools/validation/main100').glob('*.java')))
             compile_args = ['-encoding', 'UTF-8', '--release', config['java'], '-cp', quote(os.pathsep.join(config['classpath'])), '-d', quote(target)]
             compile_args.extend(map(quote, sources))
             argfile = target.parent / 'checks-compile.args'
