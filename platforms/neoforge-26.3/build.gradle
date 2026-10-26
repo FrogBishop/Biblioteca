@@ -1,0 +1,37 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+group = 'babel.biblioteca'
+version = '1.0.0+26.3-neoforge-pilot'
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+neoForge {
+    version = project.neo_version
+    validateAccessTransformers = true
+    runs {
+        client { client() }
+        server { server() }
+    }
+}
+
+// Stage zero prepares the real patched game before any shared-code refactor.
+// This project intentionally cannot produce a misleading, empty Biblioteca release JAR.
+tasks.named('jar') { enabled = false }
+
+tasks.register('preparePilot') {
+    group = 'verification'
+    description = 'Resolve and prepare the pinned NeoForge 26.3 environment.'
+    dependsOn 'createMinecraftArtifacts'
+    doLast {
+        def checkpoint = layout.buildDirectory.file('pilot-environment.txt').get().asFile
+        checkpoint.parentFile.mkdirs()
+        checkpoint.text = "Minecraft=26.3\nNeoForge=${project.neo_version}\nModDevGradle=2.0.148\nJava=25\n"
+        logger.lifecycle('NeoForge environment prepared. Gameplay integration is a separate pilot stage.')
+    }
+}
+
+tasks.named('build') { dependsOn 'preparePilot' }
