@@ -3,7 +3,6 @@ package babel.biblioteca.client;
 import babel.biblioteca.Biblioteca;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 //? if >=1.19 {
 import net.minecraft.client.OptionInstance;
 //?} else {
@@ -44,8 +43,15 @@ public final class LoopingClientSettings {
 
     private static int preloadSections = MIN_PRELOAD_SECTIONS;
     private static boolean loaded;
+    private static Path configDirectory;
 
     private LoopingClientSettings() {}
+
+    public static void setConfigDirectory(Path directory) {
+        configDirectory = java.util.Objects.requireNonNull(directory);
+        loaded = false;
+        preloadSections = MIN_PRELOAD_SECTIONS;
+    }
 
     /** Extra sections of slack to keep warm on the far side of the seam. */
     public static int preloadSections() {
@@ -92,7 +98,7 @@ public final class LoopingClientSettings {
 
 *///?}
     private static Path file() {
-        return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
+        return java.util.Objects.requireNonNull(configDirectory, "Client platform has not initialized").resolve(FILE_NAME);
     }
 
     private static void load() {

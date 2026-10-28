@@ -6,3 +6,5 @@ run/
 *.legacy
 .test-group/
 .test-run-*/
+__pycache__/
+*.pyc

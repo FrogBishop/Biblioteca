@@ -69,8 +69,9 @@ public abstract class ServerExplosionYLoopMixin {
     }
 
 //? if >=1.21.9 {
+    // NeoForge moves the body into a List<BlockPos> overload; match both signatures.
     @ModifyExpressionValue(
-            method = "hurtEntities",
+            method = "hurtEntities*",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/entity/Entity;getEyePosition()Lnet/minecraft/world/phys/Vec3;"))
     private Vec3 biblioteca$foldKnockbackOrigin(Vec3 origin) {
@@ -78,7 +79,7 @@ public abstract class ServerExplosionYLoopMixin {
     }
 
     @ModifyExpressionValue(
-            method = "hurtEntities",
+            method = "hurtEntities*",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/entity/Entity;position()Lnet/minecraft/world/phys/Vec3;"))
     private Vec3 biblioteca$foldKnockbackOriginForTnt(Vec3 origin) {

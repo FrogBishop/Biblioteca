@@ -33,7 +33,39 @@ public final class SkyLightChecks {
         chunkBoundaries();
         newChunkLifecycle();
         hybridModes();
+        batchRebuildQueueBound();
         System.out.println("PASS: periodic skylight sources, occlusion, bidirectional seam propagation, convergence, saved chunks, packets and topology changes");
+    }
+
+    /** A loaded 3x3 region must not queue its entire lit volume again on a mode change. */
+    private static void batchRebuildQueueBound() throws Exception {
+        Field getter = LoopingRegistry.class.getDeclaredField("serverSkyLightMode");
+        getter.setAccessible(true);
+        Object previous = getter.get(null);
+        AtomicReference<SkyLightMode> mode = new AtomicReference<>(SkyLightMode.LOOPING);
+        LoopingRegistry.setServerSkyLightModeGetter(dim -> mode.get());
+        try {
+            Fixture f = new Fixture(384, false);
+            for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) f.load(x, z, true);
+            f.drain();
+            f.expect(8, f.top - 1, 8, 15);
+            mode.set(SkyLightMode.HYBRID);
+            LoopingRegistry.bumpRevision();
+            var sky = f.engine.getLayerListener(LightLayer.SKY);
+            ((babel.biblioteca.LoopingSkyLight) sky).biblioteca$prepareSkyUpdates();
+            int queuedLongs = ((babel.biblioteca.mixin.LightEngineAccessor) sky).biblioteca$decreaseQueue().size();
+            require(queuedLongs <= 200000, "bulk rebuild work scales with the region boundary, not all 884736 cells: " + queuedLongs);
+            f.drain();
+            for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) f.expect(x * 16 + 8, f.min + 1, z * 16 + 8, 15);
+            mode.set(SkyLightMode.DISABLED); LoopingRegistry.bumpRevision(); f.drain();
+            for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) f.expect(x * 16 + 8, f.top - 1, z * 16 + 8, 0);
+            mode.set(SkyLightMode.LOOPING); LoopingRegistry.bumpRevision(); f.drain();
+            f.expect(8, f.top - 1, 8, 15);
+            System.out.println("PASS: 3x3 384-row sky rebuild: bounded boundary queue, hybrid/disabled/looping convergence");
+        } finally {
+            getter.set(null, previous);
+            LoopingRegistry.bumpRevision();
+        }
     }
 
     private static void closedAndOpenColumns(int period) throws Exception {

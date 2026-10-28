@@ -41,7 +41,8 @@ public abstract class BlockEntityRenderRangeYLoopMixin {
 //? if >=1.17 {
     @WrapOperation(
             //? if >=1.21.9 {
-            method = "tryExtractRenderState",
+            // NeoForge adds a frustum overload and makes the vanilla signature forward to it.
+            method = "tryExtractRenderState*",
             //?} else {
             /*method = "render",
             *///?}

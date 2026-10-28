@@ -26,6 +26,11 @@ public final class SeamChecks {
             ((net.minecraft.core.MappedRegistry<?>) registry).bindAllTagsToEmpty();
             registry.freeze();
         });
+        runWithPreparedRegistries(client);
+    }
+
+    /** NeoForge completes registry freezing during mod loading and reloads fixture tags separately. */
+    public static void runWithPreparedRegistries(boolean client) throws Exception {
         // Run groups independently so an unfixed build exposes all three regressions in one run.
         var failures = new java.util.ArrayList<Throwable>();
         for (int period : new int[]{16, 384}) {

@@ -17,7 +17,7 @@ import net.minecraft.stats.Stats;
  * copy.
  *
  * <p>Registration has to happen before the custom-stat registry freezes, which is why the common
- * initializer calls {@link #init()}.
+ * loader's registration phase calls {@link #init()}.
  */
 public final class SeamStats {
 
@@ -28,7 +28,7 @@ public final class SeamStats {
 
     private SeamStats() {}
 
-    /** Called from the common initializer; the custom-stat registry is not frozen yet. */
+    /** Called during Fabric initialization or NeoForge's custom-stat RegisterEvent. */
     public static void init() {
         Registry.register(Compat.customStats(), ID, ID);
         seamCrossings = Stats.CUSTOM.get(ID, StatFormatter.DEFAULT);

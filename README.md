@@ -10,6 +10,12 @@ presets are added, and existing terrain (including bedrock) is retained.
 to **all 35 releases from 1.16.5 through 26.3**. Each release has an exact-version artifact; a JAR
 compiled for one release is not relabelled to accept a broader API range.
 
+Minecraft **26.2 and 26.3** also have **NeoForge** targets, sharing gameplay and renderer code
+with Fabric. Complete and no-render variants are built and validated independently; see the
+[26.2 build guide](platforms/neoforge-26.2/README.md) and [26.3 build guide](platforms/neoforge-26.3/README.md).
+The current NeoForge artifact is **1.0.1**, which fixes save/quit and bulk sky-light reload
+memory growth; NeoForge 26.2.0.93, 26.3.0.98 and 26.3.0.99 are covered by regression checks.
+
 This README is developer documentation for GitHub. [modrinth.md](modrinth.md) is the shared
 user-facing project description for Modrinth and CurseForge.
 [PARITY.md](PARITY.md) records the feature audit against `main` commit `603f9a7`, including
@@ -24,15 +30,17 @@ the changes through 1.0.0. [PORTING.md](PORTING.md) describes the version breakp
 | Output Java targets | 17 for 1.16.5–1.20.4; 21 for 1.20.5–1.21.11; 25 for 26.1+ |
 | Fabric Loader | 0.19.5 |
 | Fabric API | Pinned per release in `stonecutter.properties.toml` |
+| NeoForge (26.2 / 26.3) | 26.2.0.93 / 26.3.0.98 (also verified with 26.3.0.99); ModDevGradle 2.0.148, Java 25 |
 | Source preprocessing | Stonecutter 0.9.8 |
 | Loom | `loom-back-compat` 0.4.2 selects remapping/plain Loom 1.18 |
 
-All source is under `src/main/java`; client packages and client Mixin configs remain client-only
+Shared source and Fabric adapters are under `src/main/java`; NeoForge adapters are under
+`platforms/neoforge/src/main/java`. Client packages and client Mixin configs remain client-only
 at runtime. Stonecutter writes inactive nodes under `versions/<mc>/build/generated/stonecutter`.
 Edit the root sources, not the generated copies. The active source version is 26.3.
 
 ```powershell
-# Every exact-version full + no-render artifact, under build/distributions
+# Every Fabric exact-version full + no-render artifact, under build/distributions
 .\gradlew.bat build
 
 # A smaller development build (26.3 remains configured as Stonecutter's active node)
@@ -45,6 +53,10 @@ Remove-Item Env:SC_VERSIONS
 .\gradlew.bat writeValidationConfig
 python tools/verify_matrix.py --checks --workers 2
 python tools/verify_artifacts.py
+
+# NeoForge: build both variants and run packaged client/server regressions per target
+.\tools\neoforge-pilot.ps1 verify -MinecraftVersion 26.2
+.\tools\neoforge-pilot.ps1 verify
 ```
 
 On Linux/macOS use `./gradlew`; `SC_VERSIONS=1.21.5,26.3 ./gradlew :1.21.5:build` selects a subset.

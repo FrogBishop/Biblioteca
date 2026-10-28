@@ -2,20 +2,9 @@ package babel.biblioteca;
 
 import babel.biblioteca.network.LoopingStatePayload;
 import babel.biblioteca.world.LoopingDimensionManager;
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import net.fabricmc.api.ModInitializer;
-//? if >=1.19 {
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-//?} else {
-/*import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
-*///?}
-
-//? if >=1.20.5 {
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-//?}
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.IdentifierArgument;
@@ -51,7 +40,7 @@ import java.util.stream.Collectors;
  * <p>Four attributes exist per dimension: whether the Y axis loops, whether beacon beams ignore the
  * sky, whether void fog is disabled, and the sky-light source mode (disabled, looping, hybrid).
  */
-public class Biblioteca implements ModInitializer {
+public final class Biblioteca {
 
     public static final String MOD_ID = "biblioteca";
 //? if >=1.18.2 {
@@ -61,30 +50,18 @@ public class Biblioteca implements ModInitializer {
 *///?}
 
 
-    @Override
-    public void onInitialize() {
+    private static BiConsumer<ServerPlayer, LoopingStatePayload> stateSender;
+
+    private Biblioteca() {}
+
+    /** Loader entrypoints supply transport; gameplay and commands stay shared. */
+    public static void initialize(BiConsumer<ServerPlayer, LoopingStatePayload> sender) {
+        stateSender = java.util.Objects.requireNonNull(sender);
         LoopingRegistry.setServerChecker(LoopingDimensionManager::isLooping);
         LoopingRegistry.setServerBeaconChecker(LoopingDimensionManager::beaconIgnoresSky);
         LoopingRegistry.setServerNoVoidFogChecker(LoopingDimensionManager::hasNoVoidFog);
         LoopingRegistry.setServerSkyLightModeGetter(LoopingDimensionManager::getSkyLightMode);
 
-        SeamStats.init();
-
-        //? if >=26.1 {
-        PayloadTypeRegistry.clientboundPlay().register(LoopingStatePayload.TYPE, LoopingStatePayload.STREAM_CODEC);
-        //?} else if >=1.20.5 {
-        /*PayloadTypeRegistry.playS2C().register(LoopingStatePayload.TYPE, LoopingStatePayload.STREAM_CODEC);
-        *///?}
-
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            //? if >=1.17 {
-            sendState(handler.getPlayer(), currentPayload());
-            //?} else {
-            /*sendState(handler.player, currentPayload());
-            *///?}
-        });
-
-        registerCommands();
         LOGGER.info("[Biblioteca] Y-looping mod initialized.");
     }
 
@@ -110,25 +87,15 @@ public class Biblioteca implements ModInitializer {
                 .forEach(player -> sendState(player, payload));
     }
 
-    private static void sendState(ServerPlayer player, LoopingStatePayload payload) {
-        //? if >=1.20.5 {
-        ServerPlayNetworking.send(player, payload);
-        //?} else {
-        /*ServerPlayNetworking.send(player, LoopingStatePayload.ID, payload.toBuffer());
-        *///?}
+    public static void sendState(ServerPlayer player, LoopingStatePayload payload) {
+        stateSender.accept(player, payload);
     }
 
-    private static void registerCommands() {
+    public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
         // Operators at level 2 (GAMEMASTERS) can toggle the attributes.
         //? if >=1.21.11 {
         Permission opPermission = new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS);
         //?}
-
-        //? if >=1.19 {
-CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-//?} else {
-/*CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) ->
-*///?}
 
                 dispatcher.register(
                         Commands.literal("biblioteca")
@@ -146,7 +113,7 @@ CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environm
                                 .then(dimensionAttribute("no_void_fog", "disabled", "No void fog",
                                         LoopingDimensionManager::hasNoVoidFog,
                                         LoopingDimensionManager::setNoVoidFog))
-                                .then(skyLightCommand())));
+                                .then(skyLightCommand()));
     }
 
     /** Literal mode names synchronize and complete on clients without a custom argument type. */

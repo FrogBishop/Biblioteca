@@ -58,7 +58,10 @@ public class MinecraftServerMixin {
         Biblioteca.broadcastState(server);
     }
 
-    @Inject(at = @At("HEAD"), method = "stopServer")
+    // Chunk/light workers must keep the world's topology while stopServer drains and saves them.
+    // Clearing at HEAD switches every loaded periodic sky engine back to vanilla, queues a full
+    // relight during shutdown, and can exhaust the heap while the server waits for those workers.
+    @Inject(at = @At("TAIL"), method = "stopServer")
     private void biblioteca$onServerStop(CallbackInfo ci) {
         LoopingDimensionManager.onServerStopped();
     }

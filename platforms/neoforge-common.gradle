@@ -1,0 +1,189 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+group = 'babel.biblioteca'
+def minecraftVersion = project.minecraft_version.toString()
+version = "1.0.1+${minecraftVersion}-neoforge"
+base.archivesName = 'biblioteca'
+
+def repositoryRoot = file('../..')
+def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+def exportRoot = new File(repositoryRoot, "build/neoforge-shared/${minecraftVersion}")
+def activeSourceVersion = minecraftVersion == '26.3'
+def selectionFile = activeSourceVersion
+        ? new File(repositoryRoot, 'gradle/26.3-sources.json') : new File(exportRoot, 'selection.json')
+def selection = providers.provider { new JsonSlurper().parse(selectionFile) }
+def reportRoot = new File(repositoryRoot, minecraftVersion == '26.3'
+        ? 'build/neoforge-pilot' : "build/neoforge-${minecraftVersion}")
+
+def prepareSharedSources = activeSourceVersion ? null : tasks.register('prepareSharedSources', Exec) {
+    group = 'build'
+    description = "Preprocess and validate shared ${minecraftVersion} sources using the existing version node."
+    workingDir repositoryRoot
+    environment 'SC_VERSIONS', minecraftVersion
+    environment 'SERVER_ONLY', '0'
+    inputs.dir new File(repositoryRoot, 'src/main')
+    inputs.files(['build.gradle.kts', 'settings.gradle.kts', 'stonecutter.gradle.kts',
+                  'stonecutter.properties.toml', 'gradle/26.3-sources.json'].collect { new File(repositoryRoot, it) })
+    outputs.dir exportRoot
+    commandLine isWindows ? ['cmd', '/c', new File(repositoryRoot, 'gradlew.bat').absolutePath,
+            ":${minecraftVersion}:exportNeoForgeSources", '--console=plain', '--max-workers=1']
+            : ['bash', new File(repositoryRoot, 'gradlew').absolutePath,
+               ":${minecraftVersion}:exportNeoForgeSources", '--console=plain', '--max-workers=1']
+    if (gradle.startParameter.offline) args '--offline'
+}
+
+sourceSets {
+    main {
+        java.srcDir new File(repositoryRoot, 'platforms/neoforge/src/main/java')
+        java.srcDir activeSourceVersion ? new File(repositoryRoot, 'src/main/java') : new File(exportRoot, 'java')
+        java.exclude 'babel/biblioteca/fabric/**', 'babel/biblioteca/client/fabric/**'
+        if (activeSourceVersion) {
+            java.exclude { entry ->
+                def name = entry.file.name.replaceFirst(/\.java$/, '')
+                (entry.path.startsWith('babel/biblioteca/mixin/') && !selection.get().mixins.contains(name)) ||
+                        (entry.path.startsWith('babel/biblioteca/client/mixin/') && !selection.get().client.contains(name)) ||
+                        (entry.path.startsWith('babel/biblioteca/client/') && selection.get().excludedClientClasses.contains(name))
+            }
+        }
+        resources.srcDir new File(repositoryRoot, 'platforms/neoforge/src/main/resources')
+        resources.srcDir activeSourceVersion ? new File(repositoryRoot, 'src/main/resources') : new File(exportRoot, 'resources')
+        resources.exclude 'fabric.mod.json', '*.accesswidener'
+    }
+}
+if (prepareSharedSources != null) {
+    tasks.named('compileJava') { dependsOn prepareSharedSources }
+    tasks.named('processResources') { dependsOn prepareSharedSources }
+}
+
+java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
+neoForge {
+    version = project.neo_version
+    validateAccessTransformers = true
+    runs {
+        client { client() }
+        server { server() }
+    }
+    mods { biblioteca { sourceSet sourceSets.main } }
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+
+tasks.named('processResources') {
+    inputs.file selectionFile
+    def metadata = [version: project.version, minecraft_version: minecraftVersion,
+                    neo_min_version: project.neo_min_version, neo_upper_version: project.neo_upper_version]
+    inputs.properties metadata
+    filesMatching('META-INF/neoforge.mods.toml') { expand metadata }
+    filesMatching('*.mixins.json') { expand java: 'JAVA_25' }
+    doLast {
+        def output = destinationDirectory.get().asFile
+        ['biblioteca.mixins.json': 'mixins', 'biblioteca.client.mixins.json': 'client'].each { name, key ->
+            def target = new File(output, name)
+            def config = new JsonSlurper().parse(target)
+            config[key] = selection.get()[key].sort()
+            config.injectors = [defaultRequire: 1]
+            target.text = JsonOutput.prettyPrint(JsonOutput.toJson(config)) + '\n'
+        }
+    }
+}
+tasks.named('jar') {
+    from(new File(repositoryRoot, 'LICENSE')) { rename { 'LICENSE-biblioteca' } }
+}
+
+def noRenderResources = tasks.register('prepareNoRenderResources') {
+    dependsOn tasks.named('processResources')
+    def resources = layout.buildDirectory.dir('resources/main')
+    def output = layout.buildDirectory.dir('generated/noRender')
+    inputs.dir resources
+    inputs.file selectionFile
+    outputs.dir output
+    doLast {
+        def target = output.get().asFile
+        new File(target, 'META-INF').mkdirs()
+        def config = new JsonSlurper().parse(new File(resources.get().asFile, 'biblioteca.client.mixins.json'))
+        config.client = selection.get().clientCore.sort()
+        new File(target, 'biblioteca.client.mixins.json').text = JsonOutput.prettyPrint(JsonOutput.toJson(config)) + '\n'
+        new File(target, 'META-INF/neoforge.mods.toml').text =
+                new File(resources.get().asFile, 'META-INF/neoforge.mods.toml').text
+                        .replace("version=\"${project.version}\"", "version=\"${project.version}-norender\"")
+                        .replace('displayName="Biblioteca"', 'displayName="Biblioteca (No Render)"')
+    }
+}
+def noRenderJar = tasks.register('noRenderJar', Jar) {
+    dependsOn tasks.named('classes'), noRenderResources
+    archiveClassifier = 'norender'
+    from(sourceSets.main.output) {
+        exclude 'biblioteca.client.mixins.json', 'META-INF/neoforge.mods.toml'
+        exclude { entry ->
+            if (!entry.path.startsWith('babel/biblioteca/client/mixin/')) return false
+            def dropped = (selection.get().client as Set) - (selection.get().clientCore as Set)
+            dropped.any { name -> entry.file.name == "${name}.class" || entry.file.name.startsWith("${name}\$") }
+        }
+    }
+    from layout.buildDirectory.dir('generated/noRender')
+    from(new File(repositoryRoot, 'LICENSE')) { rename { 'LICENSE-biblioteca' } }
+}
+tasks.named('assemble') { dependsOn noRenderJar }
+
+tasks.register('writeValidationConfig') {
+    dependsOn tasks.named('classes'), tasks.named('prepareServerRun')
+    def report = layout.buildDirectory.file('validation/runtime.json')
+    outputs.file report
+    outputs.upToDateWhen { false }
+    doLast {
+        def run = tasks.named('runServer').get()
+        def data = [
+            classpath: run.classpathProvider.files.collect { it.absolutePath },
+            jvmArgs: run.allJvmArgs + run.jvmArgumentProviders.collectMany { it.asArguments() as List },
+            environment: run.environment.findAll { k, v -> k == 'MOD_CLASSES' },
+            classes: sourceSets.main.output.classesDirs.singleFile.absolutePath,
+            resources: sourceSets.main.output.resourcesDir.absolutePath,
+            minecraft: minecraftVersion, neoforge: project.neo_version, modVersion: project.version.toString(),
+            artifacts: [full: tasks.named('jar').get().archiveFile.get().asFile.absolutePath,
+                        norender: noRenderJar.get().archiveFile.get().asFile.absolutePath],
+            selection: selectionFile.absolutePath,
+            requiresAccessTransformer: file('src/main/resources/META-INF/accesstransformer.cfg').isFile(),
+            reports: new File(reportRoot, 'validation').absolutePath,
+            saveReports: new File(reportRoot, minecraftVersion == '26.3' ? 'save-hang' : 'save-reload').absolutePath
+        ]
+        def target = report.get().asFile
+        target.parentFile.mkdirs()
+        target.text = JsonOutput.prettyPrint(JsonOutput.toJson(data)) + '\n'
+    }
+}
+tasks.register('verifyNeoForge', Exec) {
+    group = 'verification'
+    description = 'Load both packaged variants through FML on both sides and run gameplay regressions.'
+    dependsOn tasks.named('jar'), noRenderJar, tasks.named('writeValidationConfig')
+    workingDir repositoryRoot
+    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    def compiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+    def python = providers.gradleProperty('pythonExecutable').orElse(isWindows ? 'python' : 'python3')
+    doFirst {
+        commandLine python.get(), new File(repositoryRoot, 'tools/verify_neoforge.py').absolutePath,
+                '--runtime-config', layout.buildDirectory.file('validation/runtime.json').get().asFile.absolutePath,
+                '--java', launcher.get().executablePath.asFile.absolutePath,
+                '--javac', compiler.get().executablePath.asFile.absolutePath
+    }
+}
+tasks.named('check') { dependsOn 'verifyNeoForge' }
+tasks.register('collectArtifacts', Copy) {
+    dependsOn tasks.named('jar'), noRenderJar, 'verifyNeoForge'
+    from tasks.named('jar'), noRenderJar
+    into new File(repositoryRoot, 'build/distributions')
+}
+tasks.register('preparePilot') {
+    group = 'verification'
+    description = "Resolve and prepare the pinned NeoForge ${minecraftVersion} environment."
+    dependsOn 'createMinecraftArtifacts'
+    doLast {
+        def checkpoint = layout.buildDirectory.file('pilot-environment.txt').get().asFile
+        checkpoint.parentFile.mkdirs()
+        checkpoint.text = "Minecraft=${minecraftVersion}\nNeoForge=${project.neo_version}\nModDevGradle=2.0.148\nJava=25\n"
+        logger.lifecycle('NeoForge environment prepared. Run build to package and validate Biblioteca.')
+    }
+}
+tasks.named('build') { dependsOn 'preparePilot', 'collectArtifacts' }

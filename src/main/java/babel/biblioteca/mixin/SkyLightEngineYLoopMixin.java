@@ -155,14 +155,27 @@ public abstract class SkyLightEngineYLoopMixin extends LightEngine implements Lo
 
     @Unique private void biblioteca$clearChunk(ChunkPos pos) {
         Level level = biblioteca$level();
+        int cx = Compat.chunkX(pos), cz = Compat.chunkZ(pos);
+        boolean west = !biblioteca$rebuild.contains(Compat.chunkKey(cx - 1, cz));
+        boolean east = !biblioteca$rebuild.contains(Compat.chunkKey(cx + 1, cz));
+        boolean north = !biblioteca$rebuild.contains(Compat.chunkKey(cx, cz - 1));
+        boolean south = !biblioteca$rebuild.contains(Compat.chunkKey(cx, cz + 1));
         for (int sy = Compat.minSection(level); sy <= Compat.maxSection(level); sy++) {
             long section = SectionPos.asLong(Compat.chunkX(pos), sy, Compat.chunkZ(pos));
             biblioteca$data().biblioteca$queue(section, null); // Discard saved vanilla/old-topology data.
             DataLayer data = biblioteca$data().biblioteca$writable(section);
             if (data == null || data.isEmpty()) continue;
             for (int y = 0; y < 16; y++) for (int z = 0; z < 16; z++) for (int x = 0; x < 16; x++) {
+                // Every cell inside the batch is reset below and its sources are reseeded together.
+                // Only light leaving that batch needs a decrease notification. Queuing every lit
+                // cell makes the decrease pass enqueue millions of redundant increases into the
+                // freshly refilled sources, exhausting the heap when saved chunks load together.
+                int blockY = sy * 16 + y;
+                boolean boundary = x == 0 && west || x == 15 && east || z == 0 && north || z == 15 && south;
+                if (!biblioteca$periodic && (blockY == Compat.minY(level) || blockY == Compat.maxY(level))) boundary = true;
+                if (!boundary) continue;
                 int old = data.get(x, y, z);
-                if (old > 0) enqueueDecrease(BlockPos.asLong(Compat.chunkBlockX(pos, x), sy * 16 + y, Compat.chunkBlockZ(pos, z)), QueueEntry.decreaseAllDirections(old));
+                if (old > 0) enqueueDecrease(BlockPos.asLong(Compat.chunkBlockX(pos, x), blockY, Compat.chunkBlockZ(pos, z)), QueueEntry.decreaseAllDirections(old));
             }
             data.fill(0);
             biblioteca$data().biblioteca$dirty(section);

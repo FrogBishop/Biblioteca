@@ -16,10 +16,10 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "babel.biblioteca.Biblioteca"
+      "babel.biblioteca.fabric.FabricBiblioteca"
     ],
     "client": [
-      "babel.biblioteca.client.BibliotecaClient"
+      "babel.biblioteca.client.fabric.FabricBibliotecaClient"
     ]
   },
   "mixins": [

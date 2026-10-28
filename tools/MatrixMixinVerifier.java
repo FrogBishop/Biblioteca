@@ -112,6 +112,13 @@ public class MatrixMixinVerifier {
         }
         if (!failures.isEmpty()) throw new AssertionError("Failed transformed targets: " + failures);
         if (args.length > 3) {
+            loader.loadClass("babel.biblioteca.validation.CoreChecks").getMethod("bootstrap").invoke(null);
+            Class<?> entrypoint = loader.loadClass("babel.biblioteca.fabric.FabricBiblioteca");
+            entrypoint.getMethod("onInitialize").invoke(entrypoint.getConstructor().newInstance());
+            if (environment == EnvType.CLIENT) {
+                Class<?> clientEntrypoint = loader.loadClass("babel.biblioteca.client.fabric.FabricBibliotecaClient");
+                clientEntrypoint.getMethod("onInitializeClient").invoke(clientEntrypoint.getConstructor().newInstance());
+            }
             loader.loadClass("babel.biblioteca.validation.ApiChecks").getMethod("run", Path.class).invoke(null, classes);
             loader.loadClass("babel.biblioteca.validation.CoreChecks").getMethod("run", boolean.class)
                     .invoke(null, environment == EnvType.CLIENT);

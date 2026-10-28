@@ -140,7 +140,12 @@ java {
 // legacy or mid-era variant is listed in the same config; this set only removes
 // the inapplicable one. The generated mixin config is filtered to match, because
 // Mixin would otherwise fail to load the class.
-val excludedServerMixins = buildSet {
+@Suppress("UNCHECKED_CAST")
+val sources263 = groovy.json.JsonSlurper().parse(rootProject.file("gradle/26.3-sources.json")) as Map<String, List<String>>
+val excludedServerMixins = if (sc.current.version == "26.3") {
+    rootProject.fileTree("src/main/java/babel/biblioteca/mixin").matching { include("*.java") }
+        .files.map { it.nameWithoutExtension }.toSet() - sources263.getValue("mixins").toSet()
+} else buildSet {
     if (sc.current.parsed < "1.20") add("SkyLightEngineYLoopMixin")
     else addAll(listOf("LegacySkyLightEngineYLoopMixin", "LegacyLightStorageYLoopMixin"))
     if (sc.current.parsed < "1.21.6") add("LeashableYLoopMixin")
@@ -213,7 +218,7 @@ if (excludedServerMixins.isNotEmpty()) {
 
 // A single selection drives both compilation and runtime registration. No absent
 // renderer hook is hidden by require=0, and unselected implementations are not packaged.
-val clientCoreMixins = buildSet {
+val clientCoreMixins = if (sc.current.version == "26.3") sources263.getValue("clientCore").toSet() else buildSet {
     // Earlier subtitles have no audibility gate; the sound engine already gates their events.
     if (sc.current.parsed >= "1.20.3") add("SubtitleDistanceYLoopMixin")
     if (sc.current.parsed >= "1.19.4") addAll(listOf("CreateWorldScreenMoreTabMixin", "GridLayoutTabAccessor"))
@@ -228,7 +233,7 @@ val clientCoreMixins = buildSet {
     if (sc.current.parsed >= "1.21.2") add("ClientPacketListenerYLoopMixin")
     if (sc.current.parsed < "26.1") add("LegacyInteractionLocationYLoopMixin")
 }
-val selectedClientMixins = buildSet {
+val selectedClientMixins = if (sc.current.version == "26.3") sources263.getValue("client").toSet() else buildSet {
     addAll(clientCoreMixins)
     if (sc.current.parsed < "1.21.2") add("LegacyLeashRenderYLoopMixin")
     else if (sc.current.parsed < "1.21.9") add("LeashRenderStateYLoopMixin")
@@ -527,4 +532,36 @@ tasks.register("writeValidationConfig") {
 
 tasks.assemble {
     dependsOn(noRenderJar)
+}
+
+// Export the exact sources selected and preprocessed by the Fabric version node. Independent
+// NeoForge targets consume this tree rather than copying 26.3 sources or parsing directives again.
+tasks.register<Sync>("exportNeoForgeSources") {
+    group = "build"
+    description = "Exports this node's preprocessed shared sources/resources for NeoForge."
+    dependsOn(tasks.classes)
+    val output = rootProject.layout.buildDirectory.dir("neoforge-shared/${sc.current.version}")
+    into(output)
+    from(sourceSets.main.get().java) {
+        into("java")
+        exclude("babel/biblioteca/fabric/**", "babel/biblioteca/client/fabric/**")
+    }
+    from(tasks.processResources.flatMap { it.destinationDirectory }) {
+        into("resources")
+        exclude("fabric.mod.json", "*.accesswidener")
+    }
+    inputs.property("minecraft", sc.current.version)
+    inputs.property("clientCoreMixins", clientCoreMixins.sorted())
+    doLast {
+        val common = groovy.json.JsonSlurper().parse(output.get().file("resources/biblioteca.mixins.json").asFile) as Map<*, *>
+        val selection = mapOf(
+            "minecraft" to sc.current.version,
+            "mixins" to common["mixins"],
+            "client" to selectedClientMixins.sorted(),
+            "clientCore" to clientCoreMixins.sorted(),
+            "excludedClientClasses" to emptyList<String>(),
+        )
+        output.get().file("selection.json").asFile.writeText(
+            groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(selection)) + "\n")
+    }
 }

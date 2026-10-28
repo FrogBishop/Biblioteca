@@ -20,17 +20,15 @@ import java.util.Set;
 
 /** Executes against each node's real Minecraft classes inside the Fabric class loader. */
 public final class CoreChecks {
-    public static void run(boolean client) throws Exception {
+    public static void bootstrap() throws Exception {
         try { net.minecraft.SharedConstants.class.getMethod("tryDetectVersion").invoke(null); }
         catch (NoSuchMethodException ignored) { net.minecraft.SharedConstants.getCurrentVersion(); }
         net.minecraft.server.Bootstrap.bootStrap();
-        new babel.biblioteca.Biblioteca().onInitialize();
+    }
+
+    public static void run(boolean client) throws Exception {
         check(babel.biblioteca.Compat.customStats().keySet().contains(
                 babel.biblioteca.Compat.id("biblioteca", "seam_crossings")), "crossing statistic registration");
-        if (client) {
-            Class<?> initializer = Class.forName("babel.biblioteca.client.BibliotecaClient");
-            initializer.getMethod("onInitializeClient").invoke(initializer.getConstructor().newInstance());
-        }
         var defaults = LoopingWorldData.CODEC.parse(JsonOps.INSTANCE, new JsonObject()).result().orElseThrow();
         check(defaults.getLoopingDimensions().isEmpty() && defaults.getBeaconIgnoresSky().isEmpty()
                 && defaults.getNoVoidFogDimensions().isEmpty() && defaults.getSkyLightModes().isEmpty() && defaults.getSkyLightMode(Level.OVERWORLD) == SkyLightMode.DEFAULT, "new-world defaults");
