@@ -1,5 +1,16 @@
 # Biblioteca
 
+> **PERMANENTLY ARCHIVED — `main` branch (2026-10-29)**
+>
+> This branch preserves Biblioteca 1.0.0's Minecraft 26.3 Fabric single-version implementation
+> as a historical reference. It will receive no further maintenance, fixes, dependency updates
+> or releases.
+>
+> Biblioteca development continues on **[`multiversion`](https://github.com/FrogBishop/Biblioteca/tree/multiversion)**,
+> the default and actively maintained branch. Use it for current builds, documentation and contributions.
+
+The documentation below describes the archived implementation and its historical toolchain.
+
 **A periodic Y axis for Minecraft dimensions.**
 
 Biblioteca **1.0.0** is a Fabric mod for Minecraft 26.3. It makes a dimension's vertical
@@ -27,7 +38,7 @@ covering features, installation, dimension settings and commands.
 Dependency and mod versions are declared in [gradle.properties](gradle.properties).
 Loom separates common code in `src/main` from client code in `src/client`.
 
-## Build and run
+## Historical build and run
 
 With Java 25 available to Gradle, run these commands from the repository root:
 
@@ -284,11 +295,9 @@ Useful regression scenarios include:
 - [Changelog](CHANGELOG.md) — releases and manual migration instructions.
 - [Issue tracker](https://github.com/FrogBishop/Biblioteca/issues).
 
-Keep implementation details, source references and development checks in this README and the
-performance notes. Maintain `modrinth.md` as the shared project-page copy for players on Modrinth
-and CurseForge. Use complete HTTPS URLs for every hyperlink and image in that file so the same
-Markdown works on both platforms. Repository-relative source and documentation links are suitable
-for this GitHub README.
+These documents are retained with the archived source for historical reference. Documentation,
+project-page copy and development changes are maintained on
+[`multiversion`](https://github.com/FrogBishop/Biblioteca/tree/multiversion).
 
 Author: **FrogBishop**. Inspired by Jorge Luis Borges' *The Library of Babel*.
 Bug fixes and rendering work: DeepSeek-v4.1-flash, GPT-6-Astra. Licensed under [GPLv3](LICENSE).

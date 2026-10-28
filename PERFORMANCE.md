@@ -1,5 +1,9 @@
 # Performance notes
 
+> **`main` is permanently archived as of 2026-10-29.** These notes describe the historical
+> Minecraft 26.3 Fabric implementation. Current performance documentation is maintained on
+> [`multiversion`](https://github.com/FrogBishop/Biblioteca/blob/multiversion/PERFORMANCE.md).
+
 Biblioteca keeps one authoritative period on the server. The client mirrors the compiled
 section vertex meshes it already has; it does not create chunks, vertex meshes or entities for the
 copies. Sorted transparency adds per-copy quad orders and GPU index ranges, so its memory cost

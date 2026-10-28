@@ -1,5 +1,12 @@
 # Biblioteca
 
+> **Permanently archived branch — `main` (2026-10-29).** This page is retained for the historical
+> Minecraft 26.3 Fabric 1.0.0 release; this branch will receive no further maintenance or releases.
+> The default and actively maintained branch is
+> [`multiversion`](https://github.com/FrogBishop/Biblioteca/tree/multiversion).
+> Use the [current project description](https://github.com/FrogBishop/Biblioteca/blob/multiversion/modrinth.md)
+> for supported builds and installation instructions.
+
 **Turn a dimension's vertical space into a loop.**
 
 **Version 1.0.0 · Minecraft 26.3 · Fabric**
@@ -171,13 +178,13 @@ Biblioteca changes Minecraft's world and renderer internals. Mods that replace t
 may need compatibility work. Shader packs have not been comprehensively tested. The no-render
 variant is intended for servers and does not provide the visual loop on a client.
 
-For a bug report, include your Minecraft/mod versions, other installed mods, the log and steps
-to reproduce it. For a rendering problem, also include your GPU, render distance, dimension
-height and whether Improved Transparency is enabled.
+For bug reports about current builds maintained on `multiversion`, include your Minecraft/mod
+versions, other installed mods, the log and steps to reproduce it. For a rendering problem, also
+include your GPU, render distance, dimension height and whether Improved Transparency is enabled.
 
-[Source and developer documentation](https://github.com/FrogBishop/Biblioteca) ·
+[Current source and developer documentation](https://github.com/FrogBishop/Biblioteca/tree/multiversion) ·
 [Report an issue](https://github.com/FrogBishop/Biblioteca/issues) ·
-[Release history](https://github.com/FrogBishop/Biblioteca/blob/main/CHANGELOG.md)
+[Current release history](https://github.com/FrogBishop/Biblioteca/blob/multiversion/CHANGELOG.md)
 
 Author: **FrogBishop**. Inspired by Jorge Luis Borges' *The Library of Babel*.
 Bug fixes and rendering work: DeepSeek-v4.1-flash, GPT-6-Astra. Licensed under

@@ -1,5 +1,15 @@
 # Changelog
 
+## `main` permanently archived — 2026-10-29
+
+- Permanently end maintenance of the `main` branch. Its final implementation is Biblioteca
+  **1.0.0 for Minecraft 26.3 / Fabric**, preserved at code snapshot `603f9a7`.
+- No further fixes, dependency updates or releases will be made from this branch.
+- Continue all development on **[`multiversion`](https://github.com/FrogBishop/Biblioteca/tree/multiversion)**,
+  the repository's default and actively maintained branch. See its
+  [current changelog](https://github.com/FrogBishop/Biblioteca/blob/multiversion/CHANGELOG.md)
+  for subsequent changes. The entries below are the archived single-version release history.
+
 ## 1.0.0
 
 Minecraft 26.3 / Fabric. This release includes three sky-light modes, live data-pack dimension
