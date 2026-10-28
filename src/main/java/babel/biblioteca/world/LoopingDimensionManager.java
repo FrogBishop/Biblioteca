@@ -15,6 +15,7 @@ import net.minecraft.world.level.storage.SavedDataStorage;
 
 import java.util.Set;
 import java.util.Map;
+import java.util.HashSet;
 
 /**
  * Server-side singleton that owns the LoopingWorldData and exposes the per-dimension
@@ -36,6 +37,9 @@ public final class LoopingDimensionManager {
     private static volatile Set<ResourceKey<Level>> beaconIgnoresSkySnapshot = Set.of();
     private static volatile Set<ResourceKey<Level>> noVoidFogSnapshot = Set.of();
     private static volatile Map<ResourceKey<Level>, SkyLightMode> skyLightSnapshot = Map.of();
+    // Retain authority until this server closes: disabling looping also changes stored sky light.
+    // Tracking the dimension covers chunks first sent as full snapshots, before any light delta.
+    private static volatile Set<ResourceKey<Level>> lightSyncDimensions = Set.of();
 
     private LoopingDimensionManager() {}
 
@@ -62,6 +66,8 @@ public final class LoopingDimensionManager {
         *///?}
         republishSnapshots();
 
+        lightSyncDimensions = loopingSnapshot;
+
         Biblioteca.LOGGER.info("[Biblioteca] Looping dimensions: {}", loopingSnapshot);
         Biblioteca.LOGGER.info("[Biblioteca] Beacon ignores sky: {}", beaconIgnoresSkySnapshot);
         Biblioteca.LOGGER.info("[Biblioteca] No void fog: {}", noVoidFogSnapshot);
@@ -73,6 +79,7 @@ public final class LoopingDimensionManager {
 
     public static void onServerStopped() {
         serverData = null;
+        lightSyncDimensions = Set.of();
         republishSnapshots();
         LoopingRegistry.bumpRevision();
     }
@@ -93,8 +100,17 @@ public final class LoopingDimensionManager {
         if (serverData != null) {
             serverData.setLooping(dimension, enabled);
             republishSnapshots();
+            if (enabled && !lightSyncDimensions.contains(dimension)) {
+                Set<ResourceKey<Level>> retained = new HashSet<>(lightSyncDimensions);
+                retained.add(dimension);
+                lightSyncDimensions = Set.copyOf(retained);
+            }
             LoopingRegistry.bumpRevision();
         }
+    }
+
+    public static boolean needsServerLightSync(ResourceKey<Level> dimension) {
+        return lightSyncDimensions.contains(dimension);
     }
 
     public static Set<ResourceKey<Level>> getLoopingDimensions() {

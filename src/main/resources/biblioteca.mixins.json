@@ -13,6 +13,7 @@
     "BlockLightEngineYLoopMixin",
     "BreezeAimYLoopMixin",
     "ChorusFlowerBlockYLoopMixin",
+    "ChunkHolderLightSyncMixin",
     "CrossbowAimYLoopMixin",
     "DoorBlockYLoopMixin",
     "DoublePlantBlockYLoopMixin",

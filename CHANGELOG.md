@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.2 (local builds)
+
+- Add NeoForge targets for Minecraft 26.1, 26.1.1, 26.1.2, 26.2 and 26.3, with complete and
+  no-render artifacts sharing the Fabric gameplay and rendering implementation.
+- Retain periodic dimension attributes until native chunk/light saving and level closing finish.
+  Avoid redundant interior light-queue entries when rebuilding batches of saved chunks. These
+  repairs address the save/quit and reload heap exhaustion found in the original 1.0.0 builds.
+- Send server-computed sky-light changes to all chunk watchers on verified 26.1–26.3 APIs,
+  including clients inside the watched area, so digging and replacing roofs update live lighting.
+- Deliver the same fixes as Fabric **1.0.2+26.3**. An isolated existing-world fixture
+  passes save/reopen and three full-height excavation/roof cycles with a 1 GB heap.
+- Add shared Fabric/NeoForge native save lifecycle probes and a controlled 26.3 graphical
+  visibility diagnostic. See [verification](README.md#verification) and the
+  [NeoForge 26.3 guide](platforms/neoforge-26.3/README.md#validation-evidence-and-limits) for scope and limits.
+
 ## 1.0.0
 
 Fabric / all 35 formal releases from Minecraft 1.16.5 through 26.3. Synchronized with main commit `603f9a7`. This release includes three sky-light modes, live data-pack dimension

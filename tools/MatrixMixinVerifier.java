@@ -122,6 +122,9 @@ public class MatrixMixinVerifier {
             loader.loadClass("babel.biblioteca.validation.ApiChecks").getMethod("run", Path.class).invoke(null, classes);
             loader.loadClass("babel.biblioteca.validation.CoreChecks").getMethod("run", boolean.class)
                     .invoke(null, environment == EnvType.CLIENT);
+            if (java.util.Set.of("26.1", "26.1.1", "26.1.2", "26.2", "26.3").contains(config.get("minecraft").getAsString())) {
+                loader.loadClass("babel.biblioteca.validation.modern.LightSyncChecks").getMethod("run").invoke(null);
+            }
             loader.loadClass("babel.biblioteca.validation.SeamChecks").getMethod("run", boolean.class)
                     .invoke(null, environment == EnvType.CLIENT);
             loader.loadClass("babel.biblioteca.validation.SkyChecks").getMethod("run").invoke(null);

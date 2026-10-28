@@ -3,7 +3,7 @@ param(
     [string]$Action = 'prepare',
     [switch]$Offline,
     [string]$NeoForgeVersion = '',
-    [ValidateSet('26.2', '26.3')]
+    [ValidateSet('26.1', '26.1.1', '26.1.2', '26.2', '26.3')]
     [string]$MinecraftVersion = '26.3'
 )
 
@@ -18,7 +18,7 @@ $logPath = Join-Path $reportDir $logName
 
 if ($Action -eq 'status') {
     if (Test-Path -LiteralPath $statePath) { Get-Content -LiteralPath $statePath -Raw }
-    else { Write-Output 'No recorded preparation run. Read NEOFORGE_PILOT.md.' }
+    else { Write-Output "No recorded preparation run. Read platforms/neoforge-$MinecraftVersion/README.md." }
     exit 0
 }
 
@@ -89,5 +89,5 @@ try {
 }
 
 Get-Content -LiteralPath $logPath -Tail 30 -ErrorAction SilentlyContinue
-Write-Output "Pilot state: $($state.status). See NEOFORGE_PILOT.md and $statePath"
+Write-Output "Pilot state: $($state.status). See platforms/neoforge-$MinecraftVersion/README.md and $reportRelative/state.json"
 exit $resultCode

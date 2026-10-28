@@ -1,10 +1,105 @@
+# Generated builds and local dependency caches, including nested version projects.
 .gradle/
 build/
 local-repo/
+out/
+*.class
+*.jar
+!/gradle/wrapper/gradle-wrapper.jar
+
+# Machine-specific IDE, agent and workspace state.
+.idea/
+.vscode/
+.codex/
+.claude/
+*.iml
+*.ipr
+*.iws
+*.code-workspace
+.classpath
+.project
+.settings/
+
+# Private session notes and installation/recovery records.
+/.local/
+/SESSION_HANDOFF.md
+/NEOFORGE_PILOT.md
+*.local.md
+
+# Local configuration and credentials. Only sanitized examples belong in Git.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+local.properties
+gradle-local.properties
+.secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Minecraft instances, player worlds and runtime settings.
 run/
+runs/
+run-*/
+.minecraft/
+saves/
+# Anchor default world names so Java packages named "world" remain visible.
+/world/
+/world_nether/
+/world_the_end/
+backups/
+screenshots/
+crash-reports/
+logs/
+options*.txt
+server.properties
+eula.txt
+level.dat
+level.dat_old
+session.lock
+*.mca
+*.mcr
+servers.dat
+servers.dat_old
+launcher_accounts*.json
+launcher_profiles*.json
+usercache.json
+usernamecache.json
+ops.json
+whitelist.json
+banned-ips.json
+banned-players.json
+
+# Logs, memory/profiling dumps, copied archives and temporary backups.
 *.log
+*.hprof
+*.jfr
+*.dmp
+hs_err_pid*
+replay_pid*
+*.jar.disabled
+*.zip
+*.7z
+*.rar
+*.bak
+*.backup
+*.tmp
 *.legacy
 .test-group/
 .test-run-*/
+
+# Python environments and caches.
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+venv/
+
+# Desktop metadata.
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,6 +1,6 @@
 # Biblioteca for NeoForge 26.3
 
-This independent target builds Biblioteca 1.0.1 for Minecraft 26.3, tested on NeoForge
+This independent target builds Biblioteca 1.0.2 for Minecraft 26.3, tested on NeoForge
 26.3.0.98 and 26.3.0.99. It shares gameplay, persistence, commands, UI and rendering with the
 Fabric target. The shared source version is 26.3; edit the repository's root sources rather
 than Stonecutter-generated copies for older Minecraft releases.
@@ -50,9 +50,9 @@ to prepare only the patched game; its `prepared` state does not mean that mod va
 
 ## Deliverables
 
-- `build/distributions/biblioteca-1.0.1+26.3-neoforge.jar`: complete gameplay and periodic visuals;
+- `build/distributions/biblioteca-1.0.2+26.3-neoforge.jar`: complete gameplay and periodic visuals;
   works on both clients and dedicated servers.
-- `build/distributions/biblioteca-1.0.1+26.3-neoforge-norender.jar`: the same gameplay,
+- `build/distributions/biblioteca-1.0.2+26.3-neoforge-norender.jar`: the same gameplay,
   networking, prediction, audio and configuration UI, with periodic visual Mixins removed.
 
 Install one variant per instance; both have the mod ID `biblioteca`. Use the complete variant
@@ -63,6 +63,12 @@ tested baseline; the declared NeoForge range allows later 26.3 builds, not 26.4.
 chunk saving and level shutdown finish. Bulk sky-light rebuilding invalidates only the batch
 boundary, avoiding an increase-queue explosion when many previously lit chunks reload together.
 
+1.0.2 fixes live sky-light synchronization. Vanilla's light deltas normally go only to players
+at the tracked-view boundary, because interior clients compute vanilla light themselves.
+Biblioteca's periodic sky is computed on the server, so its native light packets now reach every
+watcher in a dimension that uses this authority. Authority is retained until server shutdown,
+including the transition back to non-looping light. Unmodified dimensions keep vanilla behavior.
+
 ## Platform implementation
 
 `NeoForgeBiblioteca` registers the common initialization, custom statistic at `RegisterEvent`,
@@ -71,7 +77,7 @@ entrypoint registers the main-thread payload handler, disconnect cleanup and Neo
 directory. Common code has no Fabric API dependency. The saved world format and packet content
 are shared; cross-loader multiplayer compatibility has not been validated.
 
-`gradle/26.3-sources.json` controls the 69 common Mixins, 30 complete-client Mixins and 11
+`gradle/26.3-sources.json` controls the 70 common Mixins, 30 complete-client Mixins and 11
 no-render client Mixins for both loaders. The access transformer grants the same terrain draw
 group access as the Fabric access widener. Two injection selectors account for NeoForge's
 additional explosion and block-entity extraction overloads without relaxing required injections.
@@ -85,8 +91,10 @@ codecs and client handlers, main-thread scheduling, disconnect cleanup, config p
 SavedData migration, dimension commands and UI, collision/movement/pathfinding, mob targeting,
 three sky modes, terrain sorting, transparency, weather and render resource lifetimes.
 
-The tests use the real game and NeoForge classes with isolated world/GPU fixtures. They do not
-open a game window, connect real network peers or replace manual visual and third-party mod-pack
+The standard tests use real game and NeoForge classes with isolated world/GPU fixtures. The
+1.0.2 investigation additionally ran a graphical client on a copied world and sampled server,
+client, render-region and native block-lighter outputs before/after `/fill` and renderer refresh.
+Those numeric checks do not replace pixel inspection, remote multiplayer or third-party mod-pack
 testing. The existing Fabric 26.3 regressions are run separately with
 `tools/verify_matrix.py` and `tools/verify_artifacts.py`.
 
@@ -95,14 +103,17 @@ supplied world with Overworld looping and hybrid sky enabled. It requires an exi
 EULA file and leaves the supplied world template unchanged:
 
 ```powershell
-python tools/verify_neoforge_save.py --jar build/distributions/biblioteca-1.0.1+26.3-neoforge.jar --world-template path/to/test-world --eula-file path/to/eula.txt
+python tools/verify_neoforge_save.py --jar build/distributions/biblioteca-1.0.2+26.3-neoforge.jar --world-template path/to/test-world --eula-file path/to/eula.txt
 ```
 
 It loads 49 forced chunks with a 1 GB heap, saves and closes, reopens the same copy to check a
 persisted block and dimension attributes, then closes again. The test observer checks that
 attributes remain available through native chunk flush and unload, and are cleared afterward.
 Results and logs are under `build/neoforge-pilot/save-hang/`; the probe mod is never shipped.
+Add `--hybrid-dig` to check full-height 8x8 excavations, roof replacement/removal, chunk borders
+and negative coordinates in a normal-height Overworld. This supplements the native light-packet
+recipient regression in `tools/validation/modern-light/LightSyncChecks.java`.
 
 The existing GitHub Actions pilot workflow still prepares only the NeoForge environment.
 This change's complete build and validation have been run locally; no new remote artifact upload
-was configured. [The recovery checkpoint](../../NEOFORGE_PILOT.md) records the verified scope.
+was configured. See the [shared verification guide](../../README.md#verification) for coverage.

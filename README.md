@@ -2,7 +2,7 @@
 
 **A periodic Y axis for Minecraft dimensions, with version-specific vanilla renderer adapters.**
 
-Biblioteca **1.0.0** connects a dimension's top and bottom. The server stores one period;
+Biblioteca connects a dimension's top and bottom. The server stores one period;
 the client displays the visible periodic copies. No blocks, items, dimensions or generation
 presets are added, and existing terrain (including bedrock) is retained.
 
@@ -10,11 +10,13 @@ presets are added, and existing terrain (including bedrock) is retained.
 to **all 35 releases from 1.16.5 through 26.3**. Each release has an exact-version artifact; a JAR
 compiled for one release is not relabelled to accept a broader API range.
 
-Minecraft **26.2 and 26.3** also have **NeoForge** targets, sharing gameplay and renderer code
+Minecraft **26.1, 26.1.1, 26.1.2, 26.2 and 26.3** also have **NeoForge** targets, sharing gameplay and renderer code
 with Fabric. Complete and no-render variants are built and validated independently; see the
-[26.2 build guide](platforms/neoforge-26.2/README.md) and [26.3 build guide](platforms/neoforge-26.3/README.md).
-The current NeoForge artifact is **1.0.1**, which fixes save/quit and bulk sky-light reload
-memory growth; NeoForge 26.2.0.93, 26.3.0.98 and 26.3.0.99 are covered by regression checks.
+[26.1 family guide](platforms/neoforge-26.1/README.md), [26.2 build guide](platforms/neoforge-26.2/README.md)
+and [26.3 build guide](platforms/neoforge-26.3/README.md).
+The current NeoForge and Fabric 26.3 artifacts are **1.0.2**. They include the save/quit and bulk sky-light memory
+fixes, and sends live light updates to interior chunk watchers so digging/re-roofing updates
+the client immediately. Each target has a pinned and verified NeoForge baseline in its build guide.
 
 This README is developer documentation for GitHub. [modrinth.md](modrinth.md) is the shared
 user-facing project description for Modrinth and CurseForge.
@@ -30,7 +32,7 @@ the changes through 1.0.0. [PORTING.md](PORTING.md) describes the version breakp
 | Output Java targets | 17 for 1.16.5–1.20.4; 21 for 1.20.5–1.21.11; 25 for 26.1+ |
 | Fabric Loader | 0.19.5 |
 | Fabric API | Pinned per release in `stonecutter.properties.toml` |
-| NeoForge (26.2 / 26.3) | 26.2.0.93 / 26.3.0.98 (also verified with 26.3.0.99); ModDevGradle 2.0.148, Java 25 |
+| NeoForge (26.x targets) | 26.1.0.19-beta / 26.1.1.15-beta / 26.1.2.122 / 26.2.0.93 / 26.3.0.98 (also verified with 26.3.0.99); ModDevGradle 2.0.148, Java 25 |
 | Source preprocessing | Stonecutter 0.9.8 |
 | Loom | `loom-back-compat` 0.4.2 selects remapping/plain Loom 1.18 |
 
@@ -55,6 +57,7 @@ python tools/verify_matrix.py --checks --workers 2
 python tools/verify_artifacts.py
 
 # NeoForge: build both variants and run packaged client/server regressions per target
+.\tools\neoforge-pilot.ps1 verify -MinecraftVersion 26.1.2
 .\tools\neoforge-pilot.ps1 verify -MinecraftVersion 26.2
 .\tools\neoforge-pilot.ps1 verify
 ```
@@ -64,8 +67,9 @@ On Linux/macOS use `./gradlew`; `SC_VERSIONS=1.21.5,26.3 ./gradlew :1.21.5:build
 The verifier accepts `--java` and `--javac` paths and uses Python 3.11 or newer together with the artifact auditor.
 The 1.16.5 and 1.17 artifacts also require Java 17 or newer at game runtime.
 
-Outputs are named `biblioteca-1.0.0+<minecraft>.jar` and
-`biblioteca-1.0.0+<minecraft>-norender.jar`. The normal JAR works on clients and servers.
+Outputs are named `biblioteca-<mod-version>+<minecraft>.jar` and
+`biblioteca-<mod-version>+<minecraft>-norender.jar`. The mod version comes from
+`stonecutter.properties.toml`; existing older artifacts are separate files. The normal JAR works on clients and servers.
 The no-render variant removes visual Mixins but retains gameplay, prediction, audio and
 configuration UI. Both use the same mod ID; install only one per instance. Clients need the
 normal artifact for the visual loop. Source JARs stay in each node's `build/libs` directory.
@@ -239,6 +243,20 @@ Reports live in `build/validation`; CI uploads them with `build/distributions`. 
 output and driver-specific rendering still need an interactive client: see the manual scenarios
 in [PARITY.md](PARITY.md). Passing data and injection checks is not a claim of visual GPU testing.
 
+`tools/verify_neoforge_save.py --loader fabric` also runs the packaged Fabric 26.3 JAR through
+real server save/stop/reopen, with the same checks used by NeoForge. Pass the exported runtime
+configuration, JAR and a world template; the runner copies the template into `build/` and uses
+a 1 GB heap. `--hybrid-dig` adds three isolated 8x8 excavation/roof scenarios. Full-height walls
+prevent surrounding water in player worlds from invalidating the test's direct-sky assumptions.
+The shutdown observer runs after default-order TAIL callbacks to avoid depending on Fabric's
+event/Mixin ordering.
+
+`tools/verify_visibility.py` runs a real 26.3 graphical client on a copied world. It tests 74
+camera/FOV poses, checks compiled bottom-section copies against submitted solid draws, verifies
+the actual pose and captures six screenshots. Both loader adapters use the same world and
+settings, with dynamic FOV disabled. This diagnostic is limited to the selected graphics device
+and draw path. Reports and screenshots are written under `build/validation/26.3/visibility/`.
+
 ## Compatibility and documentation
 
 Voxy and other far-LOD/replacement renderers bypass vanilla terrain extraction and need a separate
@@ -253,6 +271,9 @@ intersecting faces and cyclic overlap.
 - [CHANGELOG.md](CHANGELOG.md): release history and manual setting migration.
 
 Keep implementation details and verification evidence in the GitHub developer documentation.
+Keep private handoff notes, machine paths and installation records in `.local/` or the ignored
+local checkpoint files. Generated runtime configurations, worlds, screenshots, logs and backups
+stay outside version control; commit portable validation tools and sanitized technical summaries.
 Use complete HTTPS URLs for every hyperlink and image in `modrinth.md`, so the same user-facing
 Markdown can be published on Modrinth and CurseForge. Repository-relative links are suitable here.
 

@@ -84,6 +84,8 @@ def main():
     compile_cp = runtime['classpath']
     compile_java(args.javac, compile_cp, reports / 'verifier', [ROOT / 'tools/NeoForgeMixinVerifier.java'], reports / 'verifier-compile.log')
     sources = sorted((ROOT / 'tools/validation').glob('*.java')) + sorted((ROOT / 'tools/neoforge-validation').glob('*.java'))
+    if runtime['minecraft'] in ('26.1', '26.1.1', '26.1.2', '26.2', '26.3'):
+        sources += sorted((ROOT / 'tools/validation/modern-light').glob('*.java'))
     if runtime['minecraft'] == '26.3':
         sources += sorted((ROOT / 'tools/validation/main100').glob('*.java'))
         sources += sorted((ROOT / 'tools/validation/renderpearl').glob('*.java'))

@@ -3,7 +3,7 @@ import groovy.json.JsonSlurper
 
 group = 'babel.biblioteca'
 def minecraftVersion = project.minecraft_version.toString()
-version = "1.0.1+${minecraftVersion}-neoforge"
+version = "1.0.2+${minecraftVersion}-neoforge"
 base.archivesName = 'biblioteca'
 
 def repositoryRoot = file('../..')
