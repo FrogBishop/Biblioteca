@@ -351,7 +351,7 @@ def prepare_descriptions(run, credentials, platforms):
     return hashlib.sha256(description).hexdigest()
 
 
-def prepare_manifest(args, config, pairs, credentials, run):
+def prepare_manifest(args, pairs, credentials, run):
     notes = release_notes(args.mod_version, args.changelog)
     files_dir = run / 'files'
     files_dir.mkdir()
@@ -366,8 +366,9 @@ def prepare_manifest(args, config, pairs, credentials, run):
             if sha256(target) != asset['sha256']:
                 raise PublishError('Artifact changed while preparing the release snapshot.')
             asset['path'] = str(target)
+        loader_name = 'Fabric' if loader == 'fabric' else 'NeoForge'
         entries.append({'key': loader + '_' + mc.replace('.', '_'), 'version': version, 'minecraft': mc,
-                        'loader': loader, 'displayName': f'Biblioteca {args.mod_version} | Minecraft {mc} | {loader}',
+                        'loader': loader, 'displayName': f'Biblioteca {args.mod_version} | Minecraft {mc} | {loader_name}',
                         'java': max(a['java'] for a in assets), 'files': assets})
     projects = {p: credentials[p.upper() + '_PROJECT_ID'] or ('dryrun00' if p == 'modrinth' else '0') for p in args.platforms}
     projects['modrinthNorender'] = credentials.get('MODRINTH_NORENDER_PROJECT_ID', '')
@@ -489,7 +490,7 @@ def main():
         pairs = targets(config, args.versions, args.loaders)
         if args.build:
             build_targets(pairs, run)
-        manifest = prepare_manifest(args, config, pairs, credentials, run)
+        manifest = prepare_manifest(args, pairs, credentials, run)
         print(f'PLAN {len(manifest["entries"])} artifact pairs, {len(manifest["publications"])} platform releases, platforms={",".join(args.platforms)}', flush=True)
         if 'modrinth' in args.platforms and not credentials.get('MODRINTH_NORENDER_PROJECT_ID'):
             print('NOTE: Modrinth no-render is not selected; configure a separate MODRINTH_NORENDER_PROJECT_ID to publish it.', flush=True)

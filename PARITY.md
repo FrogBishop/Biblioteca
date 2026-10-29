@@ -1,7 +1,10 @@
 # Main / multiversion parity audit
 
 Reference: **`main` commit `603f9a7`, version 1.0.0**, including all earlier seam work.
-Implementation and validation are on `multiversion`; the single-version branch is preserved.
+Implementation and validation are on `multiversion`; the single-version `main` branch is permanently archived.
+This document preserves the original 1.0.0 parity audit. Release 1.0.2's additional save/light,
+NeoForge and graphical validation is described in [README.md](README.md#verification) and the
+per-target NeoForge guides.
 
 ## Scope and evidence
 
@@ -148,7 +151,8 @@ buffers, direct/indirect command comparison, OIT selection and fence/reset/recre
 
 ## Manual scenarios and shared limits
 
-No interactive visual/audio/gameplay run was performed for the new matrix during this adaptation.
+No interactive visual/audio/gameplay run was performed during the original 1.0.0 matrix adaptation.
+The later 1.0.2 graphical checks cover 26.3 only; they are not a visual test of every older port.
 Use the native 256-row world on 1.16.5; for later renderer generations, use a normal-height and a height-16 custom dimension and check:
 
 - A multiplayer guest walking, flying and riding both ways through the boundary, including

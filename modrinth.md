@@ -2,7 +2,7 @@
 
 **Turn a dimension's vertical space into a loop.**
 
-**Minecraft 1.16.5–26.3 on Fabric · Minecraft 26.1–26.3 on NeoForge**
+**Version 1.0.2 · Minecraft 1.16.5–26.3 on Fabric · Minecraft 26.1–26.3 on NeoForge**
 
 > *"La biblioteca es ilimitada y periódica."* — Jorge Luis Borges, *Ficciones* (1944)
 
@@ -55,9 +55,12 @@ instance's `mods` folder. Every supported target has its own full and no-render 
 For example, the 1.0.2 builds for Minecraft 26.3 are `biblioteca-1.0.2+26.3.jar` for Fabric
 and `biblioteca-1.0.2+26.3-neoforge.jar` for NeoForge. The complete JAR is the primary download.
 On CurseForge, the no-render alternative is an Additional File. Modrinth versions in the main
-project contain the complete build; any no-render edition is distributed through a separate project.
-Install one Biblioteca variant per instance. Match the Biblioteca release, Minecraft version and
-loader on multiplayer clients and servers; Fabric installations also need Fabric API.
+project contain the complete build; the no-render edition has its own
+[Modrinth project](https://modrinth.com/mod/biblioteca-norender).
+Install one Biblioteca variant per instance. **Multiplayer requires Biblioteca on both the
+server and clients.** The server may use no-render while clients use the complete build.
+Match the base Biblioteca release, Minecraft version and loader on both sides; Fabric
+installations also need Fabric API. In singleplayer, one installation also covers the integrated server.
 
 ## Enable looping
 
@@ -162,7 +165,10 @@ You can enable or disable looping in an existing world. It uses the dimension's 
 it does not generate extra vertical terrain or duplicate your blocks and entities. Ordinary
 entities and block entities are shown at the copy nearest you.
 
-When upgrading to **1.0.0**, dimensions that had sky light disabled keep **Disabled**. Other
+Version **1.0.2** includes save/quit and bulk sky-light fixes, plus live light-update fixes on
+Minecraft 26.1–26.3. Existing dimension settings are retained when updating.
+
+When upgrading from versions before **1.0.0**, dimensions that had sky light disabled keep **Disabled**. Other
 dimensions use **Periodic**; select **Vanilla sky** (`hybrid`) if you want ordinary daylight above
 a bedrock floor. These choices save automatically for each dimension, including custom dimensions
 from data packs. The sky-light command is now `/biblioteca sky_light`, using the three mode names

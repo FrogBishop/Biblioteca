@@ -1,19 +1,36 @@
 # Changelog
 
-## 1.0.2 (local builds)
+## 1.0.2 — 2026-10-30
 
-- Add NeoForge targets for Minecraft 26.1, 26.1.1, 26.1.2, 26.2 and 26.3, with complete and
-  no-render artifacts sharing the Fabric gameplay and rendering implementation.
-- Retain periodic dimension attributes until native chunk/light saving and level closing finish.
-  Avoid redundant interior light-queue entries when rebuilding batches of saved chunks. These
-  repairs address the save/quit and reload heap exhaustion found in the original 1.0.0 builds.
-- Send server-computed sky-light changes to all chunk watchers on verified 26.1–26.3 APIs,
-  including clients inside the watched area, so digging and replacing roofs update live lighting.
-- Deliver the same fixes as Fabric **1.0.2+26.3**. An isolated existing-world fixture
-  passes save/reopen and three full-height excavation/roof cycles with a 1 GB heap.
-- Add shared Fabric/NeoForge native save lifecycle probes and a controlled 26.3 graphical
-  visibility diagnostic. See [verification](README.md#verification) and the
-  [NeoForge 26.3 guide](platforms/neoforge-26.3/README.md#validation-evidence-and-limits) for scope and limits.
+Stable release for all 35 supported Fabric versions from Minecraft 1.16.5 through 26.3,
+plus NeoForge on Minecraft 26.1, 26.1.1, 26.1.2, 26.2 and 26.3. Each target has a complete
+build and a no-render alternative, for 80 exact-version JARs in total.
+
+### Fixes and loader support
+
+- Add the five NeoForge targets, sharing gameplay, world data, commands and rendering with Fabric.
+- Keep dimension settings active until native chunk saving, lighting work and level shutdown
+  finish. This addresses the save/quit hang and heap exhaustion reported with looping worlds.
+- Reduce redundant light updates during bulk chunk rebuilding in the modern sky-light engine,
+  avoiding large memory spikes when previously lit chunks reload together.
+- On Minecraft 26.1–26.3, send server-computed sky-light updates to every chunk watcher.
+  Digging shafts and replacing roofs now update lighting for clients inside the watched area.
+
+### Installation and distribution
+
+- Multiplayer requires Biblioteca on both sides. Servers may use no-render while clients use
+  the complete build; match the base mod release, Minecraft version and loader.
+- Fabric builds require Fabric API. NeoForge builds require NeoForge and do not use Fabric API.
+- CurseForge provides no-render as an Additional File. Modrinth publishes complete and no-render
+  builds in separate projects, with one executable JAR per version.
+- Add reproducible release previews, external token configuration, artifact hash checks,
+  per-platform upload receipts and project-description synchronization.
+
+The regression suite covers every Fabric version and both variants of each NeoForge target.
+Real save/reopen and graphical checks have additional version-specific coverage; see
+[verification](https://github.com/FrogBishop/Biblioteca/blob/1.0.2/README.md#verification) and the
+[NeoForge guide](https://github.com/FrogBishop/Biblioteca/blob/1.0.2/platforms/neoforge-26.3/README.md#validation-evidence-and-limits)
+for the tested scope. Release tag: **`1.0.2`**.
 
 ## 1.0.0
 

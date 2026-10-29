@@ -60,7 +60,7 @@ class PublisherTests(unittest.TestCase):
         run.mkdir(parents=True)
         credentials = {'MODRINTH_PROJECT_ID': 'TEST0001', 'CURSEFORGE_PROJECT_ID': '123'}
         credentials['MODRINTH_NORENDER_PROJECT_ID'] = norender_project
-        result = publish.prepare_manifest(args, {}, [(l, '26.3') for l in publish.LOADERS], credentials, run)
+        result = publish.prepare_manifest(args, [(l, '26.3') for l in publish.LOADERS], credentials, run)
         return result, run
 
     def test_external_credentials_and_environment_override(self):

@@ -82,7 +82,7 @@ class PluginIntegrationTests(unittest.TestCase):
             args = publish.parser().parse_args(['--publish', '--versions', '26.3', '--changelog', str(self.root / 'CHANGELOG.md')])
             args.mod_version = '1.0.2'
             args.platforms = list(publish.PLATFORMS)
-            self.manifest = publish.prepare_manifest(args, {}, [(l, '26.3') for l in publish.LOADERS],
+            self.manifest = publish.prepare_manifest(args, [(l, '26.3') for l in publish.LOADERS],
                 {'MODRINTH_PROJECT_ID': 'TEST0001', 'CURSEFORGE_PROJECT_ID': '123'}, self.run)
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), UploadHandler)
         self.server.uploads = []

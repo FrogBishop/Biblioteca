@@ -15,9 +15,10 @@ Minecraft **26.1, 26.1.1, 26.1.2, 26.2 and 26.3** also have **NeoForge** targets
 with Fabric. Complete and no-render variants are built and validated independently; see the
 [26.1 family guide](platforms/neoforge-26.1/README.md), [26.2 build guide](platforms/neoforge-26.2/README.md)
 and [26.3 build guide](platforms/neoforge-26.3/README.md).
-The current NeoForge and Fabric 26.3 artifacts are **1.0.2**. They include the save/quit and bulk sky-light memory
-fixes, and send live light updates to interior chunk watchers so digging/re-roofing updates
-the client immediately. Each target has a pinned and verified NeoForge baseline in its build guide.
+The current release is **1.0.2**, with 70 Fabric and 10 NeoForge artifacts across the targets above.
+It includes the save/quit and bulk sky-light memory fixes. On Minecraft 26.1–26.3, live light
+updates also reach interior chunk watchers so digging/re-roofing updates the client immediately.
+Each target has a pinned and verified NeoForge baseline in its build guide.
 
 This README is developer documentation for GitHub. [modrinth.md](modrinth.md) is the shared
 user-facing project description for Modrinth and CurseForge.
