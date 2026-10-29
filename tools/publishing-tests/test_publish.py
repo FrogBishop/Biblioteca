@@ -48,6 +48,7 @@ class PublisherTests(unittest.TestCase):
     def manifest(self, norender_project=''):
         self.write('CHANGELOG.md', '## 1.0.2\nFirst paragraph.\n\n[Guide](README.md)\n\n## 1.0.0\nOld notes.')
         self.write('modrinth.md', '# Biblioteca\n\n项目介绍 — exact Unicode content.\n')
+        self.write('curseforge.md', '# Biblioteca\n\nComplete and no-render builds share this project.\n')
         self.write('modrinth-norender.md', '# Biblioteca No Render\n\nNo periodic visual rendering.\n')
         for loader in publish.LOADERS:
             version, paths = publish.artifact_paths('1.0.2', loader, '26.3')
@@ -140,6 +141,8 @@ class PublisherTests(unittest.TestCase):
             for asset in entry['files']:
                 self.assertEqual(publish.sha256(Path(asset['path'])), asset['sha256'])
         self.assertEqual((run / 'project-description.md').read_bytes(), (self.root / 'modrinth.md').read_bytes())
+        self.assertEqual((run / 'curseforge-description.md').read_bytes(), (self.root / 'curseforge.md').read_bytes())
+        self.assertNotEqual((run / 'curseforge-description.md').read_bytes(), (run / 'project-description.md').read_bytes())
         self.assertTrue(manifest['changelog'].startswith('First paragraph.'))
         self.assertNotIn('Old notes', manifest['changelog'])
         self.assertIn('https://github.com/FrogBishop/Biblioteca/blob/multiversion/README.md', manifest['changelog'])
@@ -249,6 +252,7 @@ class PublisherTests(unittest.TestCase):
     def test_dry_run_never_opens_credentials(self):
         self.write('stonecutter.properties.toml', 'mod.version="1.0.2"\n["26.3"]\n')
         self.write('modrinth.md', '# Example\n')
+        self.write('curseforge.md', '# CurseForge example\n')
         with patch.object(sys, 'argv', ['publish.py', '--description-only', '--dry-run']), \
              patch.object(publish, 'read_credentials', side_effect=AssertionError('Must not read tokens')):
             publish.main()

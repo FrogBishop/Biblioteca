@@ -74,6 +74,7 @@ class PluginIntegrationTests(unittest.TestCase):
         shutil.copytree(REPOSITORY / 'publishing', self.root / 'publishing', ignore=shutil.ignore_patterns('.gradle', 'build'))
         (self.root / 'CHANGELOG.md').write_text('## 1.0.2\n\nPublishing fixture.\n', encoding='utf-8')
         (self.root / 'modrinth.md').write_text('# Fixture\n', encoding='utf-8')
+        (self.root / 'curseforge.md').write_text('# CurseForge fixture\n', encoding='utf-8')
         with patch.object(publish, 'ROOT', self.root):
             for loader in publish.LOADERS:
                 version, paths = publish.artifact_paths('1.0.2', loader, '26.3')

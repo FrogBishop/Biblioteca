@@ -20,8 +20,9 @@ It includes the save/quit and bulk sky-light memory fixes. On Minecraft 26.1–2
 updates also reach interior chunk watchers so digging/re-roofing updates the client immediately.
 Each target has a pinned and verified NeoForge baseline in its build guide.
 
-This README is developer documentation for GitHub. [modrinth.md](modrinth.md) is the shared
-user-facing project description for Modrinth and CurseForge.
+This README is developer documentation for GitHub. [modrinth.md](modrinth.md) describes the
+Modrinth release, while [curseforge.md](curseforge.md) is the version-independent CurseForge
+project description, including its complete/no-render Additional File layout.
 [PARITY.md](PARITY.md) records the feature audit against `main` commit `603f9a7`, including
 the changes through 1.0.0. [PORTING.md](PORTING.md) describes the version breakpoints.
 
@@ -274,15 +275,16 @@ intersecting faces and cyclic overlap.
 - [PORTING.md](PORTING.md): version boundaries and implementation decisions.
 - [PARITY.md](PARITY.md): feature-by-feature audit and per-version validation.
 - [PERFORMANCE.md](PERFORMANCE.md): cost model and profiling scenarios.
-- [modrinth.md](modrinth.md): shared Modrinth/CurseForge user copy covering installation, settings and commands.
+- [modrinth.md](modrinth.md): Modrinth user copy covering installation, settings and commands.
+- [curseforge.md](curseforge.md): version-independent CurseForge copy with both variants in one project.
 - [CHANGELOG.md](CHANGELOG.md): release history and manual setting migration.
 
 Keep implementation details and verification evidence in the GitHub developer documentation.
 Keep private handoff notes, machine paths and installation records in `.local/` or the ignored
 local checkpoint files. Generated runtime configurations, worlds, screenshots, logs and backups
 stay outside version control; commit portable validation tools and sanitized technical summaries.
-Use complete HTTPS URLs for every hyperlink and image in `modrinth.md`, so the same user-facing
-Markdown can be published on Modrinth and CurseForge. Repository-relative links are suitable here.
+Use complete HTTPS URLs for every hyperlink and image in the platform descriptions so their
+Markdown works outside GitHub. Repository-relative links are suitable here.
 
 Author: **FrogBishop**. Inspired by Jorge Luis Borges' *The Library of Babel*.
 Bug fixes and rendering work: DeepSeek-v4.1-flash, GPT-6-Astra. Licensed under [GPLv3](LICENSE).

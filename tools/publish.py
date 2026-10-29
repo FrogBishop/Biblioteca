@@ -345,7 +345,7 @@ def make_publications(entries, platforms, projects, release_type, notes):
 def prepare_descriptions(run, credentials, platforms):
     description = (ROOT / 'modrinth.md').read_bytes()
     (run / 'project-description.md').write_bytes(description)
-    (run / 'curseforge-description.md').write_bytes(description)
+    (run / 'curseforge-description.md').write_bytes((ROOT / 'curseforge.md').read_bytes())
     if 'modrinth' in platforms and credentials.get('MODRINTH_NORENDER_PROJECT_ID'):
         (run / 'modrinth-norender-description.md').write_bytes((ROOT / 'modrinth-norender.md').read_bytes())
     return hashlib.sha256(description).hexdigest()

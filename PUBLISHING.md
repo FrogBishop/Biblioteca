@@ -129,7 +129,9 @@ python tools/publish.py --description-only --platforms modrinth --publish
 
 **CurseForge limitation:** its documented author upload API and the plugin do not provide a
 project-description update operation. Every run therefore also writes `curseforge-description.md`,
-an exact copy of `modrinth.md`, for the author dashboard's Markdown editor. The result explicitly
+an exact copy of `curseforge.md`, for the author dashboard's Markdown editor. That source avoids
+release/version-number lists and explains that both complete and no-render downloads are in
+the same CurseForge project. The result explicitly
 marks this as manual; it does not report the CurseForge project page as synchronized. See the
 [official API](https://support.curseforge.com/support/solutions/articles/9000197321-curseforge-api)
 and [project description editor](https://support.curseforge.com/support/solutions/articles/9000197241-creating-and-submitting-a-project).
