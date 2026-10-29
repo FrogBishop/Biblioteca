@@ -25,6 +25,7 @@ out/
 /SESSION_HANDOFF.md
 /NEOFORGE_PILOT.md
 *.local.md
+*publish.local.json
 
 # Local configuration and credentials. Only sanitized examples belong in Git.
 .env

@@ -6,8 +6,9 @@ Biblioteca connects a dimension's top and bottom. The server stores one period;
 the client displays the visible periodic copies. No blocks, items, dimensions or generation
 presets are added, and existing terrain (including bedrock) is retained.
 
-`main` is the clean **Minecraft 26.3** implementation. `multiversion` adapts that implementation
-to **all 35 releases from 1.16.5 through 26.3**. Each release has an exact-version artifact; a JAR
+`multiversion` is the default and maintained branch, covering **all 35 releases from 1.16.5 through 26.3**.
+`main` is permanently archived as the historical Minecraft 26.3 Fabric implementation.
+Each release has an exact-version artifact; a JAR
 compiled for one release is not relabelled to accept a broader API range.
 
 Minecraft **26.1, 26.1.1, 26.1.2, 26.2 and 26.3** also have **NeoForge** targets, sharing gameplay and renderer code
@@ -15,7 +16,7 @@ with Fabric. Complete and no-render variants are built and validated independent
 [26.1 family guide](platforms/neoforge-26.1/README.md), [26.2 build guide](platforms/neoforge-26.2/README.md)
 and [26.3 build guide](platforms/neoforge-26.3/README.md).
 The current NeoForge and Fabric 26.3 artifacts are **1.0.2**. They include the save/quit and bulk sky-light memory
-fixes, and sends live light updates to interior chunk watchers so digging/re-roofing updates
+fixes, and send live light updates to interior chunk watchers so digging/re-roofing updates
 the client immediately. Each target has a pinned and verified NeoForge baseline in its build guide.
 
 This README is developer documentation for GitHub. [modrinth.md](modrinth.md) is the shared
@@ -79,6 +80,11 @@ the compile classpath; the complete bundle and every nested module form the runt
 Loom prepares those modules in each node's mappings before launch. The verifier checks that every
 applicable module is present, including companion renderer Mixins. Old umbrella IDs (`fabric`)
 and newer IDs (`fabric-api`) are read from the actual bundle. Dependencies are cached by Gradle.
+
+Publishing uses the isolated Mod Publish Plugin project under `publishing/`. Run
+`python tools/publish.py --versions 26.3` for a dry run, or add `--build` to build and validate
+the selected targets first. See [PUBLISHING.md](PUBLISHING.md) for external credentials,
+batch uploads, resume behavior and synchronization of the project description.
 
 ## Coordinate model
 

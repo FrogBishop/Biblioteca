@@ -3,10 +3,12 @@ import groovy.json.JsonSlurper
 
 group = 'babel.biblioteca'
 def minecraftVersion = project.minecraft_version.toString()
-version = "1.0.2+${minecraftVersion}-neoforge"
 base.archivesName = 'biblioteca'
 
 def repositoryRoot = file('../..')
+def modVersion = (new File(repositoryRoot, 'stonecutter.properties.toml').getText('UTF-8') =~ /(?m)^mod\.version\s*=\s*"([^"]+)"/)
+if (!modVersion.find()) throw new GradleException('Missing mod.version in stonecutter.properties.toml')
+version = "${modVersion.group(1)}+${minecraftVersion}-neoforge"
 def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
 def exportRoot = new File(repositoryRoot, "build/neoforge-shared/${minecraftVersion}")
 def activeSourceVersion = minecraftVersion == '26.3'

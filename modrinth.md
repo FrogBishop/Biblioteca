@@ -2,7 +2,7 @@
 
 **Turn a dimension's vertical space into a loop.**
 
-**Version 1.0.0 · Minecraft 1.16.5–26.3 · Fabric**
+**Minecraft 1.16.5–26.3 on Fabric · Minecraft 26.1–26.3 on NeoForge**
 
 > *"La biblioteca es ilimitada y periódica."* — Jorge Luis Borges, *Ficciones* (1944)
 
@@ -37,21 +37,27 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 
 ## Requirements and installation
 
-- **Fabric Loader 0.19.5 or newer** and **Fabric API** for your Minecraft version.
-- Supported releases: **1.16.5**, **1.17–1.17.1**, **1.18–1.18.2**, **1.19–1.19.4**, **1.20–1.20.6**, **1.21–1.21.11**, **26.1–26.1.2**, **26.2**, **26.3**.
+- **Fabric:** Fabric Loader 0.19.5 or newer and Fabric API for your Minecraft version.
+  Supported releases: **1.16.5**, **1.17–1.17.1**, **1.18–1.18.2**, **1.19–1.19.4**, **1.20–1.20.6**, **1.21–1.21.11**, **26.1–26.1.2**, **26.2**, **26.3**.
+- **NeoForge:** separate builds for **26.1**, **26.1.1**, **26.1.2**, **26.2** and **26.3**.
+  These builds require NeoForge for that exact Minecraft version and do not use Fabric API.
 - Java **17 or newer** for 1.16.5–1.20.4, **21 or newer** for 1.20.5–1.21.11, or **25 or newer** for 26.1 and later. The 1.16.5/1.17 builds also require Java 17.
 
-Choose the file whose Minecraft suffix matches your game exactly, and install it with Fabric API
-in the instance's `mods` folder. Every supported release has its own full and no-render build:
+Choose the file matching both your Minecraft version and mod loader, and place it in the
+instance's `mods` folder. Every supported target has its own full and no-render build:
 
 | File pattern | Use it for |
 |---|---|
-| `biblioteca-1.0.0+<minecraft>.jar` | Singleplayer, multiplayer clients and servers; includes the looping world view. |
-| `biblioteca-1.0.0+<minecraft>-norender.jar` | Dedicated servers that do not need the world renderer. |
+| `biblioteca-<version>+<minecraft>.jar` | Fabric clients and servers; includes the looping world view. |
+| `biblioteca-<version>+<minecraft>-neoforge.jar` | NeoForge clients and servers; includes the looping world view. |
+| Either filename with `-norender` before `.jar` | Optional alternative without periodic visuals; useful for dedicated servers. |
 
-For example, Minecraft 1.16.5 uses `biblioteca-1.0.0+1.16.5.jar`, and Minecraft 26.3 uses
-`biblioteca-1.0.0+26.3.jar`. Install one Biblioteca variant per instance. Multiplayer clients and
-servers both need Biblioteca and Fabric API; match the Biblioteca release and Minecraft version.
+For example, the 1.0.2 builds for Minecraft 26.3 are `biblioteca-1.0.2+26.3.jar` for Fabric
+and `biblioteca-1.0.2+26.3-neoforge.jar` for NeoForge. The complete JAR is the primary download.
+On CurseForge, the no-render alternative is an Additional File. Modrinth versions in the main
+project contain the complete build; any no-render edition is distributed through a separate project.
+Install one Biblioteca variant per instance. Match the Biblioteca release, Minecraft version and
+loader on multiplayer clients and servers; Fabric installations also need Fabric API.
 
 ## Enable looping
 

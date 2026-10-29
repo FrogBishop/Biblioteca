@@ -1,0 +1,167 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+import me.modmuss50.mpp.platforms.modrinth.ModrinthEnvironment
+
+plugins {
+    id 'me.modmuss50.mod-publish-plugin' version '2.2.1'
+}
+
+def repositoryRoot = file('..').canonicalFile
+def manifestName = providers.gradleProperty('releaseManifest').orNull
+def live = providers.gradleProperty('publishLive').orElse('false').get() == 'true'
+if (live) {
+    def cache = gradle.startParameter.projectCacheDir
+    if (cache == null || cache.canonicalFile.toPath().startsWith(repositoryRoot.toPath())
+            || gradle.startParameter.isConfigurationCacheRequested() || gradle.startParameter.isBuildCacheEnabled()) {
+        throw new GradleException('Live publishing requires an external project cache and disabled caches. Use python tools/publish.py --publish.')
+    }
+}
+def manifest = manifestName == null ? null : new JsonSlurper().parse(file(manifestName))
+def stateFile = new File(repositoryRoot, 'build/publishing/state.json')
+def state = stateFile.isFile() ? new JsonSlurper().parse(stateFile) : [schemaVersion: 1, uploads: [:]]
+def runDirectory = manifest == null ? new File(repositoryRoot, 'build/publishing/plugin') : file(manifest.runDirectory)
+layout.buildDirectory = new File(runDirectory, 'plugin')
+
+def digest = { File input ->
+    def sha = MessageDigest.getInstance('SHA-256')
+    input.withInputStream { stream ->
+        byte[] buffer = new byte[65536]
+        int count
+        while ((count = stream.read(buffer)) != -1) sha.update(buffer, 0, count)
+    }
+    sha.digest().encodeHex().toString()
+}
+def saveState = {
+    stateFile.parentFile.mkdirs()
+    def temporary = new File(stateFile.parentFile, stateFile.name + '.tmp')
+    temporary.setText(JsonOutput.prettyPrint(JsonOutput.toJson(state)) + '\n', 'UTF-8')
+    Files.move(temporary.toPath(), stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+}
+def validatePlan = tasks.register('validateReleasePlan') {
+    doLast {
+        if (manifest == null) throw new GradleException('Use python tools/publish.py to prepare a release manifest.')
+        if (manifest.schemaVersion != 2 || !manifest.publications) throw new GradleException('Invalid or obsolete release manifest; regenerate it with tools/publish.py.')
+        if (state.schemaVersion != 1 || !(state.uploads instanceof Map)) throw new GradleException('Invalid publishing state.')
+        if (live && manifest.dryRun) throw new GradleException('A dry-run manifest cannot be used for a live release.')
+        def snapshotRoot = new File(runDirectory, 'files').canonicalFile.toPath()
+        manifest.publications.each { entry ->
+            if (!(entry.platform in manifest.platforms)) throw new GradleException('Publication platform was not selected.')
+            if (entry.platform == 'modrinth') {
+                if (entry.files.size() != 1) throw new GradleException('Modrinth versions must contain exactly one executable mod JAR.')
+                def expectedProject = entry.variant == 'norender' ? manifest.projects.modrinthNorender : manifest.projects.modrinth
+                if (!expectedProject || entry.projectId != expectedProject
+                        || (entry.variant == 'norender' && expectedProject == manifest.projects.modrinth)
+                        || entry.files[0].variant != entry.variant) {
+                    throw new GradleException('Modrinth full and no-render variants require distinct projects and matching files.')
+                }
+            } else if (entry.files.collect { it.variant } != ['full', 'norender']) {
+                throw new GradleException('CurseForge requires the complete primary JAR and the no-render additional file.')
+            }
+            entry.files.each { asset ->
+                File input = file(asset.path).canonicalFile
+                if (!input.toPath().startsWith(snapshotRoot) || !input.isFile() || digest(input) != asset.sha256) {
+                    throw new GradleException("Release snapshot missing or changed: ${asset.name}")
+                }
+            }
+            [entry.platform].each { platform ->
+                def projectId = entry.projectId
+                if (live && (projectId == 'dryrun00' || projectId == '0')) {
+                    throw new GradleException("Configure a real ${platform} project ID before publishing.")
+                }
+                if (live && !providers.environmentVariable(platform.toUpperCase() + '_TOKEN').isPresent()) {
+                    throw new GradleException("Missing ${platform.toUpperCase()}_TOKEN.")
+                }
+                def key = "${platform}:${projectId}:${entry.version}".toString()
+                def previous = state.uploads[key]
+                if (live && previous && previous.fingerprint != entry.fingerprint) {
+                    throw new GradleException("Published or pending version has different contents: ${key}. Use a new version.")
+                }
+                if (live && previous?.status == 'inflight') {
+                    throw new GradleException("Upload outcome is unconfirmed: ${key}. Inspect the platform before retrying; see PUBLISHING.md.")
+                }
+            }
+        }
+    }
+}
+
+def previousReceipt = null
+publishMods {
+    dryRun = !live
+    // POST uploads are not idempotent. The ledger handles resuming confirmed successes;
+    // ambiguous failures need reconciliation instead of a blind network retry.
+    // In 2.2.1 this is the total attempt count, including the first request.
+    maxRetries = 1
+    if (manifest != null) {
+        changelog = manifest.changelog
+        type = manifest.releaseType == 'release' ? STABLE : manifest.releaseType == 'beta' ? BETA : ALPHA
+        manifest.publications?.each { entry ->
+            [entry.platform].each { platformName ->
+                def destinationName = platformName + '_' + entry.key
+                def configureDestination = { destination ->
+                    destination.file.set(file(entry.files[0].path))
+                    if (platformName == 'curseforge') destination.additionalFiles.from(file(entry.files[1].path))
+                    destination.version.set(entry.version)
+                    destination.displayName.set(entry.displayName)
+                    destination.modLoaders.add(entry.loader)
+                    destination.projectId.set(entry.projectId)
+                    destination.minecraftVersions.add(entry.minecraft)
+                    if (live) destination.accessToken.set(providers.environmentVariable(platformName.toUpperCase() + '_TOKEN'))
+                    if (entry.loader == 'fabric') destination.requires('fabric-api')
+                }
+                def destination = platformName == 'modrinth' ? modrinth(destinationName) {
+                    configureDestination(delegate)
+                    environment = ModrinthEnvironment.CLIENT_AND_SERVER
+                } : curseforge(destinationName) {
+                    configureDestination(delegate)
+                    client = true
+                    server = true
+                    javaVersions.add(JavaVersion.toVersion(entry.java))
+                    additionalFile(file(entry.files[1].path)) { name = entry.displayName + ' (No Render alternative)' }
+                }
+                def publishTaskName = 'publish' + destinationName.capitalize()
+                def key = "${platformName}:${entry.projectId}:${entry.version}".toString()
+                def upload = tasks.named(publishTaskName)
+                def priorReceipt = previousReceipt
+                upload.configure {
+                    dependsOn validatePlan
+                    if (priorReceipt != null) mustRunAfter priorReceipt
+                    onlyIf { !live || state.uploads[key]?.status != 'published' }
+                    doFirst {
+                        if (live) {
+                            state.uploads[key] = [status: 'inflight', fingerprint: entry.fingerprint,
+                                    version: entry.version, minecraft: entry.minecraft, loader: entry.loader,
+                                    resultFile: new File(layout.buildDirectory.get().asFile, "publishMods/${publishTaskName}.json").absolutePath,
+                                    files: entry.files.collect { [name: it.name, sha256: it.sha256] }]
+                            saveState()
+                        }
+                    }
+                }
+                // A dependent task runs after the plugin's worker has completed. A doLast
+                // action on the upload task itself would run before that async completion.
+                def receipt = tasks.register('record_' + destinationName) {
+                    dependsOn upload
+                    doLast {
+                        if (!live || state.uploads[key]?.status == 'published') return
+                        def output = new File(layout.buildDirectory.get().asFile, "publishMods/${publishTaskName}.json")
+                        def result = new JsonSlurper().parse(output)
+                        if (result.type != platformName || result.projectId != entry.projectId
+                                || (platformName == 'modrinth' ? !result.id : !result.fileId)) {
+                            throw new GradleException("Invalid plugin result for ${key}")
+                        }
+                        state.uploads[key].status = 'published'
+                        state.uploads[key].result = result
+                        saveState()
+                        logger.lifecycle("PUBLISHED ${key}")
+                    }
+                }
+                tasks.named('publishMods') { dependsOn receipt }
+                previousReceipt = receipt
+            }
+        }
+    }
+}
+
+tasks.named('publishMods') { dependsOn validatePlan }
