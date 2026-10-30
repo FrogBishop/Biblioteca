@@ -1,6 +1,6 @@
 # Biblioteca for NeoForge 26.2
 
-This target builds Biblioteca 1.0.2 for **Minecraft 26.2**, pinned to **NeoForge 26.2.0.93**
+This target builds Biblioteca 1.0.3 for **Minecraft 26.2**, pinned to **NeoForge 26.2.0.93**
 (FML 11.0.16). The pin comes from the [official 26.2 MDK](https://github.com/NeoForgeMDKs/MDK-26.2-ModDevGradle/blob/main/gradle.properties).
 Development uses Java 25, Gradle 9.8.0, ModDevGradle 2.0.148 and Python 3.11 or newer.
 Game installations require Java 25 and NeoForge; Fabric API is not required.
@@ -31,9 +31,9 @@ forwarded to the nested version build. Edit root sources and version directives,
 
 ## Artifacts
 
-- `build/distributions/biblioteca-1.0.2+26.2-neoforge.jar`: complete gameplay, networking, UI,
+- `build/distributions/biblioteca-1.0.3+26.2-neoforge.jar`: complete gameplay, networking, UI,
   audio and periodic visuals; works on clients and dedicated servers.
-- `build/distributions/biblioteca-1.0.2+26.2-neoforge-norender.jar`: the same gameplay,
+- `build/distributions/biblioteca-1.0.3+26.2-neoforge-norender.jar`: the same gameplay,
   networking, prediction, audio and UI, with periodic visual Mixins removed.
 
 Install one variant per instance. These JARs require Minecraft **26.2**; use the separate
@@ -76,7 +76,7 @@ the server closed again. Native shutdown took 702 ms and 103 ms in the recorded 
 with an already accepted EULA file:
 
 ```powershell
-python tools/verify_neoforge_save.py --runtime-config platforms/neoforge-26.2/build/validation/runtime.json --jar build/distributions/biblioteca-1.0.2+26.2-neoforge.jar --new-world --eula-file path/to/eula.txt
+python tools/verify_neoforge_save.py --runtime-config platforms/neoforge-26.2/build/validation/runtime.json --jar build/distributions/biblioteca-1.0.3+26.2-neoforge.jar --new-world --eula-file path/to/eula.txt
 ```
 
 The test creates an isolated localhost server under `build/neoforge-26.2/save-reload/`. A copied

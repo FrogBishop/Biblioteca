@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.0.3 — 2026-10-31
+
+Stable release for all 35 supported Fabric versions from Minecraft 1.16.5 through 26.3,
+plus NeoForge on Minecraft 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3. Each target has a
+complete build and a no-render alternative, for 82 exact-version JARs in total.
+
+- Add the NeoForge target for Minecraft 1.21.11, with Java 21 complete/no-render artifacts,
+  strict packaged regressions, real save/reopen and graphical-client checks. Adapt its
+  recompiled Snow Golem callback name while retaining the shared aiming implementation.
+- Draw the dimension settings screen's background explicitly on Minecraft 1.16.5–1.20.1.
+  The screen now replaces the previous menu instead of retaining its text and buttons behind
+  the settings controls. Later versions retain their native automatic background rendering.
+- Show the dimension attributes button when opening More World Options on Minecraft 1.16.5.
+  On 1.16.5–1.19.3, place it beside Bonus Chest in the right column, aligned with the native
+  150×20 controls and clear of Import Settings. The tabbed layout introduced in 1.19.4 keeps
+  its separate row under More.
+- Add an optional Fabric 1.16.5 renderer bridge for Sodium 0.2.0+build.4. Looping worlds now
+  submit ordinary terrain and periodic copies through Sodium's native buffers and shaders,
+  instead of cancelling its terrain pass and leaving every block invisible. Both native
+  drawing backends, boundary block/light snapshots and snapshot invalidation are covered.
+  Sodium remains optional; no-render builds omit this rendering bridge.
+- Extend server-authoritative light updates to Fabric on Minecraft 1.16.5–1.21.11.
+  Clients inside the chunk viewing area now receive sky-light changes after enabling looping,
+  changing sky modes or restoring normal lighting. Previously, lower sections could retain
+  daylight while higher sections were correctly dark; the synchronization fix in 1.0.2 only
+  covered Minecraft 26.1–26.3.
+- Run the native chunk light-packet regression on every supported Minecraft version, including
+  interior/border recipients, mode restoration, new chunk holders and server cleanup.
+
+Existing world data and dimension settings are preserved. Install one variant matching the
+Minecraft version and loader on both the server and clients; Fabric builds require Fabric API.
+NeoForge 1.21.11 requires Java 21 and is tested with NeoForge 21.11.48. The Sodium integration
+is specific to Fabric 1.16.5 with Sodium 0.2.0+build.4; other replacement renderers are outside
+the verified scope. See the [verification guide](https://github.com/FrogBishop/Biblioteca/blob/1.0.3/README.md#verification)
+for regression coverage and graphical checks. Release tag: **`1.0.3`**.
+
 ## 1.0.2 — 2026-10-30
 
 Stable release for all 35 supported Fabric versions from Minecraft 1.16.5 through 26.3,

@@ -46,8 +46,9 @@ public final class NeoForgeChecks {
         }
         ApiChecks.run(classes);
         CoreChecks.run(client);
-        if (Set.of("26.1", "26.1.1", "26.1.2", "26.2", "26.3").contains(System.getProperty("biblioteca.validation.minecraft"))) {
-            Class.forName("babel.biblioteca.validation.modern.LightSyncChecks").getMethod("run").invoke(null);
+        LightSyncChecks.run();
+        if (System.getProperty("biblioteca.validation.minecraft").equals("1.21.11")) {
+            Class.forName("babel.biblioteca.validation.neoforge12111.SnowGolemAimChecks").getMethod("run").invoke(null);
         }
 
         var dispatcher = new CommandDispatcher<CommandSourceStack>();

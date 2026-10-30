@@ -36,6 +36,16 @@ copies use native quad draws; alpha copies share a globally ordered triangle-ind
 additional index buffer is the mod's only GPU allocation, and array/element bindings are restored.
 `BufferedVertexYLoopMixin` captures centres from the actual upload before the CPU bytes are released.
 
+The optional Sodium 0.2 bridge on 1.16.5 uses a separate Mixin configuration and compile-only
+dependency. Once Sodium initializes its renderer, `FixedTerrainYLoopMixin` yields the terrain
+entry point. Periodic source discovery feeds native rebuild queues, and a draw iterator supplies
+each copy's model origin to Sodium's Multidraw or Oneshot backend within one material pass.
+The source GPU allocations remain Sodium's property. Face culling uses each displayed copy's
+camera-relative bounds. Transparency retains Sodium's section ordering and native mesh handling.
+Cloned boundary sections read canonical blocks/light while preserving their original snapshot
+array coordinates; invalidation also removes the opposite boundary's cached alias. The bridge
+is omitted from other Minecraft targets, NeoForge targets and no-render artifacts.
+
 ### Shader OpenGL: 1.17–1.21.4
 
 `ClassicTerrainYLoopMixin` keeps native layer/shader setup and submits each visible opaque copy
@@ -115,7 +125,9 @@ it for better performance. Earlier Minecraft versions use the sorted path withou
 | SavedData constructor/load → function loaders → factories | Same codec and four attributes, using each release's real storage callbacks |
 | Collision streams before 1.18 | Preserve caller predicates and read loaded collision chunks through the periodic level |
 | LayerLightEngine graph before 1.20 | Fold neighbor nodes and choose the ring direction for opacity/shape propagation |
-| Classic world options before 1.19.4 | Attribute button occupies the Game Rules row in More World Options; native option sliders remain available |
+| Chunk light broadcast through 1.19.4 / direct watcher selection from 1.20 | Adapt the native light packet's border-only flag so every watching client receives server-authoritative periodic light, including restoration after looping is disabled |
+| Classic world options through 1.19.3 / tabs from 1.19.4 | The classic attribute button sits beside Bonus Chest; 1.16.5 follows `setDisplayOptions`, later classic versions follow `setWorldGenSettingsVisible`. Tabbed versions append a row to More's native grid. |
+| Screen backgrounds through 1.20.1 / automatic backgrounds from 1.20.2 | Older dimension settings screens call `renderBackground` before drawing widgets; later screens use the native background pass |
 | Old server distributions strip client-only helper methods | Explicit UTF read bounds and typed beacon accessors; runtime API linkage checks cover common bytecode |
 | 1.16.5–1.20.4 channel networking → 1.20.5 custom payload codecs | Shared four-field payload, version-specific registration/transport |
 | SavedData.Factory → SavedDataType → namespaced storage | One codec, native factory and storage calls per release |

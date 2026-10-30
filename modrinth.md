@@ -2,7 +2,7 @@
 
 **Turn a dimension's vertical space into a loop.**
 
-**Version 1.0.2 · Minecraft 1.16.5–26.3 on Fabric · Minecraft 26.1–26.3 on NeoForge**
+**Version 1.0.3 · Minecraft 1.16.5–26.3 on Fabric · Minecraft 1.21.11 and 26.1–26.3 on NeoForge**
 
 > *"La biblioteca es ilimitada y periódica."* — Jorge Luis Borges, *Ficciones* (1944)
 
@@ -39,7 +39,7 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 
 - **Fabric:** Fabric Loader 0.19.5 or newer and Fabric API for your Minecraft version.
   Supported releases: **1.16.5**, **1.17–1.17.1**, **1.18–1.18.2**, **1.19–1.19.4**, **1.20–1.20.6**, **1.21–1.21.11**, **26.1–26.1.2**, **26.2**, **26.3**.
-- **NeoForge:** separate builds for **26.1**, **26.1.1**, **26.1.2**, **26.2** and **26.3**.
+- **NeoForge:** separate builds for **1.21.11**, **26.1**, **26.1.1**, **26.1.2**, **26.2** and **26.3**.
   These builds require NeoForge for that exact Minecraft version and do not use Fabric API.
 - Java **17 or newer** for 1.16.5–1.20.4, **21 or newer** for 1.20.5–1.21.11, or **25 or newer** for 26.1 and later. The 1.16.5/1.17 builds also require Java 17.
 
@@ -52,8 +52,8 @@ instance's `mods` folder. Every supported target has its own full and no-render 
 | `biblioteca-<version>+<minecraft>-neoforge.jar` | NeoForge clients and servers; includes the looping world view. |
 | Either filename with `-norender` before `.jar` | Optional alternative without periodic visuals; useful for dedicated servers. |
 
-For example, the 1.0.2 builds for Minecraft 26.3 are `biblioteca-1.0.2+26.3.jar` for Fabric
-and `biblioteca-1.0.2+26.3-neoforge.jar` for NeoForge. The complete JAR is the primary download.
+For example, the 1.0.3 builds for Minecraft 26.3 are `biblioteca-1.0.3+26.3.jar` for Fabric
+and `biblioteca-1.0.3+26.3-neoforge.jar` for NeoForge. The complete JAR is the primary download.
 On CurseForge, the no-render alternative is an Additional File. Modrinth versions in the main
 project contain the complete build; the no-render edition has its own
 [Modrinth project](https://modrinth.com/mod/biblioteca-norender).
@@ -165,8 +165,10 @@ You can enable or disable looping in an existing world. It uses the dimension's 
 it does not generate extra vertical terrain or duplicate your blocks and entities. Ordinary
 entities and block entities are shown at the copy nearest you.
 
-Version **1.0.2** includes save/quit and bulk sky-light fixes, plus live light-update fixes on
-Minecraft 26.1–26.3. Existing dimension settings are retained when updating.
+Version **1.0.3** fixes stale sky light on older Minecraft versions, adds NeoForge 1.21.11
+support and Fabric 1.16.5 Sodium compatibility, and fixes the older world-creation controls
+and settings-page background. It retains the save/quit and bulk sky-light fixes from 1.0.2.
+Existing dimension settings are retained when updating.
 
 When upgrading from versions before **1.0.0**, dimensions that had sky light disabled keep **Disabled**. Other
 dimensions use **Periodic**; select **Vanilla sky** (`hybrid`) if you want ordinary daylight above
@@ -181,6 +183,10 @@ from before that change, the old defaults correspond to `/biblioteca no_void_fog
 for the older boolean command table.
 
 ## Compatibility and feedback
+
+Fabric **1.16.5** supports **Sodium 0.2.0+build.4**, including terrain across the vertical
+boundary. Sodium is optional. This compatibility is specific to that version; it does not
+imply support for Sodium on other Minecraft versions.
 
 Biblioteca changes Minecraft's world and renderer internals. Mods that replace the same systems
 may need compatibility work. Voxy and other far-LOD terrain are not repeated by this vanilla-renderer integration. Shader packs have not been comprehensively tested. The no-render

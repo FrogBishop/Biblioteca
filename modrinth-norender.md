@@ -1,6 +1,6 @@
 # Biblioteca No Render
 
-**Version 1.0.2 · Fabric 1.16.5–26.3 · NeoForge 26.1–26.3**
+**Version 1.0.3 · Fabric 1.16.5–26.3 · NeoForge 1.21.11 and 26.1–26.3**
 
 This is the **no-render alternative** to Biblioteca. It keeps periodic vertical gameplay,
 dimension settings, saved-world data, networking, sounds and configuration controls while

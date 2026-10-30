@@ -127,11 +127,15 @@ public final class LegacyDimensionConfigScreen extends Screen {
     private void drawLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
     //?} else if >=1.20 {
     /*@Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float partial) {
+        //? if <1.20.2 {
+        renderBackground(graphics);
+        //?}
         super.render(graphics, mouseX, mouseY, partial); drawLabels(graphics, mouseX, mouseY);
     }
     private void drawLabels(GuiGraphics graphics, int mouseX, int mouseY) {
     *///?} else {
     /*@Override public void render(PoseStack graphics, int mouseX, int mouseY, float partial) {
+        renderBackground(graphics);
         super.render(graphics, mouseX, mouseY, partial); drawLabels(graphics, mouseX, mouseY);
     }
     private void drawLabels(PoseStack graphics, int mouseX, int mouseY) {

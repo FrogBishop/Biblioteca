@@ -1,6 +1,6 @@
 # Biblioteca for NeoForge 26.3
 
-This independent target builds Biblioteca 1.0.2 for Minecraft 26.3, tested on NeoForge
+This independent target builds Biblioteca 1.0.3 for Minecraft 26.3, tested on NeoForge
 26.3.0.98 and 26.3.0.99. It shares gameplay, persistence, commands, UI and rendering with the
 Fabric target. The shared source version is 26.3; edit the repository's root sources rather
 than Stonecutter-generated copies for older Minecraft releases.
@@ -50,9 +50,9 @@ to prepare only the patched game; its `prepared` state does not mean that mod va
 
 ## Deliverables
 
-- `build/distributions/biblioteca-1.0.2+26.3-neoforge.jar`: complete gameplay and periodic visuals;
+- `build/distributions/biblioteca-1.0.3+26.3-neoforge.jar`: complete gameplay and periodic visuals;
   works on both clients and dedicated servers.
-- `build/distributions/biblioteca-1.0.2+26.3-neoforge-norender.jar`: the same gameplay,
+- `build/distributions/biblioteca-1.0.3+26.3-neoforge-norender.jar`: the same gameplay,
   networking, prediction, audio and configuration UI, with periodic visual Mixins removed.
 
 Install one variant per instance; both have the mod ID `biblioteca`. Use the complete variant
@@ -103,7 +103,7 @@ supplied world with Overworld looping and hybrid sky enabled. It requires an exi
 EULA file and leaves the supplied world template unchanged:
 
 ```powershell
-python tools/verify_neoforge_save.py --jar build/distributions/biblioteca-1.0.2+26.3-neoforge.jar --world-template path/to/test-world --eula-file path/to/eula.txt
+python tools/verify_neoforge_save.py --jar build/distributions/biblioteca-1.0.3+26.3-neoforge.jar --world-template path/to/test-world --eula-file path/to/eula.txt
 ```
 
 It loads 49 forced chunks with a 1 GB heap, saves and closes, reopens the same copy to check a
@@ -112,7 +112,7 @@ attributes remain available through native chunk flush and unload, and are clear
 Results and logs are under `build/neoforge-pilot/save-hang/`; the probe mod is never shipped.
 Add `--hybrid-dig` to check full-height 8x8 excavations, roof replacement/removal, chunk borders
 and negative coordinates in a normal-height Overworld. This supplements the native light-packet
-recipient regression in `tools/validation/modern-light/LightSyncChecks.java`.
+recipient regression in `tools/validation/LightSyncChecks.java`.
 
 The existing GitHub Actions pilot workflow still prepares only the NeoForge environment.
 This change's complete build and validation have been run locally; no new remote artifact upload

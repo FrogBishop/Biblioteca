@@ -15,9 +15,9 @@ UI_AUDIO = {'ClientLevelDirtyMixin', 'OptionsSubScreenAccessor', 'VideoSettingsS
             'ClientLevelSoundYLoopMixin', 'SoundEngineYLoopMixin', 'SubtitleDirectionYLoopMixin'}
 
 
-def inspect(version, no_render, mod_version):
+def inspect(version, no_render, mod_version, artifact_dir=None):
     suffix = '-norender' if no_render else ''
-    file = ROOT / f'build/distributions/biblioteca-{mod_version}+{version}{suffix}.jar'
+    file = (artifact_dir or ROOT / 'build/distributions') / f'biblioteca-{mod_version}+{version}{suffix}.jar'
     node = tuple(map(int, version.split('.')))
     java = 25 if node >= (26, 1) else 21 if node >= (1, 20, 5) else 17
     with zipfile.ZipFile(file) as jar:
@@ -63,6 +63,19 @@ def inspect(version, no_render, mod_version):
                         else 'FixedTerrainYLoopMixin')
             assert expected in client['client'], (file, 'wrong terrain backend')
         assert 'ImprovedTransparencyYLoopMixin' not in client['client'], (file, 'forced OIT')
+        sodium_config = 'biblioteca.sodium.mixins.json'
+        sodium_classes = [name for name in names if name.startswith('babel/biblioteca/client/sodium/')]
+        if version == '1.16.5' and not no_render:
+            optional = json.loads(jar.read(sodium_config))
+            assert {'config': sodium_config, 'environment': 'client'} in meta['mixins'], (file, 'missing optional Sodium registration')
+            assert optional['required'] and optional['injectors']['defaultRequire'] == 1, (file, 'non-strict Sodium mixins')
+            assert optional.get('refmap') == 'biblioteca.refmap.json', (file, 'missing Sodium refmap')
+            for mixin in optional['client']:
+                assert optional['package'].replace('.', '/') + '/' + mixin + '.class' in names, (file, 'missing Sodium bridge', mixin)
+            assert 'sodium' not in meta['depends'], (file, 'Sodium must remain optional')
+            assert not any(name.startswith('me/jellysquid/') for name in names), (file, 'bundled Sodium code')
+        else:
+            assert sodium_config not in names and not sodium_classes, (file, 'Sodium bridge leaked into another target or no-render')
         if 'accessWidener' in meta:
             header = ' '.join(jar.read(meta['accessWidener']).decode().splitlines()[0].split())
             assert header == ('accessWidener v2 official' if java == 25 else 'accessWidener v2 intermediary'), (file, header)
@@ -77,11 +90,12 @@ def inspect(version, no_render, mod_version):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--versions', default='')
+    parser.add_argument('--artifact-dir', type=Path, default=ROOT / 'build/distributions')
+    parser.add_argument('--mod-version', default=CONFIG['mod']['version'])
     args = parser.parse_args()
     versions = args.versions.split(',') if args.versions else VERSIONS
     assert set(versions) <= set(VERSIONS), 'Unknown Minecraft version'
-    mod_version = CONFIG['mod']['version']
-    result = [inspect(v, no_render, mod_version) for v in versions for no_render in (False, True)]
+    result = [inspect(v, no_render, args.mod_version, args.artifact_dir.resolve()) for v in versions for no_render in (False, True)]
     output = ROOT / 'build/validation/artifacts.json'
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')

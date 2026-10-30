@@ -3,7 +3,9 @@ param(
     [string]$Action = 'prepare',
     [switch]$Offline,
     [string]$NeoForgeVersion = '',
-    [ValidateSet('26.1', '26.1.1', '26.1.2', '26.2', '26.3')]
+    [ValidatePattern('^[0-9A-Za-z][0-9A-Za-z._+-]*$')]
+    [string]$ModVersion = '',
+    [ValidateSet('1.21.11', '26.1', '26.1.1', '26.1.2', '26.2', '26.3')]
     [string]$MinecraftVersion = '26.3'
 )
 
@@ -34,6 +36,7 @@ $state = [ordered]@{
     status = 'running'
     minecraft = $MinecraftVersion
     neoforge = $targetNeoVersion
+    modVersionOverride = $ModVersion
     moddevgradle = '2.0.148'
     startedUtc = [DateTime]::UtcNow.ToString('o')
     log = "$reportRelative/$logName"
@@ -54,6 +57,7 @@ try {
     $pilotTask = if ($Action -eq 'prepare') { 'preparePilot' } else { 'build' }
     $pilotArguments = @('-p', $targetProject, $pilotTask, '--console=plain', '--max-workers=1')
     $pilotArguments += "-Pneo_version=$targetNeoVersion"
+    if ($ModVersion) { $pilotArguments += "-PbibliotecaVersion=$ModVersion" }
     if ($Offline) { $pilotArguments += '--offline' }
     & (Join-Path $repoRoot 'gradlew.bat') @pilotArguments *> $logPath
     $resultCode = $LASTEXITCODE

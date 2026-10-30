@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import struct
 import subprocess
 import tomllib
 import zipfile
@@ -21,9 +22,9 @@ def quote(value):
     return '"' + str(value).replace('\\', '/').replace('"', '\\"') + '"'
 
 
-def compile_java(java, cp, target, sources, log):
+def compile_java(java, cp, target, sources, log, release=25):
     target.mkdir(parents=True, exist_ok=True)
-    args = ['-encoding', 'UTF-8', '--release', '25', '-cp', quote(os.pathsep.join(cp)), '-d', quote(target)]
+    args = ['-encoding', 'UTF-8', '-proc:none', '--release', str(release), '-cp', quote(os.pathsep.join(cp)), '-d', quote(target)]
     args.extend(quote(source) for source in sources)
     argfile = target.parent / (target.name + '-compile.args')
     argfile.write_text('\n'.join(args) + '\n', encoding='utf-8')
@@ -48,7 +49,7 @@ def inspect_jar(jar, selection, variant, runtime):
             config = json.loads(z.read(name))
             assert set(config[key]) == set(expected), (jar, name, 'incorrect mixin selection')
             assert config['required'] and config['injectors']['defaultRequire'] == 1
-            assert config['compatibilityLevel'] == 'JAVA_25'
+            assert config['compatibilityLevel'] == 'JAVA_' + str(runtime.get('java', 25))
             for mixin in expected:
                 assert config['package'].replace('.', '/') + '/' + mixin + '.class' in names
         if runtime.get('requiresAccessTransformer', runtime['minecraft'] == '26.3'):
@@ -58,6 +59,7 @@ def inspect_jar(jar, selection, variant, runtime):
         for name in names:
             if name.endswith('.class'):
                 assert b'net/fabricmc/' not in z.read(name), ('Fabric reference in NeoForge artifact', name)
+                assert struct.unpack('>H', z.read(name)[6:8])[0] <= int(runtime.get('java', 25)) + 44, (jar, 'Java target', name)
         if variant == 'norender':
             for name in set(selection['client']) - set(selection['clientCore']):
                 assert f'babel/biblioteca/client/mixin/{name}.class' not in names
@@ -82,14 +84,15 @@ def main():
     # A failed or interrupted compilation must not leave an earlier passing result visible.
     (reports / 'results.json').write_text('[]\n', encoding='utf-8')
     compile_cp = runtime['classpath']
-    compile_java(args.javac, compile_cp, reports / 'verifier', [ROOT / 'tools/NeoForgeMixinVerifier.java'], reports / 'verifier-compile.log')
+    release = int(runtime.get('java', 25))
+    compile_java(args.javac, compile_cp, reports / 'verifier', [ROOT / 'tools/NeoForgeMixinVerifier.java'], reports / 'verifier-compile.log', release)
     sources = sorted((ROOT / 'tools/validation').glob('*.java')) + sorted((ROOT / 'tools/neoforge-validation').glob('*.java'))
-    if runtime['minecraft'] in ('26.1', '26.1.1', '26.1.2', '26.2', '26.3'):
-        sources += sorted((ROOT / 'tools/validation/modern-light').glob('*.java'))
+    if runtime['minecraft'] == '1.21.11':
+        sources += sorted((ROOT / 'tools/validation/neoforge12111').glob('*.java'))
     if runtime['minecraft'] == '26.3':
         sources += sorted((ROOT / 'tools/validation/main100').glob('*.java'))
         sources += sorted((ROOT / 'tools/validation/renderpearl').glob('*.java'))
-    compile_java(args.javac, compile_cp, reports / 'checks', sources, reports / 'checks-compile.log')
+    compile_java(args.javac, compile_cp, reports / 'checks', sources, reports / 'checks-compile.log', release)
     results = []
     for variant in args.variants.split(','):
         suffix = '-norender' if variant == 'norender' else ''
@@ -110,13 +113,15 @@ def main():
             cp = [p for p in runtime['classpath'] if p not in (runtime['classes'], runtime['resources'])]
             cp += [str(reports / 'verifier')]
             # FML loads the actual packaged JAR; check classes are appended to the same test mod.
-            jvm = ['--sun-misc-unsafe-memory-access=allow', '--enable-native-access=ALL-UNNAMED',
+            jvm = ['--enable-native-access=ALL-UNNAMED',
                    '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED', '-Djava.awt.headless=true',
                    '-Dfile.encoding=UTF-8', '-Duser.language=en', '-Duser.country=US',
                    '-Dmixin.debug.countInjections=true',
                    '-Dbiblioteca.validation.version=' + runtime['modVersion'] + suffix,
                    '-Dbiblioteca.validation.minecraft=' + runtime['minecraft'],
                    '-Dfml.modFolders=' + os.pathsep.join(['biblioteca%%' + str(jar), 'biblioteca%%' + str(reports / 'checks')])]
+            if release >= 24:
+                jvm.append('--sun-misc-unsafe-memory-access=allow')
             argfile = target / 'java.args'
             argfile.write_text('\n'.join(map(quote, jvm)) + '\n--class-path\n' + quote(os.pathsep.join(cp))
                                + '\nNeoForgeMixinVerifier\n' + quote(config_path) + '\n', encoding='utf-8')

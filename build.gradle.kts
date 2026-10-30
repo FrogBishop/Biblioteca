@@ -50,6 +50,9 @@ repositories {
         content { includeGroup("net.fabricmc") }
     }
     mavenCentral()
+    maven("https://api.modrinth.com/maven") {
+        content { includeModule("maven.modrinth", "sodium") }
+    }
 }
 
 // Legacy (obfuscated) nodes need a refmap so the mojmap targets written in the
@@ -117,6 +120,9 @@ dependencies {
     loomx.applyMojangMappings()
 
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
+    if (sc.current.version == "1.16.5") {
+        modCompileOnly("maven.modrinth:sodium:mc1.16.5-0.2.0")
+    }
 
     val fabricApiVersion = sc.properties["deps.fabric_api"] as String
     val fabricApiUrl = sc.properties["deps.fabric_api_url"] as String
@@ -146,7 +152,6 @@ val excludedServerMixins = if (sc.current.version == "26.3") {
     rootProject.fileTree("src/main/java/babel/biblioteca/mixin").matching { include("*.java") }
         .files.map { it.nameWithoutExtension }.toSet() - sources263.getValue("mixins").toSet()
 } else buildSet {
-    if (sc.current.parsed < "26.1") add("ChunkHolderLightSyncMixin")
     if (sc.current.parsed < "1.20") add("SkyLightEngineYLoopMixin")
     else addAll(listOf("LegacySkyLightEngineYLoopMixin", "LegacyLightStorageYLoopMixin"))
     if (sc.current.parsed < "1.21.6") add("LeashableYLoopMixin")
@@ -273,6 +278,7 @@ val selectedClientMixins = if (sc.current.version == "26.3") sources263.getValue
 val allClientMixins = rootProject.fileTree("src/main/java/babel/biblioteca/client/mixin")
     .matching { include("*.java") }.files.map { it.nameWithoutExtension }.toSet()
 sourceSets.named("main") {
+    if (sc.current.version != "1.16.5") java.exclude("babel/biblioteca/client/sodium/**")
     if (sc.current.parsed < "26.3") java.exclude("babel/biblioteca/client/LoopingConfigScreen.java")
     else java.exclude("babel/biblioteca/client/LegacyDimensionConfigScreen.java")
     java.exclude((allClientMixins - selectedClientMixins).map { "babel/biblioteca/client/mixin/$it.java" })
@@ -298,6 +304,7 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.processResources {
+    if (sc.current.version != "1.16.5") exclude("biblioteca.sodium.mixins.json")
     val apiVersion = sc.properties["deps.fabric_api"] as String
     val apiBundle = rootProject.file(".gradle/fabric-api/$apiVersion/fabric-api.jar")
     val apiId = ZipFile(apiBundle).use { zip ->
@@ -325,6 +332,10 @@ tasks.processResources {
             @Suppress("UNCHECKED_CAST")
             val metadata = groovy.json.JsonSlurper().parse(metadataFile) as MutableMap<String, Any?>
             metadata["accessWidener"] = accessWidener
+            if (sc.current.version == "1.16.5") {
+                metadata["mixins"] = (metadata["mixins"] as List<*>) + mapOf(
+                    "config" to "biblioteca.sodium.mixins.json", "environment" to "client")
+            }
             metadataFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + "\n")
         }
 
@@ -400,6 +411,9 @@ val prepareNoRenderResources = tasks.register("prepareNoRenderResources") {
         val metadata = slurper.parse(metadataFile) as MutableMap<String, Any?>
         metadata["version"] = metadata["version"].toString() + "-norender"
         metadata["name"] = metadata["name"].toString() + " (No Render)"
+        metadata["mixins"] = (metadata["mixins"] as List<*>).filterNot {
+            it is Map<*, *> && it["config"] == "biblioteca.sodium.mixins.json"
+        }
         File(out, metadataFile.name).writeText(
             groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + "\n")
     }
@@ -451,6 +465,7 @@ val noRenderJar = tasks.register("noRenderJar") {
                 for (entry in zip.entries()) {
                     val name = entry.name
                     if (name in rewritten) continue
+                    if (name == "biblioteca.sodium.mixins.json" || name.startsWith("babel/biblioteca/client/sodium/")) continue
                     if (name in droppedClasses || droppedNested.any { name.startsWith(it) }) continue
                     val copy = ZipEntry(name)
                     copy.time = entry.time
@@ -517,6 +532,8 @@ tasks.register("writeValidationConfig") {
             "minecraft" to sc.current.version,
             "java" to requiredJava.majorVersion,
             "classpath" to clientRun.classpath.files.map { it.absolutePath },
+            "optionalSodiumClasspath" to sourceSets.main.get().compileClasspath.files
+                .filter { it.name.startsWith("sodium-") }.map { it.absolutePath },
             "serverClasspath" to serverRun.classpath.files.map { it.absolutePath },
             "clientJvmArgs" to (clientRun.allJvmArgs + clientRun.jvmArgumentProviders.flatMap { it.asArguments() }),
             "serverJvmArgs" to (serverRun.allJvmArgs + serverRun.jvmArgumentProviders.flatMap { it.asArguments() }),
@@ -542,10 +559,24 @@ tasks.register<Sync>("exportNeoForgeSources") {
     description = "Exports this node's preprocessed shared sources/resources for NeoForge."
     dependsOn(tasks.classes)
     val output = rootProject.layout.buildDirectory.dir("neoforge-shared/${sc.current.version}")
+    val targetNamesFile = rootProject.file("platforms/neoforge-${sc.current.version}/mixin-targets.json")
+    @Suppress("UNCHECKED_CAST")
+    val targetNames = if (targetNamesFile.isFile) {
+        groovy.json.JsonSlurper().parse(targetNamesFile) as Map<String, Map<String, String>>
+    } else emptyMap()
+    if (targetNamesFile.isFile) inputs.file(targetNamesFile)
     into(output)
     from(sourceSets.main.get().java) {
         into("java")
         exclude("babel/biblioteca/fabric/**", "babel/biblioteca/client/fabric/**")
+        // Recompiled NeoForge lambdas can have names absent from Fabric's mapping namespace.
+        targetNames.forEach { (path, names) ->
+            filesMatching("**/$path") {
+                filter { line: String -> names.entries.fold(line) { text, (from, to) ->
+                    text.replace("\"$from\"", "\"$to\"")
+                } }
+            }
+        }
     }
     from(tasks.processResources.flatMap { it.destinationDirectory }) {
         into("resources")
@@ -554,6 +585,14 @@ tasks.register<Sync>("exportNeoForgeSources") {
     inputs.property("minecraft", sc.current.version)
     inputs.property("clientCoreMixins", clientCoreMixins.sorted())
     doLast {
+        targetNames.forEach { (path, names) ->
+            val source = output.get().file("java/$path").asFile.readText()
+            names.forEach { (from, to) ->
+                check("\"$from\"" !in source && "\"$to\"" in source) {
+                    "NeoForge target adaptation did not apply in $path: $from -> $to"
+                }
+            }
+        }
         val common = groovy.json.JsonSlurper().parse(output.get().file("resources/biblioteca.mixins.json").asFile) as Map<*, *>
         val selection = mapOf(
             "minecraft" to sc.current.version,

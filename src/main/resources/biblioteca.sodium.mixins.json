@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "babel.biblioteca.client.sodium.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "plugin": "babel.biblioteca.client.sodium.SodiumMixinPlugin",
+  "client": [
+    "SodiumWorldRendererMixin",
+    "SodiumChunkManagerMixin",
+    "SodiumGraphicsStateMixin",
+    "SodiumClonedSectionMixin",
+    "SodiumSectionCacheMixin"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

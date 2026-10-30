@@ -1,6 +1,6 @@
 # Biblioteca for NeoForge 26.1.x
 
-Biblioteca 1.0.2 now has separate targets for Minecraft 26.1, 26.1.1 and 26.1.2.
+Biblioteca 1.0.3 has separate targets for Minecraft 26.1, 26.1.1 and 26.1.2.
 Each target uses the exact version's Stonecutter-preprocessed gameplay/renderer code and the
 shared NeoForge adapters. Save/quit, bounded sky-light rebuilding and live light synchronization
 are included on all three targets.
@@ -40,8 +40,8 @@ Edit the root sources/version directives, not the generated `build/neoforge-shar
 
 For each Minecraft version, the build produces:
 
-- `biblioteca-1.0.2+<version>-neoforge.jar`: complete gameplay, networking, audio, UI and periodic visuals.
-- `biblioteca-1.0.2+<version>-neoforge-norender.jar`: the same nonvisual functionality, with periodic visual Mixins removed.
+- `biblioteca-1.0.3+<version>-neoforge.jar`: complete gameplay, networking, audio, UI and periodic visuals.
+- `biblioteca-1.0.3+<version>-neoforge-norender.jar`: the same nonvisual functionality, with periodic visual Mixins removed.
 
 The files are in `build/distributions/` and in the target's `build/libs/`. Use exactly the JAR
 for your Minecraft version, and install one variant per instance. Both variants use mod ID
@@ -74,7 +74,7 @@ reopened with the block and all four settings intact, checked the shafts again, 
 To reproduce for one target, using an already accepted EULA file:
 
 ```powershell
-python tools/verify_neoforge_save.py --runtime-config platforms/neoforge-26.1/build/validation/runtime.json --jar build/distributions/biblioteca-1.0.2+26.1-neoforge.jar --new-world --hybrid-dig --eula-file path/to/eula.txt
+python tools/verify_neoforge_save.py --runtime-config platforms/neoforge-26.1/build/validation/runtime.json --jar build/distributions/biblioteca-1.0.3+26.1-neoforge.jar --new-world --hybrid-dig --eula-file path/to/eula.txt
 ```
 
 Replace both occurrences of `26.1` for another target. Test worlds and logs stay under

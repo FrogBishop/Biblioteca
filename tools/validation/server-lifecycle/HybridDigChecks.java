@@ -122,7 +122,7 @@ public final class HybridDigChecks {
             var field = engine.getClass().getDeclaredField("biblioteca$sources");
             field.setAccessible(true);
             var sources = (it.unimi.dsi.fastutil.longs.Long2ObjectMap<?>) field.get(engine);
-            int[] values = (int[]) sources.get(net.minecraft.world.level.ChunkPos.pack(x >> 4, z >> 4));
+            int[] values = (int[]) sources.get(babel.biblioteca.Compat.chunkKey(x >> 4, z >> 4));
             return values == null ? "missing" : values[(x & 15) + (z & 15) * 16];
         } catch (ReflectiveOperationException exception) {
             return exception.getClass().getSimpleName();

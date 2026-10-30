@@ -18,12 +18,14 @@ from verify_neoforge import ROOT, PROJECT, compile_java, quote
 
 def run_server(args, runtime, run_dir, probe_jar, stage):
     cp = [p for p in runtime.get('serverClasspath', runtime['classpath']) if p not in (runtime['classes'], runtime['resources'])]
-    options = ['-Xmx1G', '--sun-misc-unsafe-memory-access=allow', '--enable-native-access=ALL-UNNAMED',
+    options = ['-Xmx1G', '--enable-native-access=ALL-UNNAMED',
                '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED', '-Djava.awt.headless=true',
                '-Dfile.encoding=UTF-8', '-Duser.language=en', '-Duser.country=US',
                '-Dbiblioteca.saveTest.stage=' + stage,
                '-Dbiblioteca.saveTest.newWorld=' + str(args.new_world).lower(),
                '-Dbiblioteca.saveTest.hybridDig=' + str(args.hybrid_dig).lower()]
+    if int(runtime.get('java', 25)) >= 24:
+        options.append('--sun-misc-unsafe-memory-access=allow')
     if args.loader == 'fabric':
         cp += [str(args.jar), str(probe_jar)]
         launch = next(v.split('=', 1)[1] for v in runtime['serverJvmArgs'] if v.startswith('-Dfabric.dli.config='))
@@ -117,7 +119,7 @@ def main():
         sources.append(ROOT / 'tools/neoforge-save-validation/SaveLifecycleMixin.java')
     else:
         sources += sorted((ROOT / 'tools/neoforge-save-validation').glob('*.java'))
-    compile_java(args.javac, runtime['classpath'], output / 'probe-classes', sources, output / 'probe-compile.log')
+    compile_java(args.javac, runtime['classpath'], output / 'probe-classes', sources, output / 'probe-compile.log', runtime.get('java', 25))
     probe_jar = output / 'save-probe.jar'
     with zipfile.ZipFile(probe_jar, 'w', zipfile.ZIP_DEFLATED) as z:
         for file in (output / 'probe-classes').rglob('*.class'):
@@ -129,7 +131,7 @@ def main():
         else:
             z.writestr('META-INF/neoforge.mods.toml', 'license="GPLv3"\n[[mods]]\nmodId="biblioteca_save_check"\nversion="1"\ndisplayName="Biblioteca save regression probe"\n[[mixins]]\nconfig="biblioteca.save-check.mixins.json"\n')
         z.writestr('biblioteca.save-check.mixins.json', json.dumps({'required': True, 'package': 'babel.biblioteca.validation.save.mixin',
-                    'compatibilityLevel': 'JAVA_25', 'mixins': ['SaveLifecycleMixin'], 'injectors': {'defaultRequire': 1}}))
+                    'compatibilityLevel': 'JAVA_' + str(runtime.get('java', 25)), 'mixins': ['SaveLifecycleMixin'], 'injectors': {'defaultRequire': 1}}))
     run_dir = output / ('run-' + time.strftime('%Y%m%d-%H%M%S'))
     run_dir.mkdir()
     if args.world_template:

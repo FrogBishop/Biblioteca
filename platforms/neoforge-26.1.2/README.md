@@ -1,6 +1,6 @@
 # Biblioteca for NeoForge 26.1.2
 
-This is the exact Minecraft **26.1.2** target for Biblioteca **1.0.2**, verified with
+This is the exact Minecraft **26.1.2** target for Biblioteca **1.0.3**, verified with
 **NeoForge 26.1.2.122** and Java 25. It produces separate complete and no-render JARs.
 
 Run from the repository root:
@@ -12,8 +12,8 @@ Run from the repository root:
 
 Deliverables:
 
-- `build/distributions/biblioteca-1.0.2+26.1.2-neoforge.jar`
-- `build/distributions/biblioteca-1.0.2+26.1.2-neoforge-norender.jar`
+- `build/distributions/biblioteca-1.0.3+26.1.2-neoforge.jar`
+- `build/distributions/biblioteca-1.0.3+26.1.2-neoforge-norender.jar`
 
 Both variants passed real FML client/server checks (complete: 58 server / 80 client target
 classes; no-render: 58 / 67). A new-world 1 GB save/stop/reopen test with 49 forced chunks,

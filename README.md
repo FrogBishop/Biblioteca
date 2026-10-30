@@ -11,14 +11,18 @@ presets are added, and existing terrain (including bedrock) is retained.
 Each release has an exact-version artifact; a JAR
 compiled for one release is not relabelled to accept a broader API range.
 
-Minecraft **26.1, 26.1.1, 26.1.2, 26.2 and 26.3** also have **NeoForge** targets, sharing gameplay and renderer code
+Minecraft **1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3** also have **NeoForge** targets, sharing gameplay and renderer code
 with Fabric. Complete and no-render variants are built and validated independently; see the
 [26.1 family guide](platforms/neoforge-26.1/README.md), [26.2 build guide](platforms/neoforge-26.2/README.md)
 and [26.3 build guide](platforms/neoforge-26.3/README.md).
-The current release is **1.0.2**, with 70 Fabric and 10 NeoForge artifacts across the targets above.
-It includes the save/quit and bulk sky-light memory fixes. On Minecraft 26.1–26.3, live light
-updates also reach interior chunk watchers so digging/re-roofing updates the client immediately.
+The current release is **1.0.3**, with 70 Fabric and 12 NeoForge artifacts across the targets above.
+It extends live sky-light synchronization to every supported version, adds the Fabric 1.16.5
+Sodium bridge, and fixes the older world-creation button and settings-page background. Save/quit
+and bulk sky-light memory fixes from 1.0.2 are retained.
 Each target has a pinned and verified NeoForge baseline in its build guide.
+
+The new target supports **Minecraft 1.21.11 / NeoForge 21.11.48 on Java 21**; see its
+[build and validation guide](platforms/neoforge-1.21.11/README.md).
 
 This README is developer documentation for GitHub. [modrinth.md](modrinth.md) describes the
 Modrinth release, while [curseforge.md](curseforge.md) is the version-independent CurseForge
@@ -36,6 +40,7 @@ the changes through 1.0.0. [PORTING.md](PORTING.md) describes the version breakp
 | Fabric Loader | 0.19.5 |
 | Fabric API | Pinned per release in `stonecutter.properties.toml` |
 | NeoForge (26.x targets) | 26.1.0.19-beta / 26.1.1.15-beta / 26.1.2.122 / 26.2.0.93 / 26.3.0.98 (also verified with 26.3.0.99); ModDevGradle 2.0.148, Java 25 |
+| NeoForge (1.21.11 target) | 21.11.48; ModDevGradle 2.0.148, Java 21 |
 | Source preprocessing | Stonecutter 0.9.8 |
 | Loom | `loom-back-compat` 0.4.2 selects remapping/plain Loom 1.18 |
 
@@ -60,6 +65,7 @@ python tools/verify_matrix.py --checks --workers 2
 python tools/verify_artifacts.py
 
 # NeoForge: build both variants and run packaged client/server regressions per target
+.\tools\neoforge-pilot.ps1 verify -MinecraftVersion 1.21.11
 .\tools\neoforge-pilot.ps1 verify -MinecraftVersion 26.1.2
 .\tools\neoforge-pilot.ps1 verify -MinecraftVersion 26.2
 .\tools\neoforge-pilot.ps1 verify
@@ -237,7 +243,9 @@ coordinate folding, transformed entity searches and result limits, continuous in
 spawn/path surfaces, path-node positions and decoration anchors in 16- and 384-row test levels (16/256 with floor zero on 1.16.5).
 `SkyChecks` runs native light engines on every node: all three modes, saved-light replacement,
 block changes, source removal, both seam directions, client layers and neighboring/reloaded
-chunks. The 26.3 node additionally runs the relocated main 1.0.0 suite in `tools/validation/main100`,
+chunks. `LightSyncChecks` runs native chunk light-packet broadcasting on every node, checking
+interior and border recipients, mode restoration, newly created holders and server cleanup.
+The 26.3 node additionally runs the relocated main 1.0.0 suite in `tools/validation/main100`,
 including native leash ticks, full walking paths, ranged mob attacks, water-vertex samples and
 67-row GUI layouts. Older nodes retain native source/injection/API coverage for those gameplay
 adapters; the complete 26.3 fixture is not presented as an older-version gameplay test.
@@ -259,6 +267,32 @@ prevent surrounding water in player worlds from invalidating the test's direct-s
 The shutdown observer runs after default-order TAIL callbacks to avoid depending on Fabric's
 event/Mixin ordering.
 
+A real Fabric 1.16.5 client also reproduced stale sky light after enabling looping in a copied
+world: 74 of 294 sampled positions disagreed with the integrated server, concentrated at Y=80
+and Y=96. With the synchronization fix included in 1.0.3, all 294 client/server samples matched across
+Y=80, 96, 112, 128, 160 and 240. This checks live light values, not screenshot appearance.
+The existing 1.0.2 artifacts retain the old behavior on pre-26.1 targets.
+
+`tools/verify_sodium116.py` launches a real Fabric 1.16.5 client with Sodium 0.2.0+build.4 on a
+copied world. It records native drawing and shifted model origins, tests boundary block/light
+snapshots and invalidation, and saves frames for ordinary terrain, looping terrain, the upper
+periodic bedrock layer and restored ordinary rendering. Supply `--sodium-jar`, `--world-template`,
+`--assets-dir` and optionally the remapped Biblioteca `--jar`; `--oneshot` selects Sodium's other
+drawing backend. First export `:1.16.5:writeValidationConfig`. Reports, worlds and screenshots
+stay under `build/validation/1.16.5/sodium/`.
+
+`tools/verify_world_creation.py` checks the real creation screen on every supported version from
+1.16.5 through 1.20.4. The classic layout ends at 1.19.3; 1.19.4 introduces the Game/World/More
+tabs. The checks verify native button alignment, visibility when changing pages, no overlapping
+controls, entry into dimension settings, retained choices after returning, GUI scales 3 and 4,
+and the classic flat-world customization layout. A framebuffer check also verifies that the
+settings page repaints its background after the previous frame is cleared; screenshots of the
+settings page must be reviewed alongside the entry-page screenshots. Supply `--mod-version` and `--artifact-dir` for
+the built JARs; `--versions` selects a subset. Matching launcher assets can be reused with
+`--assets-dir`; otherwise prepare each node's `downloadAssets` task. Each client runs in a separate
+directory and stops after exercising the menus. Reports and frames are under
+`build/validation/world-creation/`.
+
 `tools/verify_visibility.py` runs a real 26.3 graphical client on a copied world. It tests 74
 camera/FOV poses, checks compiled bottom-section copies against submitted solid draws, verifies
 the actual pose and captures six screenshots. Both loader adapters use the same world and
@@ -266,6 +300,12 @@ settings, with dynamic FOV disabled. This diagnostic is limited to the selected 
 and draw path. Reports and screenshots are written under `build/validation/26.3/visibility/`.
 
 ## Compatibility and documentation
+
+The Fabric 1.16.5 build includes an optional bridge for **Sodium 0.2.0+build.4**.
+It preserves Sodium's native buffers, shaders and drawing backends while adding periodic terrain
+copies and boundary snapshots. Sodium's native section-based transparency behavior remains in
+use; this is separate from the vanilla renderer's quad sorting. The bridge is excluded from
+no-render builds. Compatibility with other Sodium versions is not implied by this 1.16.5 adapter.
 
 Voxy and other far-LOD/replacement renderers bypass vanilla terrain extraction and need a separate
 integration. That is a shared compatibility limitation of `main` and this branch. Shader packs

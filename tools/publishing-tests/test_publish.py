@@ -102,7 +102,7 @@ class PublisherTests(unittest.TestCase):
         with patch.object(publish, 'ROOT', REPOSITORY):
             pairs = publish.targets(config, 'all', list(publish.LOADERS))
         self.assertGreaterEqual(len([p for p in pairs if p[0] == 'fabric']), 35)
-        self.assertTrue({('neoforge', v) for v in ['26.1', '26.1.1', '26.1.2', '26.2', '26.3']} <= set(pairs))
+        self.assertTrue({('neoforge', v) for v in ['1.21.11', '26.1', '26.1.1', '26.1.2', '26.2', '26.3']} <= set(pairs))
         self.assertEqual(len(pairs), len(set(pairs)))
 
     def test_process_output_redacts_token_values(self):

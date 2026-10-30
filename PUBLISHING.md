@@ -3,7 +3,8 @@
 `tools/publish.py` prepares exact-version releases and calls **Mod Publish Plugin 2.2.1**
 in the independent `publishing/` Gradle project. It uses the repository's Gradle wrapper
 without configuring the game builds unless `--build` is requested. Requirements are Java 25
-and Python 3.11 or newer; no additional Python packages are needed.
+and Python 3.11 or newer; building the NeoForge 1.21.11 target also needs a Java 21 toolchain.
+No additional Python packages are needed.
 
 Each Minecraft/loader pair is handled according to the destination:
 
@@ -76,7 +77,7 @@ All commands below run from the repository root. The default is a plugin **dry r
 python tools/publish.py --versions 26.3
 
 # Build and run existing regression checks before previewing selected NeoForge targets.
-python tools/publish.py --versions 26.1,26.1.1,26.1.2,26.2,26.3 --loaders neoforge --build
+python tools/publish.py --versions 1.21.11,26.1,26.1.1,26.1.2,26.2,26.3 --loaders neoforge --build
 
 # Build, validate and preview every configured Fabric and NeoForge target.
 python tools/publish.py --build
@@ -161,10 +162,10 @@ After inspecting the website, use one of these explicit local reconciliation com
 
 ```powershell
 # Only when neither the main nor the additional file was uploaded:
-python tools/publish.py --mark-not-uploaded "curseforge:PROJECT_ID:1.0.2+26.3"
+python tools/publish.py --mark-not-uploaded "curseforge:PROJECT_ID:1.0.3+26.3"
 
 # Only after confirming BOTH the main file and its no-render additional file exist:
-python tools/publish.py --record-upload "curseforge:PROJECT_ID:1.0.2+26.3" FILE_ID
+python tools/publish.py --record-upload "curseforge:PROJECT_ID:1.0.3+26.3" FILE_ID
 ```
 
 If CurseForge contains only the primary file, first attach the missing no-render file in the
