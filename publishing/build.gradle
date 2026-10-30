@@ -1,3 +1,13 @@
+import java.net.ConnectException
+import java.net.UnknownHostException
+import java.net.http.HttpConnectTimeoutException
+import java.time.Instant
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import me.modmuss50.mpp.networking.HttpException
+import me.modmuss50.mpp.platforms.curseforge.CurseforgeApi
+import me.modmuss50.mpp.platforms.curseforge.CurseforgeVersions
+import me.modmuss50.mpp.platforms.modrinth.ModrinthApi
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.nio.file.Files
@@ -8,6 +18,235 @@ import me.modmuss50.mpp.platforms.modrinth.ModrinthEnvironment
 plugins {
     id 'me.modmuss50.mod-publish-plugin' version '2.2.1'
 }
+
+// Keep the pinned plugin's HTTP clients and serializers, but checkpoint each file
+// ourselves: its bundled CurseForge worker writes a result only after BOTH files.
+def createResumableUploader = { Map manifest, Map state, Closure saveState, File runDirectory ->
+    Map policy = [attempts: 4, delay: 5.0, maxDelay: 60.0, interval: 2.0] + (manifest.retry ?: [:])
+    Map versionTables = [:]
+    Map fabricApiIds = [:]
+    Map deferredPlatforms = [:]
+
+    def event = { String kind, String message ->
+        logger.lifecycle("[{}] {} {}", java.time.LocalTime.now().format(DateTimeFormatter.ofPattern('HH:mm:ss')), kind, message)
+    }
+    def writeReceipt = { File path, Map value ->
+        path.parentFile.mkdirs()
+        def temporary = new File(path.parentFile, path.name + '.tmp')
+        temporary.setText(JsonOutput.prettyPrint(JsonOutput.toJson(value)) + '\n', 'UTF-8')
+        Files.move(temporary.toPath(), path.toPath(), StandardCopyOption.REPLACE_EXISTING)
+    }
+    def pause = { double seconds ->
+        long remaining = Math.ceil(seconds * 1000.0) as long
+        while (remaining > 0) {
+            long chunk = Math.min(remaining, 10000L)
+            Thread.sleep(chunk)
+            remaining -= chunk
+            if (remaining > 0) event('WAIT', "Retry in ${Math.ceil(remaining / 1000.0) as long}s")
+        }
+    }
+    def waitForRetry = { int attempt, HttpException error ->
+        double seconds = Math.min(policy.maxDelay as double, (policy.delay as double) * Math.pow(2, attempt - 1))
+        String header = error?.headers?.find { k, v -> k.equalsIgnoreCase('Retry-After') }?.value?.find()
+        if (header) {
+            Double requested = null
+            try { requested = Math.max(0.0, Double.parseDouble(header)) }
+            catch (NumberFormatException ignored) {
+                try { requested = Math.max(0.0, (ZonedDateTime.parse(header, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() - System.currentTimeMillis()) / 1000.0) }
+                catch (java.time.format.DateTimeParseException ignoredDate) { }
+            }
+            // Do not retry earlier than the server permits, or wait unboundedly.
+            if (requested != null && !Double.isFinite(requested)) requested = null
+            if (requested != null && requested > (policy.maxDelay as double)) return null
+            if (requested != null) seconds = Math.max(seconds, requested)
+        }
+        return seconds
+    }
+    def request = { String label, boolean readOnly, Map record, String step, Closure operation ->
+        for (int attempt = 1; attempt <= (policy.attempts as int); attempt++) {
+            if (record != null) {
+                record.status = 'inflight'
+                record.pendingStep = step
+                record.lastAttempt = Instant.now().toString()
+                record.attempts = (record.attempts ?: 0) + 1
+                record.remove('lastError')
+                saveState()
+            }
+            event('REQUEST', "${label} attempt ${attempt}/${policy.attempts}")
+            try {
+                return operation.call()
+            } catch (Exception failure) {
+                HttpException http = failure instanceof HttpException ? failure : null
+                int code = http?.statusCode ?: 0
+                boolean connectFailed = failure instanceof ConnectException || failure instanceof UnknownHostException || failure instanceof HttpConnectTimeoutException
+                boolean challenge = code == 403 && (http.headers.any { k, v -> k.equalsIgnoreCase('cf-mitigated') && v.contains('challenge') }
+                        || (http.body ?: '').contains('<title>Just a moment...</title>'))
+                boolean parentNotReady = code == 400 && step == 'additional' && (http.body ?: '').contains('Invalid `parentFileID`')
+                boolean localValidation = failure instanceof GradleException && (failure.message ?: '').startsWith('Release snapshot missing or changed:')
+                boolean rejected = (code >= 400 && code < 500 && !(code in [408, 409])) || connectFailed || localValidation
+                boolean retryable = readOnly ? (connectFailed || failure instanceof IOException && code == 0 || code in [408, 429, 500, 502, 503, 504] || challenge)
+                        : (connectFailed || code == 429 || challenge || parentNotReady)
+                String detail = code ? "HTTP ${code}" : (connectFailed ? 'connection not established' : 'response unavailable')
+                if (localValidation) detail = 'snapshot changed before request'
+                if (parentNotReady) detail += ' (parent file not ready)'
+                if (challenge) detail += ' (Cloudflare challenge)'
+                if (record != null) {
+                    record.status = readOnly || rejected ? 'failed' : 'inflight'
+                    record.lastError = detail
+                    record.outcome = readOnly ? 'read-only' : rejected ? 'rejected' : 'unknown'
+                    saveState()
+                }
+                Double delay = retryable ? waitForRetry(attempt, http) : null
+                if (retryable && attempt < (policy.attempts as int) && delay != null) {
+                    event('RETRY', "${label}: ${detail}; waiting ${delay}s")
+                    pause(delay)
+                    continue
+                }
+                if (record != null && (code == 429 || challenge)) {
+                    deferredPlatforms[record.platform] = "${detail}; automatic retry limit reached. Resume this platform later."
+                }
+                String recovery = readOnly || rejected ? 'Rerun the same command to resume.'
+                        : 'Upload outcome is unconfirmed; check --status before retrying. The request will not be resent automatically.'
+                if (retryable && delay == null) recovery = 'Retry-After exceeds the configured wait limit; resume later.'
+                // Never persist or print raw response bodies/headers: they may echo a token.
+                throw new GradleException("${label}: ${detail}. ${recovery}")
+            }
+        }
+    }
+    def checkFile = { Map asset ->
+        File path = new File(asset.path)
+        if (!path.isFile() || MessageDigest.getInstance('SHA-256').digest(path.bytes).encodeHex().toString() != asset.sha256) {
+            throw new GradleException("Release snapshot missing or changed: ${asset.name}")
+        }
+        path.toPath()
+    }
+    def complete = { Map record, Map result ->
+        writeReceipt(new File(record.resultFile), result)
+        record.status = 'published'
+        record.result = result
+        record.remove('pendingStep')
+        record.remove('lastError')
+        record.remove('outcome')
+        saveState()
+    }
+
+    return { Map entry, options, String taskName, int index ->
+        String key = "${entry.platform}:${entry.projectId}:${entry.version}"
+        String label = "[${index}/${manifest.publications.size()}] ${entry.platform} ${entry.version}"
+        Map record = state.uploads[key]
+        if (record?.status == 'published') {
+            event('SKIP', "${label}: already published")
+            return
+        }
+        if (record?.status == 'inflight' && record.pendingStep != 'metadata') {
+            event('UNCONFIRMED', "${label}: ${record.pendingStep ?: 'legacy upload'}; primary ID=${record.primaryFileId ?: 'unknown'}")
+            throw new GradleException("Upload outcome is unconfirmed: ${key}. Run python tools/publish.py --status for recovery commands.")
+        }
+        File result = new File(runDirectory, "plugin/publishMods/${taskName}.json")
+        if (record == null) {
+            record = [status: 'ready', fingerprint: entry.fingerprint, version: entry.version,
+                      minecraft: entry.minecraft, loader: entry.loader,
+                      files: entry.files.collect { [name: it.name, sha256: it.sha256] }]
+            state.uploads[key] = record
+        }
+        record.resultFile = result.absolutePath
+        record.platform = entry.platform
+        saveState()
+        if (deferredPlatforms[entry.platform]) {
+            record.status = 'failed'
+            record.lastError = deferredPlatforms[entry.platform]
+            record.outcome = 'not-sent'
+            saveState()
+            throw new GradleException("${label}: ${record.lastError}")
+        }
+        event('START', label)
+        String token = options.accessToken.get()
+        String endpoint = options.apiEndpoint.get()
+
+        if (entry.platform == 'modrinth') {
+            def api = new ModrinthApi(token, endpoint)
+            List dependencies = []
+            if (entry.loader == 'fabric') {
+                if (!fabricApiIds.containsKey(endpoint)) {
+                    fabricApiIds[endpoint] = request("${label}: resolve Fabric API", true, record, 'metadata') { api.checkProject('fabric-api').id }
+                }
+                dependencies.add(new ModrinthApi.Dependency(null, fabricApiIds[endpoint], null, ModrinthApi.DependencyType.REQUIRED))
+            }
+            def metadata = new ModrinthApi.CreateVersion(entry.displayName, entry.version, manifest.changelog, dependencies,
+                    [entry.minecraft], ModrinthApi.VersionType.valueOf(manifest.releaseType.toUpperCase(Locale.ROOT)),
+                    ModrinthEnvironment.CLIENT_AND_SERVER, [entry.loader], false, 'listed', null, entry.projectId,
+                    ['primaryFile'], 'primaryFile', [:])
+            def uploaded = request("${label}: ${entry.files[0].name}", false, record, 'primary') {
+                api.createVersion(metadata, [primaryFile: checkFile(entry.files[0])])
+            }
+            if (uploaded.projectId != entry.projectId || !(uploaded.id ==~ /[A-Za-z0-9]{8}/)) {
+                throw new GradleException("${label}: invalid upload response; outcome requires inspection.")
+            }
+            complete(record, [type: 'modrinth', id: uploaded.id, projectId: entry.projectId, title: 'Download from Modrinth'])
+            event('PUBLISHED', "${key} id=${uploaded.id}")
+        } else {
+            def api = new CurseforgeApi(token, endpoint)
+            if (!record.primaryFileId) {
+                if (!versionTables.containsKey(endpoint)) {
+                    try {
+                        def types = request("${label}: game version types", true, record, 'metadata') { api.getVersionTypes() }
+                        def versions = request("${label}: game versions", true, record, 'metadata') { api.getGameVersions() }
+                        versionTables[endpoint] = new CurseforgeVersions(types, versions)
+                    } catch (GradleException error) {
+                        versionTables[endpoint] = error.message
+                        throw error
+                    }
+                }
+                def versions = versionTables[endpoint]
+                if (versions instanceof String) throw new GradleException("CurseForge version table unavailable in this run; resume later. ${versions}")
+                List ids = [versions.getMinecraftVersion(entry.minecraft), versions.getModLoaderVersion(entry.loader),
+                            versions.getClientVersion(), versions.getServerVersion(), versions.getJavaVersion(JavaVersion.toVersion(entry.java))]
+                def relations = entry.loader == 'fabric' ? new CurseforgeApi.UploadFileRelations([
+                        new CurseforgeApi.ProjectFileRelation('fabric-api', CurseforgeApi.RelationType.REQUIRED_DEPENDENCY)]) : null
+                def metadata = new CurseforgeApi.UploadFileMetadata(manifest.changelog, CurseforgeApi.ChangelogType.MARKDOWN,
+                        entry.displayName, null, ids, CurseforgeApi.ReleaseType.valueOf(manifest.releaseType.toUpperCase(Locale.ROOT)), relations)
+                record.primaryResultFile = new File(result.parentFile, taskName + '.primary.json').absolutePath
+                saveState()
+                def uploaded = request("${label}: primary ${entry.files[0].name}", false, record, 'primary') {
+                    api.uploadFile(entry.projectId, checkFile(entry.files[0]), metadata)
+                }
+                if (uploaded.id <= 0) throw new GradleException("${label}: invalid primary ID; outcome requires inspection.")
+                writeReceipt(new File(record.primaryResultFile), [type: 'curseforge', projectId: entry.projectId,
+                        fileId: uploaded.id, step: 'primary', fingerprint: entry.fingerprint])
+                record.primaryFileId = uploaded.id
+                record.status = 'partial'
+                record.pendingStep = 'additional'
+                record.remove('outcome')
+                saveState()
+                event('SAVED', "${label}: primary ID=${uploaded.id}; receipt persisted")
+            } else {
+                event('RESUME', "${label}: reusing primary ID=${record.primaryFileId}; uploading additional file only")
+            }
+            if (!record.additionalFileId) {
+                pause(policy.interval as double)
+                def metadata = new CurseforgeApi.UploadFileMetadata(manifest.changelog, CurseforgeApi.ChangelogType.MARKDOWN,
+                        entry.displayName + ' (No Render alternative)', record.primaryFileId as Integer, null,
+                        CurseforgeApi.ReleaseType.valueOf(manifest.releaseType.toUpperCase(Locale.ROOT)), null)
+                record.additionalResultFile = new File(result.parentFile, taskName + '.additional.json').absolutePath
+                saveState()
+                def uploaded = request("${label}: additional ${entry.files[1].name} parent=${record.primaryFileId}", false, record, 'additional') {
+                    api.uploadFile(entry.projectId, checkFile(entry.files[1]), metadata)
+                }
+                if (uploaded.id <= 0) throw new GradleException("${label}: invalid additional ID; outcome requires inspection.")
+                writeReceipt(new File(record.additionalResultFile), [type: 'curseforge', projectId: entry.projectId,
+                        fileId: uploaded.id, parentFileId: record.primaryFileId, step: 'additional', fingerprint: entry.fingerprint])
+                record.additionalFileId = uploaded.id
+                saveState()
+                event('SAVED', "${label}: additional ID=${uploaded.id}; receipt persisted")
+            }
+            complete(record, [type: 'curseforge', projectId: entry.projectId, projectSlug: null,
+                              fileId: record.primaryFileId, title: 'Download from CurseForge'])
+            event('PUBLISHED', "${key} primary=${record.primaryFileId} additional=${record.additionalFileId}")
+        }
+        pause(policy.interval as double)
+    }
+}
+
 
 def repositoryRoot = file('..').canonicalFile
 def manifestName = providers.gradleProperty('releaseManifest').orNull
@@ -79,26 +318,26 @@ def validatePlan = tasks.register('validateReleasePlan') {
             if (live && previous && previous.fingerprint != entry.fingerprint) {
                 throw new GradleException("Published or pending version has different contents: ${key}. Use a new version.")
             }
-            if (live && previous?.status == 'inflight') {
-                throw new GradleException("Upload outcome is unconfirmed: ${key}. Inspect the platform before retrying; see PUBLISHING.md.")
-            }
         }
     }
 }
 
 def previousReceipt = null
+def uploadWithRecovery = manifest == null ? null : createResumableUploader(manifest, state, saveState, runDirectory)
+int publicationIndex = 0
 publishMods {
     dryRun = !live
-    // POST uploads are not idempotent. The ledger handles resuming confirmed successes;
-    // ambiguous failures need reconciliation instead of a blind network retry.
-    // In 2.2.1 this is the total attempt count, including the first request.
+    // Live actions use the classified retry policy above. Do not add the bundled
+    // worker's unconditional POST retries on top of that policy.
     maxRetries = 1
     if (manifest != null) {
         changelog = manifest.changelog
         type = manifest.releaseType == 'release' ? STABLE : manifest.releaseType == 'beta' ? BETA : ALPHA
         manifest.publications?.each { entry ->
+            int index = ++publicationIndex
             def platformName = entry.platform
             def destinationName = platformName + '_' + entry.key
+            def platformOptions = null
             def configureDestination = { destination ->
                 destination.file.set(file(entry.files[0].path))
                 if (platformName == 'curseforge') destination.additionalFiles.from(file(entry.files[1].path))
@@ -114,6 +353,7 @@ publishMods {
                 modrinth(destinationName) {
                     configureDestination(delegate)
                     environment = ModrinthEnvironment.CLIENT_AND_SERVER
+                    platformOptions = delegate
                 }
             } else {
                 curseforge(destinationName) {
@@ -122,6 +362,7 @@ publishMods {
                     server = true
                     javaVersions.add(JavaVersion.toVersion(entry.java))
                     additionalFile(file(entry.files[1].path)) { name = entry.displayName + ' (No Render alternative)' }
+                    platformOptions = delegate
                 }
             }
             def publishTaskName = 'publish' + destinationName.capitalize()
@@ -131,33 +372,21 @@ publishMods {
             upload.configure {
                 dependsOn validatePlan
                 if (priorReceipt != null) mustRunAfter priorReceipt
-                onlyIf { !live || state.uploads[key]?.status != 'published' }
-                doFirst {
-                    if (live) {
-                        state.uploads[key] = [status: 'inflight', fingerprint: entry.fingerprint,
-                                version: entry.version, minecraft: entry.minecraft, loader: entry.loader,
-                                resultFile: new File(layout.buildDirectory.get().asFile, "publishMods/${publishTaskName}.json").absolutePath,
-                                files: entry.files.collect { [name: it.name, sha256: it.sha256] }]
-                        saveState()
-                    }
+                if (live) {
+                    // Use the same plugin API clients, with file-level checkpoints
+                    // and classified retries instead of the bundled all-or-nothing worker.
+                    actions.clear()
+                    doLast { uploadWithRecovery(entry, platformOptions, publishTaskName, index) }
                 }
             }
-            // A dependent task runs after the plugin's worker has completed. A doLast
-            // action on the upload task itself would run before that async completion.
+            // Keep publications ordered, including when --continue skips a failed one.
+            // The live action already persisted both per-file and combined receipts.
             def receipt = tasks.register('record_' + destinationName) {
                 dependsOn upload
                 doLast {
-                    if (!live || state.uploads[key]?.status == 'published') return
-                    def output = new File(layout.buildDirectory.get().asFile, "publishMods/${publishTaskName}.json")
-                    def result = new JsonSlurper().parse(output)
-                    if (result.type != platformName || result.projectId != entry.projectId
-                            || (platformName == 'modrinth' ? !result.id : !result.fileId)) {
-                        throw new GradleException("Invalid plugin result for ${key}")
+                    if (live && state.uploads[key]?.status != 'published') {
+                        throw new GradleException("Upload finished without a confirmed receipt: ${key}")
                     }
-                    state.uploads[key].status = 'published'
-                    state.uploads[key].result = result
-                    saveState()
-                    logger.lifecycle("PUBLISHED ${key}")
                 }
             }
             tasks.named('publishMods') { dependsOn receipt }

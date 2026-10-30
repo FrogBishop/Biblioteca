@@ -6,16 +6,22 @@ so a description-only change cannot create duplicate file releases.
 """
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 import argparse
 import hashlib
+import http.client
 import json
+import math
 import os
+import queue
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import tomllib
 import urllib.error
 import urllib.request
@@ -30,10 +36,95 @@ PLATFORMS = ('modrinth', 'curseforge')
 LOADERS = ('fabric', 'neoforge')
 TOKEN_KEYS = ('MODRINTH_TOKEN', 'CURSEFORGE_TOKEN')
 PROJECT_KEYS = ('MODRINTH_PROJECT_ID', 'CURSEFORGE_PROJECT_ID', 'MODRINTH_NORENDER_PROJECT_ID')
+DEFAULT_RETRY = {'attempts': 4, 'delay': 5.0, 'maxDelay': 60.0, 'interval': 2.0}
+_run_log = None
 
 
 class PublishError(Exception):
     pass
+
+
+def progress(message, stream=None, secrets=()):
+    for secret in secrets:
+        if secret:
+            message = message.replace(secret, '[REDACTED]')
+    line = message.rstrip() + '\n'
+    if message.strip() and not re.match(r'^\[\d{2}:\d{2}:\d{2}\]', message):
+        line = f'[{datetime.now().astimezone():%H:%M:%S}] ' + line
+    print(line, end='', flush=True)
+    for output in (stream, _run_log):
+        if output is not None:
+            output.write(line)
+            output.flush()
+
+
+@contextmanager
+def session_log(run):
+    global _run_log
+    previous = _run_log
+    with (run / 'publish.log').open('w', encoding='utf-8') as stream:
+        _run_log = stream
+        try:
+            yield
+        finally:
+            _run_log = previous
+
+
+def retry_delay(attempt, headers, policy):
+    delay = min(policy['maxDelay'], policy['delay'] * 2 ** (attempt - 1))
+    value = headers.get('Retry-After') if headers else None
+    if value:
+        try:
+            requested = float(value)
+        except ValueError:
+            try:
+                requested = parsedate_to_datetime(value).timestamp() - time.time()
+            except (ValueError, TypeError, OverflowError):
+                return delay
+        if not math.isfinite(requested):
+            return delay
+        if requested > policy['maxDelay']:
+            return None
+        delay = max(delay, requested, 0)
+    return delay
+
+
+def wait_retry(seconds, label):
+    while seconds > 0:
+        chunk = min(seconds, 10)
+        time.sleep(chunk)
+        seconds -= chunk
+        if seconds > 0:
+            progress(f'WAIT {label}: retry in {seconds:g}s')
+
+
+def http_request(request, label, retry=None):
+    """Retry only reads and replacement-style description PATCHes, never upload POSTs."""
+    assert request.get_method() in ('GET', 'PATCH')
+    policy = retry or DEFAULT_RETRY
+    for attempt in range(1, policy['attempts'] + 1):
+        progress(f'REQUEST {label} attempt {attempt}/{policy["attempts"]}')
+        try:
+            with urllib.request.urlopen(request, timeout=45) as response:
+                return response.read()
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
+            headers = getattr(error, 'headers', None) or {}
+            code = error.code if isinstance(error, urllib.error.HTTPError) else None
+            challenge = False
+            if isinstance(error, urllib.error.HTTPError):
+                body = error.read(65536)
+                challenge = code == 403 and (headers.get('cf-mitigated') == 'challenge'
+                                             or b'<title>Just a moment...</title>' in body)
+                error.close()
+            transient = code is None or code in (408, 429, 500, 502, 503, 504) or challenge
+            detail = f'HTTP {code}' if code else 'network error'
+            delay = retry_delay(attempt, headers, policy) if transient else None
+            if transient and attempt < policy['attempts'] and delay is not None:
+                progress(f'RETRY {label}: {detail}; waiting {delay:g}s')
+                wait_retry(delay, label)
+                continue
+            suffix = ' Retry-After exceeds the wait limit; resume later.' if transient and delay is None else ''
+            raise PublishError(f'{label} failed ({detail}).{suffix}') from None
 
 
 def sha256(path):
@@ -53,14 +144,39 @@ def reconcile_receipts():
     state = load_state()
     changed = False
     for key, record in state['uploads'].items():
-        if record.get('status') != 'inflight' or not record.get('resultFile'):
+        if record.get('status') == 'published':
             continue
-        path = Path(record['resultFile']).resolve()
-        if not path.is_relative_to((OUTPUT / 'runs').resolve()) or not path.is_file():
-            continue
-        result = json.loads(path.read_text(encoding='utf-8'))
         platform, project, _ = key.split(':', 2)
-        if result.get('type') == platform and result.get('projectId') == project and result.get('id' if platform == 'modrinth' else 'fileId'):
+
+        def receipt(field):
+            if not record.get(field):
+                return None
+            path = Path(record[field]).resolve()
+            if not path.is_relative_to((OUTPUT / 'runs').resolve()) or not path.is_file():
+                return None
+            value = json.loads(path.read_text(encoding='utf-8'))
+            return value if value.get('type') == platform and value.get('projectId') == project else None
+
+        if platform == 'curseforge':
+            for step in ('primary', 'additional'):
+                result = receipt(step + 'ResultFile')
+                valid = (result and result.get('step') == step and result.get('fileId')
+                         and result.get('fingerprint') == record.get('fingerprint'))
+                if step == 'additional':
+                    valid = valid and result.get('parentFileId') == record.get('primaryFileId')
+                if valid and not record.get(step + 'FileId'):
+                    record[step + 'FileId'] = result['fileId']
+                    if step == 'primary':
+                        record.update(status='partial', pendingStep='additional')
+                    changed = True
+            if record.get('primaryFileId') and record.get('additionalFileId'):
+                record.update(status='published', result={'type': platform, 'projectId': project,
+                              'fileId': record['primaryFileId'], 'title': 'Download from CurseForge'})
+                record.pop('pendingStep', None)
+                changed = True
+                continue
+        result = receipt('resultFile')
+        if result and result.get('id' if platform == 'modrinth' else 'fileId'):
             record.update(status='published', result=result)
             changed = True
     if changed:
@@ -72,15 +188,16 @@ def mark_not_uploaded(key):
     record = state['uploads'].get(key)
     if not record or record.get('status') != 'inflight':
         raise PublishError('Only an unconfirmed inflight upload can be marked not uploaded.')
-    record['status'] = 'not-uploaded'
+    record['status'] = 'partial' if record.get('primaryFileId') else 'not-uploaded'
+    record['outcome'] = 'user-confirmed-absent'
     write_json(OUTPUT / 'state.json', state)
 
 
 def record_upload(key, remote_id):
     state = load_state()
     record = state['uploads'].get(key)
-    if not record or record.get('status') != 'inflight':
-        raise PublishError('Only an unconfirmed inflight upload can be reconciled manually.')
+    if not record or record.get('status') not in ('inflight', 'partial', 'failed'):
+        raise PublishError('Only an unfinished upload can be reconciled manually.')
     platform, project, _ = key.split(':', 2)
     pattern = r'[A-Za-z0-9]{8}' if platform == 'modrinth' else r'[1-9][0-9]*'
     if not re.fullmatch(pattern, remote_id):
@@ -91,7 +208,67 @@ def record_upload(key, remote_id):
     write_json(OUTPUT / 'state.json', state)
 
 
-def reconcile_modrinth(manifest, credentials):
+def record_file(key, remote_id, step):
+    """Confirm just one CurseForge file after the user inspects the author dashboard."""
+    state = load_state()
+    record = state['uploads'].get(key)
+    if not key.startswith('curseforge:') or not record or record.get('status') == 'published':
+        raise PublishError('File-level reconciliation needs an unfinished CurseForge publication.')
+    if not re.fullmatch(r'[1-9][0-9]*', remote_id):
+        raise PublishError('Invalid CurseForge file ID.')
+    if step == 'additional' and not record.get('primaryFileId'):
+        raise PublishError('Confirm the primary file ID first with --record-primary.')
+    if step == 'primary' and record.get('primaryFileId') and record.get('pendingStep') == 'additional':
+        raise PublishError('The primary ID is already saved; confirm the additional file or mark that uncertain file absent.')
+    field = step + 'FileId'
+    if record.get(field) not in (None, int(remote_id)):
+        raise PublishError('The stored file ID differs; inspect the existing receipt.')
+    record[field] = int(remote_id)
+    record['manuallyConfirmed'] = True
+    if step == 'primary':
+        record.update(status='partial', pendingStep='additional')
+    else:
+        record.update(status='published', result={'type': 'curseforge', 'projectId': key.split(':', 2)[1],
+                      'fileId': record['primaryFileId']})
+        record.pop('pendingStep', None)
+    write_json(OUTPUT / 'state.json', state)
+
+
+def status_report(manifest=None, run=None):
+    uploads = load_state()['uploads']
+    keys = ([f'{e["platform"]}:{e["projectId"]}:{e["version"]}' for e in manifest['publications']]
+            if manifest else list(uploads))
+    counts = {}
+    pending = []
+    for key in keys:
+        record = uploads.get(key, {})
+        status = record.get('status', 'not-started')
+        counts[status] = counts.get(status, 0) + 1
+        if status != 'published':
+            item = {'key': key, 'status': status, 'step': record.get('pendingStep'),
+                    'primaryFileId': record.get('primaryFileId'), 'error': record.get('lastError')}
+            pending.append(item)
+            progress('PENDING ' + json.dumps(item, ensure_ascii=False))
+            if status == 'inflight' and record.get('pendingStep') == 'metadata':
+                progress('  A read-only metadata request was interrupted; rerun the same command safely.')
+            elif status == 'inflight':
+                if record.get('primaryFileId'):
+                    progress(f'CHECK https://www.curseforge.com/minecraft/mc-mods/biblioteca/files/{record["primaryFileId"]}')
+                    progress(f'  If the additional file exists: --record-additional "{key}" ADDITIONAL_FILE_ID')
+                    progress(f'  If it is absent: --mark-not-uploaded "{key}" (keeps the primary ID)')
+                elif key.startswith('curseforge:'):
+                    progress(f'  If only the primary file exists: --record-primary "{key}" PRIMARY_FILE_ID')
+                    progress(f'  If neither file exists: --mark-not-uploaded "{key}"')
+                else:
+                    progress('  Rerun to check Modrinth version numbers and hashes before any further upload.')
+    result = {'total': len(keys), 'counts': counts, 'pending': pending, 'complete': not pending}
+    progress('SUMMARY ' + json.dumps(counts))
+    if run:
+        write_json(run / 'upload-summary.json', result)
+    return result
+
+
+def reconcile_modrinth(manifest, credentials, retry=None):
     """Check remote version numbers and hashes before creating any Modrinth version."""
     if 'modrinth' not in manifest['platforms']:
         return
@@ -105,12 +282,9 @@ def reconcile_modrinth(manifest, credentials):
             request = urllib.request.Request('https://api.modrinth.com/v2/project/' + project + '/version',
                       headers={'Authorization': credentials['MODRINTH_TOKEN'], 'User-Agent': USER_AGENT})
             try:
-                with urllib.request.urlopen(request, timeout=45) as response:
-                    versions_by_project[project] = json.load(response)
-            except (urllib.error.URLError, TimeoutError, ValueError) as error:
-                if isinstance(error, urllib.error.HTTPError):
-                    error.close()
-                raise PublishError('Cannot check existing Modrinth versions; no new uploads were started.') from None
+                versions_by_project[project] = json.loads(http_request(request, 'Modrinth versions ' + project, retry))
+            except (PublishError, ValueError):
+                raise PublishError('Cannot check existing Modrinth versions; no new uploads will be started.') from None
         versions = versions_by_project[project]
         matches = [v for v in versions if v.get('version_number') == entry['version']]
         if not matches:
@@ -187,23 +361,71 @@ def child_environment(credentials=None):
         env.pop(key, None)
     if credentials:
         env.update({key: credentials[key] for key in TOKEN_KEYS if credentials.get(key)})
+    env.update(PYTHONUNBUFFERED='1', PYTHONIOENCODING='utf-8')
     return env
 
 
-def run_command(command, log, env=None, secrets=()):
+def stop_child(process):
+    """Stop only this invocation's process group; never leave an uploader running."""
+    if process.poll() is not None:
+        return
+    if os.name == 'nt':
+        import signal
+        try:
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+        except OSError:
+            pass
+    else:
+        import signal
+        os.killpg(process.pid, signal.SIGTERM)
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        if os.name == 'nt':
+            subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
+        else:
+            os.killpg(process.pid, signal.SIGKILL)
+        process.wait(timeout=10)
+
+
+def run_command(command, log, env=None, secrets=(), heartbeat=15):
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open('w', encoding='utf-8') as stream:
+        group = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else {'start_new_session': True}
         process = subprocess.Popen(command, cwd=ROOT, env=env or child_environment(), stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace')
+                                   stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace', **group)
+        events = queue.Queue()
+
+        def read_output():
+            try:
+                for line in process.stdout:
+                    events.put(line)
+            except (OSError, ValueError):
+                pass  # The controlling thread may close the pipe after cancellation.
+            finally:
+                events.put(None)
+
+        reader = threading.Thread(target=read_output, daemon=True)
+        reader.start()
+        started = time.monotonic()
         try:
-            for line in process.stdout:
-                for secret in secrets:
-                    if secret:
-                        line = line.replace(secret, '[REDACTED]')
-                stream.write(line)
-                print(line, end='', flush=True)
+            while True:
+                try:
+                    line = events.get(timeout=heartbeat)
+                except queue.Empty:
+                    progress(f'WAIT {log.name}: process running, {int(time.monotonic() - started)}s elapsed', stream)
+                    continue
+                if line is None:
+                    break
+                progress(line, stream, secrets)
             code = process.wait()
+        except BaseException:
+            progress('STOPPING child process; confirmed upload receipts will be kept.', stream)
+            stop_child(process)
+            raise
         finally:
+            reader.join(timeout=2)
             process.stdout.close()
         if code:
             raise PublishError(f'Command failed ({code}); see {log.relative_to(ROOT)}')
@@ -382,12 +604,14 @@ def prepare_manifest(args, pairs, credentials, run):
                 'platforms': args.platforms, 'projects': projects,
                 'descriptionSha256': description_hash, 'entries': entries, 'publications': publications,
                 'modrinthNoRender': 'separate-project' if projects['modrinthNorender'] else 'not-configured',
-                'validation': 'build-and-regression-checks' if args.build else 'artifact-metadata-and-hashes'}
+                'validation': 'build-and-regression-checks' if args.build else 'artifact-metadata-and-hashes',
+                'retry': {'attempts': args.attempts, 'delay': args.retry_delay,
+                          'maxDelay': args.max_retry_delay, 'interval': args.upload_interval}}
     write_json(run / 'manifest.json', manifest)
     return manifest
 
 
-def sync_description(credentials, run, live, platforms):
+def sync_description(credentials, run, live, platforms, retry=None):
     status = {'modrinth': 'not-selected', 'curseforge': 'not-selected'}
     if 'curseforge' in platforms:
         status['curseforge'] = 'manual: copy curseforge-description.md into the author dashboard'
@@ -406,16 +630,13 @@ def sync_description(credentials, run, live, platforms):
                 data=json.dumps(payload, ensure_ascii=False).encode('utf-8'), method='PATCH',
                 headers={'Authorization': credentials['MODRINTH_TOKEN'], 'Content-Type': 'application/json', 'User-Agent': USER_AGENT})
             try:
-                with urllib.request.urlopen(request, timeout=45) as response:
-                    response.read()
-            except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+                http_request(request, name + ' description', retry)
+            except PublishError as exc:
                 status[name] = 'failed'
                 write_json(run / 'description-result.json', status)
-                detail = f'HTTP {exc.code}' if isinstance(exc, urllib.error.HTTPError) else 'network error'
-                if isinstance(exc, urllib.error.HTTPError):
-                    exc.close()
-                raise PublishError(f'{name} description update failed ({detail}). File upload receipts are preserved; retry --description-only.') from None
+                raise PublishError(f'{exc} File upload receipts are preserved; retry --description-only.') from None
             status[name] = 'updated'
+            progress('DESCRIPTION_UPDATED ' + name)
     write_json(run / 'description-result.json', status)
     return status
 
@@ -436,27 +657,138 @@ def parser():
     p.add_argument('--build', action='store_true', help='Build selected targets and run their existing regressions before publishing')
     p.add_argument('--plan-only', action='store_true', help='Prepare snapshots and metadata without starting Gradle')
     p.add_argument('--description-only', action='store_true', help='Update the project page without uploading JARs')
+    p.add_argument('--attempts', type=int, default=4, help='Maximum attempts for safely retryable requests (default: 4)')
+    p.add_argument('--retry-delay', type=float, default=5, help='Initial retry delay in seconds; doubles after each failure (default: 5)')
+    p.add_argument('--max-retry-delay', type=float, default=60, help='Maximum automatic wait in seconds; longer Retry-After stops for a later resume (default: 60)')
+    p.add_argument('--upload-interval', type=float, default=2, help='Pause between uploads in seconds (default: 2)')
+    p.add_argument('--status', action='store_true', help='Show local upload progress and recovery commands without reading tokens or contacting platforms')
     recovery = p.add_mutually_exclusive_group()
     recovery.add_argument('--mark-not-uploaded', metavar='PLATFORM:PROJECT:VERSION',
                    help='After checking the website, mark an unconfirmed upload as absent so a later run may retry it')
     recovery.add_argument('--record-upload', nargs=2, metavar=('PLATFORM:PROJECT:VERSION', 'REMOTE_ID'),
                           help='After verifying both files on the website, record an unconfirmed upload as successful')
+    recovery.add_argument('--record-primary', nargs=2, metavar=('CURSEFORGE:PROJECT:VERSION', 'FILE_ID'),
+                          help='Confirm an existing primary file; the next normal run uploads only its missing additional file')
+    recovery.add_argument('--record-additional', nargs=2, metavar=('CURSEFORGE:PROJECT:VERSION', 'FILE_ID'),
+                          help='Confirm an additional file whose upload response was lost')
     return p
+
+
+def run_release(args, credentials, run):
+    progress('PUBLISH_RUN ' + str(run.relative_to(ROOT)))
+    progress('LOG ' + str(run / 'publish.log'))
+    policy = {'attempts': args.attempts, 'delay': args.retry_delay,
+              'maxDelay': args.max_retry_delay, 'interval': args.upload_interval}
+    if args.description_only:
+        prepare_descriptions(run, credentials, args.platforms)
+        status = sync_description(credentials, run, args.publish, args.platforms, policy)
+        progress('DESCRIPTION ' + json.dumps(status))
+        return
+    pairs = targets(tomllib.loads((ROOT / 'stonecutter.properties.toml').read_text(encoding='utf-8')), args.versions, args.loaders)
+    if args.build:
+        progress('BUILD selected artifacts and regression checks')
+        build_targets(pairs, run)
+    manifest = prepare_manifest(args, pairs, credentials, run)
+    progress(f'PLAN {len(manifest["entries"])} artifact pairs, {len(manifest["publications"])} platform releases, platforms={",".join(args.platforms)}')
+    if 'modrinth' in args.platforms and not credentials.get('MODRINTH_NORENDER_PROJECT_ID'):
+        progress('NOTE: Modrinth no-render is not selected; configure a separate MODRINTH_NORENDER_PROJECT_ID to publish it.')
+    if args.publish:
+        reconcile_receipts()
+        reconcile_modrinth(manifest, credentials, policy)
+    failure = None
+    if not args.plan_only:
+        wrapper = str(ROOT / ('gradlew.bat' if os.name == 'nt' else 'gradlew'))
+        command = [wrapper, '-p', 'publishing', 'publishMods', '-PreleaseManifest=' + str(run / 'manifest.json'),
+                   '-PpublishLive=' + str(args.publish).lower(), '--console=plain', '--max-workers=1', '--continue',
+                   '--no-daemon', '--no-configuration-cache', '--no-build-cache']
+        # Plugin tokens are task inputs. Keep even the task history outside the checkout.
+        with tempfile.TemporaryDirectory(prefix='biblioteca-publish-') as cache:
+            if (not Path(cache).resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
+                    or Path(cache).resolve().is_relative_to(ROOT.resolve())):
+                raise PublishError('Unexpected temporary cache location.')
+            command += ['--project-cache-dir', cache]
+            selected = {key: credentials[key] for key in TOKEN_KEYS if key.removesuffix('_TOKEN').lower() in args.platforms}
+            try:
+                run_command(command, run / 'plugin.log', child_environment(selected if args.publish else None),
+                            [credentials[k] for k in TOKEN_KEYS])
+            except PublishError as error:
+                failure = str(error)
+    summary = None
+    if args.publish:
+        selected_keys = {f'{e["platform"]}:{e["projectId"]}:{e["version"]}' for e in manifest['publications']}
+        before_recovery = {k: v.get('status') for k, v in load_state()['uploads'].items() if k in selected_keys}
+        reconcile_receipts()
+        # A timed-out Modrinth POST may already exist. Verify filenames and hashes;
+        # never turn an absent read into permission to resend an uncertain POST.
+        keys = {f'modrinth:{e["projectId"]}:{e["version"]}' for e in manifest['publications'] if e['platform'] == 'modrinth'}
+        for attempt in range(1, min(policy['attempts'], 3) + 1):
+            if not any(load_state()['uploads'].get(k, {}).get('status') == 'inflight' for k in keys):
+                break
+            try:
+                reconcile_modrinth(manifest, credentials, policy)
+            except PublishError as error:
+                progress(str(error))
+                break
+            if attempt < min(policy['attempts'], 3):
+                if any(load_state()['uploads'].get(k, {}).get('status') == 'inflight' for k in keys):
+                    wait_retry(min(policy['delay'], policy['maxDelay']), 'Modrinth receipt check')
+        summary = status_report(manifest, run)
+        recovered = any(before_recovery.get(k) == 'inflight' and v.get('status') == 'published'
+                        for k, v in load_state()['uploads'].items())
+        if summary['complete']:
+            if failure and recovered:
+                progress('RECOVERED: every upload is confirmed by a saved receipt or matching remote version.')
+                failure = None
+        else:
+            failure = failure or 'Some uploads remain incomplete.'
+    status = None
+    try:
+        # A failed destination must not prevent a completed Modrinth release's page update.
+        platforms = args.platforms
+        if summary and any(p['key'].startswith('modrinth:') for p in summary['pending']):
+            platforms = [p for p in platforms if p != 'modrinth']
+            progress('DESCRIPTION_DEFERRED: finish the pending Modrinth versions first.')
+        status = sync_description(credentials, run, args.publish, platforms, policy)
+    except PublishError as error:
+        progress(str(error))
+        failure = failure or str(error)
+    write_json(run / 'result.json', {'passed': failure is None, 'dryRun': not args.publish,
+                'releases': len(manifest['entries']), 'platformReleases': len(manifest['publications']),
+                'modrinthNoRender': manifest['modrinthNoRender'], 'description': status, 'uploads': summary,
+                'error': failure, 'manifest': str((run / 'manifest.json').relative_to(ROOT))})
+    if failure:
+        raise PublishError(f'Publishing incomplete; see {run.relative_to(ROOT)}/upload-summary.json and --status. {failure}')
+    progress('DESCRIPTION ' + json.dumps(status))
+    progress(('PUBLISH_OK ' if args.publish else 'PREVIEW_OK ') + str(run.relative_to(ROOT)))
 
 
 def main():
     args = parser().parse_args()
     if args.publish and args.plan_only:
         raise PublishError('--plan-only cannot be combined with --publish.')
-    if args.mark_not_uploaded or args.record_upload:
+    if not 1 <= args.attempts <= 10:
+        raise PublishError('--attempts must be between 1 and 10.')
+    if any(not math.isfinite(v) or not 0 <= v <= 3600 for v in (args.retry_delay, args.max_retry_delay, args.upload_interval)):
+        raise PublishError('Retry delays and upload interval must be finite seconds between 0 and 3600.')
+    if args.status:
+        if args.publish:
+            raise PublishError('--status does not publish; run it separately.')
+        status_report()
+        return
+    if args.mark_not_uploaded or args.record_upload or args.record_primary or args.record_additional:
         if args.publish:
             raise PublishError('Reconcile an unconfirmed upload separately from --publish.')
         with publication_lock():
+            reconcile_receipts()
             if args.mark_not_uploaded:
                 mark_not_uploaded(args.mark_not_uploaded)
-            else:
+            elif args.record_upload:
                 record_upload(*args.record_upload)
-        print('Publishing state reconciled; no network request was made.')
+            elif args.record_primary:
+                record_file(*args.record_primary, 'primary')
+            else:
+                record_file(*args.record_additional, 'additional')
+        progress('Publishing state reconciled; no network request was made.')
         return
     config = tomllib.loads((ROOT / 'stonecutter.properties.toml').read_text(encoding='utf-8'))
     args.mod_version = args.mod_version or config['mod']['version']
@@ -481,49 +813,26 @@ def main():
     with publication_lock():
         run = OUTPUT / 'runs' / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ-') + uuid.uuid4().hex[:8])
         run.mkdir(parents=True)
-        print('PUBLISH_RUN ' + str(run.relative_to(ROOT)), flush=True)
-        if args.description_only:
-            prepare_descriptions(run, credentials, args.platforms)
-            status = sync_description(credentials, run, args.publish, args.platforms)
-            print('DESCRIPTION ' + json.dumps(status))
-            return
-        pairs = targets(config, args.versions, args.loaders)
-        if args.build:
-            build_targets(pairs, run)
-        manifest = prepare_manifest(args, pairs, credentials, run)
-        print(f'PLAN {len(manifest["entries"])} artifact pairs, {len(manifest["publications"])} platform releases, platforms={",".join(args.platforms)}', flush=True)
-        if 'modrinth' in args.platforms and not credentials.get('MODRINTH_NORENDER_PROJECT_ID'):
-            print('NOTE: Modrinth no-render is not selected; configure a separate MODRINTH_NORENDER_PROJECT_ID to publish it.', flush=True)
-        if args.publish:
-            reconcile_receipts()
-            reconcile_modrinth(manifest, credentials)
-        if not args.plan_only:
-            wrapper = str(ROOT / ('gradlew.bat' if os.name == 'nt' else 'gradlew'))
-            command = [wrapper, '-p', 'publishing', 'publishMods', '-PreleaseManifest=' + str(run / 'manifest.json'),
-                       '-PpublishLive=' + str(args.publish).lower(), '--console=plain', '--max-workers=1',
-                       '--no-daemon', '--no-configuration-cache', '--no-build-cache']
-            # The plugin declares accessToken as a task input. Keep Gradle's task
-            # history outside the checkout as well as disabling both caches.
-            with tempfile.TemporaryDirectory(prefix='biblioteca-publish-') as cache:
-                if (not Path(cache).resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
-                        or Path(cache).resolve().is_relative_to(ROOT.resolve())):
-                    raise PublishError('Unexpected temporary cache location.')
-                command += ['--project-cache-dir', cache]
-                selected_credentials = {key: credentials[key] for key in TOKEN_KEYS
-                                        if key.removesuffix('_TOKEN').lower() in args.platforms}
-                run_command(command, run / 'plugin.log', child_environment(selected_credentials if args.publish else None),
-                            [credentials[k] for k in TOKEN_KEYS])
-        status = sync_description(credentials, run, args.publish, args.platforms)
-        write_json(run / 'result.json', {'passed': True, 'dryRun': not args.publish, 'releases': len(manifest['entries']),
-                    'platformReleases': len(manifest['publications']), 'modrinthNoRender': manifest['modrinthNoRender'],
-                    'description': status, 'manifest': str((run / 'manifest.json').relative_to(ROOT))})
-        print('DESCRIPTION ' + json.dumps(status))
-        print(('PUBLISH_OK ' if args.publish else 'PREVIEW_OK ') + str(run.relative_to(ROOT)))
+        with session_log(run):
+            try:
+                run_release(args, credentials, run)
+            except KeyboardInterrupt:
+                progress('INTERRUPTED: receipts preserved. Run --status, then rerun the same command to resume safely.')
+                if args.publish:
+                    reconcile_receipts()
+                raise
+            except (PublishError, OSError) as error:
+                progress('PUBLISH_ERROR: ' + str(error))
+                raise
 
 
 if __name__ == '__main__':
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
     try:
         main()
     except (PublishError, OSError) as error:
         print('PUBLISH_ERROR: ' + str(error), file=sys.stderr)
         raise SystemExit(1)
+    except KeyboardInterrupt:
+        raise SystemExit(130)

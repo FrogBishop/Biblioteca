@@ -27,7 +27,7 @@ def make_jar(path, version, loader='fabric', mc='26.3', java=25):
         jar.writestr('babel/biblioteca/Example.class', b'\xca\xfe\xba\xbe\x00\x00' + (java + 44).to_bytes(2, 'big'))
 
 
-class PublisherTests(unittest.TestCase):
+class PublisherFixture(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='biblioteca-publisher-test-')
         assert Path(self.temp.name).resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
@@ -64,6 +64,8 @@ class PublisherTests(unittest.TestCase):
         result = publish.prepare_manifest(args, [(l, '26.3') for l in publish.LOADERS], credentials, run)
         return result, run
 
+
+class PublisherTests(PublisherFixture):
     def test_external_credentials_and_environment_override(self):
         path = Path(self.temp.name) / 'credentials.json'
         path.write_text(json.dumps({'MODRINTH_PROJECT_ID': 'TEST0001', 'MODRINTH_TOKEN': 'file-value'}))

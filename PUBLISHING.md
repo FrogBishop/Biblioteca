@@ -1,10 +1,15 @@
 # Publishing Biblioteca
 
-`tools/publish.py` prepares exact-version releases and calls **Mod Publish Plugin 2.2.1**
+`tools/publish.py` prepares exact-version releases and uses **Mod Publish Plugin 2.2.1**
 in the independent `publishing/` Gradle project. It uses the repository's Gradle wrapper
 without configuring the game builds unless `--build` is requested. Requirements are Java 25
 and Python 3.11 or newer; building the NeoForge 1.21.11 target also needs a Java 21 toolchain.
 No additional Python packages are needed.
+
+The same command handles normal uploads, automatic retries and resuming an interrupted run.
+Both platforms still use the pinned plugin's HTTP clients and metadata serializers. The live
+Gradle tasks save each file's receipt themselves so that a failed CurseForge additional file
+can resume with its already uploaded primary file.
 
 Each Minecraft/loader pair is handled according to the destination:
 
@@ -84,7 +89,17 @@ python tools/publish.py --build
 
 # Actually publish the already built and inspected files, then synchronize Modrinth's page.
 python tools/publish.py --publish
+
+# Build, validate and publish in one command, with live logs and safe automatic retries.
+python tools/publish.py --build --publish
+
+# Inspect the saved upload progress without tokens or network access.
+python tools/publish.py --status
 ```
+
+To resume after a failure, run the **same publishing command** again. Confirmed uploads are
+skipped; a saved CurseForge primary ID is reused for its missing additional file. There is no
+need to find a temporary recovery script or add `python -u` for live output.
 
 `--versions`, `--loaders` and `--platforms` accept comma-separated lists or `all`.
 `--platforms modrinth` or `--platforms curseforge` limits the destination. `all` expands the
@@ -112,6 +127,46 @@ files. With `--build`, the selected Fabric targets run the matrix checks and art
 each selected NeoForge target runs its packaged client/server checks through its `build` task.
 The publisher copies each JAR into a release snapshot and checks its hash again in Gradle
 before any upload, preventing later builds from silently changing the selected files.
+
+## Live logs and retry settings
+
+The terminal shows timestamps, the current publication number, platform/version, filename,
+attempt number, retry delay and confirmed remote IDs. It also reports when it reuses a primary
+file or skips a completed release. While a child process is quiet, a message every 15 seconds
+shows that it is still running. `Ctrl+C` stops that invocation and preserves its receipts.
+
+Every run prints its log location at startup. `build/publishing/runs/<run>/publish.log` is the
+combined live transcript; build logs and `plugin.log` are also flushed as lines arrive, so
+they can be followed from another terminal. `upload-summary.json` lists incomplete files and
+their saved primary IDs. `--status` reads the shared ledger, including while another run is
+active; an `inflight` entry can mean a request is currently running. Use recovery commands
+only after the publishing process has stopped.
+
+Defaults are **4 attempts**, an initial **5-second** retry delay, exponential backoff capped
+at **60 seconds**, and a **2-second** interval between uploads. For example:
+
+```powershell
+python tools/publish.py --publish --attempts 5 --retry-delay 5 --max-retry-delay 120 --upload-interval 3
+```
+
+The attempt count includes the first request; `--attempts 1` disables retries. The publisher
+honors `Retry-After`, including HTTP dates. If the server asks for a wait longer than
+`--max-retry-delay`, it stops that operation for a later resume instead of retrying too early.
+When rate limits or Cloudflare challenges exhaust retries, the remaining requests to that
+platform are deferred for the rest of the run; the other platform can still finish.
+CurseForge's game-version tables are queried once per run and shared by its publications.
+
+| Failure | Automatic behavior |
+|---|---|
+| Metadata reads or project-description updates: connection errors, timeouts, HTTP 408/429/5xx, temporary Cloudflare challenges | Retry with backoff. Description updates replace the same body and can be repeated safely. |
+| Upload connection cannot be established, HTTP 429, or an explicit Cloudflare 403 rejection | Retry the same frozen file within the configured attempt limit. |
+| CurseForge rejects an additional file because its parent is not ready | Keep the primary ID and retry only the additional file. If attempts run out, the next run continues from that file. |
+| Upload times out, the connection drops after sending, HTTP 408/409/5xx, or a success response cannot be decoded | Preserve the uncertain step. Check Modrinth's versions and file hashes; accept a matching remote version without re-uploading it. An unresolved outcome is not automatically resent. |
+| Invalid credentials, permission failures or other metadata validation errors | Fail that publication immediately with its stage and HTTP status. Fix the cause and rerun. |
+
+Independent publications continue after one destination fails. The final summary reports all
+remaining items and the process exits nonzero if anything still needs attention. Logs redact
+tokens and do not dump raw HTTP error bodies or authorization headers.
 
 ## Project-page content
 
@@ -152,11 +207,16 @@ operation. Before first publishing an already manually released CurseForge versi
 in the author dashboard. Moving to another machine or an ephemeral CI runner requires preserving
 the ledger; it is not a distributed release database.
 
-Upload POST retries are disabled because a timed-out request may already have created a file.
-Each item is marked `inflight` before the request. A dependent receipt task records success only
-after the plugin's asynchronous worker finishes. If the process stops between those steps, the
-next run recovers a completed plugin receipt when available. Otherwise it stops on the unconfirmed
-item and preserves successful items from either platform.
+Each upload step is marked `inflight` before sending. A successful CurseForge primary response
+is immediately written to its own receipt file and the shared ledger, before sending the
+additional file. The additional response is saved separately too. Restarting recovers either
+receipt even if the process stopped before the combined publication record was updated.
+Existing receipts and manually confirmed releases from earlier publisher versions remain valid.
+
+For an unresolved upload, `--status` prints the affected step and the appropriate recovery
+commands. CurseForge's author API cannot independently list and reconcile an uncertain file
+creation, so inspect its author dashboard before confirming existence or absence. This does
+not affect ordinary transient failures, which retry automatically as described above.
 
 After inspecting the website, use one of these explicit local reconciliation commands:
 
@@ -164,17 +224,26 @@ After inspecting the website, use one of these explicit local reconciliation com
 # Only when neither the main nor the additional file was uploaded:
 python tools/publish.py --mark-not-uploaded "curseforge:PROJECT_ID:1.0.3+26.3"
 
+# If the primary exists but its response was lost, save its ID; then rerun --publish.
+python tools/publish.py --record-primary "curseforge:PROJECT_ID:1.0.3+26.3" PRIMARY_FILE_ID
+
+# If an additional file exists but its response was lost, confirm that file's ID.
+python tools/publish.py --record-additional "curseforge:PROJECT_ID:1.0.3+26.3" ADDITIONAL_FILE_ID
+
 # Only after confirming BOTH the main file and its no-render additional file exist:
 python tools/publish.py --record-upload "curseforge:PROJECT_ID:1.0.3+26.3" FILE_ID
 ```
 
-If CurseForge contains only the primary file, first attach the missing no-render file in the
-dashboard before recording success. Reconciliation changes only the local ledger; it does not
-delete or replace published files. A missing Modrinth project-description update can always be
-retried separately with `--description-only`.
+When the ledger already knows the primary ID and the uncertain additional file is confirmed
+absent, `--mark-not-uploaded` preserves that primary ID. The next run sends only the additional
+file. These reconciliation commands change the local ledger without making network requests;
+they do not delete or replace published files. A missing Modrinth project-description update
+can always be retried separately with `--description-only`.
 
 For implementation verification, run `python -m unittest discover -s tools/publishing-tests -v`.
 After a dry run has cached the plugin, `python tools/publishing-tests/plugin_integration.py`
 also exercises the real plugin against a loopback HTTP fixture using synthetic credentials.
-It checks upload metadata, additional files, confirmed receipts, resume behavior and an
-additional-file failure. Gradle runs offline and public HTTPS requests are blocked in that test.
+It checks upload metadata, transient read failures, rate limits, delayed parent availability,
+per-file receipts, response loss, resume behavior, failure isolation and legacy ledger entries.
+Gradle runs offline and public HTTPS requests are blocked in that test. Rerun this integration
+suite when upgrading the pinned plugin's platform clients.
