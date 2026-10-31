@@ -20,6 +20,9 @@ logic needed for synchronized dimension settings and periodic gameplay.
 Choose a download matching your exact Minecraft version and loader. Fabric builds also require
 Fabric API; NeoForge builds require the corresponding NeoForge installation.
 
+**Fabric and NeoForge are the supported loaders.** The planned Forge port has been cancelled.
+NeoForge support will continue to be maintained and expanded to additional Minecraft versions.
+
 **Install only one Biblioteca variant per instance.** The complete and no-render builds use
 the same mod ID and must not be installed together. Match the Biblioteca release and Minecraft
 version between clients and servers.

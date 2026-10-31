@@ -37,6 +37,9 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 
 ## Requirements and installation
 
+**Fabric and NeoForge are the supported loaders.** The planned Forge port has been cancelled.
+NeoForge support will continue to be maintained and expanded to additional Minecraft versions.
+
 - **Fabric:** Fabric Loader 0.19.5 or newer and Fabric API for your Minecraft version.
   Supported releases: **1.16.5**, **1.17–1.17.1**, **1.18–1.18.2**, **1.19–1.19.4**, **1.20–1.20.6**, **1.21–1.21.11**, **26.1–26.1.2**, **26.2**, **26.3**.
 - **NeoForge:** separate builds for **1.21.11**, **26.1**, **26.1.1**, **26.1.2**, **26.2** and **26.3**.

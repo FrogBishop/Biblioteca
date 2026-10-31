@@ -11,6 +11,10 @@ presets are added, and existing terrain (including bedrock) is retained.
 Each release has an exact-version artifact; a JAR
 compiled for one release is not relabelled to accept a broader API range.
 
+**Loader support:** Biblioteca supports **Fabric and NeoForge**. The planned **Forge** port
+has been cancelled. NeoForge development and maintenance will continue, including support
+for additional Minecraft versions.
+
 Minecraft **1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3** also have **NeoForge** targets, sharing gameplay and renderer code
 with Fabric. Complete and no-render variants are built and validated independently; see the
 [26.1 family guide](platforms/neoforge-26.1/README.md), [26.2 build guide](platforms/neoforge-26.2/README.md)

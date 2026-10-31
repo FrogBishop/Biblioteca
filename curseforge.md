@@ -54,6 +54,9 @@ unmodified game.
 - **Fabric builds** require Fabric Loader and Fabric API for the selected Minecraft version.
 - **NeoForge builds** require the corresponding NeoForge installation and do not use Fabric API.
 
+**Fabric and NeoForge are the supported loaders.** The planned Forge port has been cancelled.
+NeoForge support will continue to be maintained and expanded to additional Minecraft versions.
+
 Place the selected JAR in the instance's `mods` folder. **Install only one Biblioteca variant
 per instance**: the complete and no-render builds use the same mod ID and must not be installed
 together.

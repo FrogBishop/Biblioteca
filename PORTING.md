@@ -1,8 +1,16 @@
 # Multi-version implementation
 
-`main` remains the single-version Minecraft 26.3 branch. `multiversion` contains the adaptation
+`main` is permanently archived as the historical single-version Minecraft 26.3 Fabric branch.
+`multiversion` contains the adaptation
 of `main` commit `603f9a7` (1.0.0) to all 35 formal-release nodes in `settings.gradle.kts`.
 The feature and validation audit is in [PARITY.md](PARITY.md).
+
+## Loader scope
+
+Supported loaders are **Fabric and NeoForge**. The **Forge compatibility plan has been
+cancelled**; a Forge port is outside the project's development scope. NeoForge maintenance
+and ports to additional Minecraft versions will continue. Only the configured and verified
+targets listed in [README.md](README.md) are currently supported.
 
 ## Distribution model
 
