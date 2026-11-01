@@ -61,6 +61,14 @@ public final class ClientCompat {
         return position(camera());
     }
 
+    public static net.minecraft.world.entity.Entity cameraEntity(Camera camera) {
+        //? if >=1.21.11 {
+        return camera.entity();
+        //?} else {
+        /*return camera.getEntity();
+        *///?}
+    }
+
     //? if <1.21.5 {
     /*public static boolean empty(SectionRenderDispatcher.RenderSection section, net.minecraft.client.renderer.RenderType layer) {
         //? if >=1.20.2 {

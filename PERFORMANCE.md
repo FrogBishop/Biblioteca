@@ -18,9 +18,16 @@ the player's control.
   With a height of 16 blocks, render distance 12 (192 blocks) gives up to 25 terrain copies,
   and render distance 32 (512 blocks) gives up to 65. A normal 384-block dimension at those
   distances gives at most two and three copies respectively.
-- **Entities and block entities:** one copy, at the periodic layer nearest the camera.
+- **Entities and block entities:** visible periods within render distance, capped at 65 per source.
+  Each entity image uses the native renderer's culling and a separate modern render state or legacy
+  draw. Block entities share their extracted data and submit independent poses. A client option
+  restores one nearest copy; no server objects are duplicated.
 - **Beacon beams:** at most nine copies in total per beacon, selected from the vertical view range.
-- **Clouds:** one folded layer.
+- **Clouds:** one mesh, up to 65 translated draws. CloudInfo and packed cloud faces are prepared
+  once. The native inside-cloud mesh includes both top and bottom faces within the existing face
+  allocation bound. Per-copy DynamicTransforms use native frame storage; the cloud buffer ring
+  is never rotated once per displayed layer. Older VBO renderers repeat the same mesh inside
+  their native depth/color passes. A client option restores one folded layer.
 - **Rain and snow:** weather columns split at world boundaries, within the vanilla weather radius.
   The list of visible periods is shared by all columns in a frame; each segment uses vanilla weather
   geometry and is clipped against its terrain surface.
@@ -33,17 +40,26 @@ the player's control.
 
 ## Server cost
 
-The server keeps one period and does not scan for seam events. Coordinate folding is a
+The server keeps one period. Coordinate folding is a
 `floorMod` for canonical block/light/entity coordinates and nearest-copy selection for movement
 packets and effects. Entity positions are folded at their single commit point. The
 `Seam crossings` statistic is awarded from the movement packet that changes the ring copy, so
 there is no per-tick check for it and none for entities either.
+
+Game-event dispatch maps requested vertical sections to canonical listener registries and visits
+each registry once per event. Listener distance and event delivery use a nearby coordinate frame;
+the native vibration scheduler and occlusion checks remain responsible for the event's behavior.
 
 Entity distance queries leave rows within half a world height unchanged. Searches farther than
 16 rows from both boundaries use vanilla's candidate area. Near a boundary, the area is moved
 into the stored period and widened by one height, then candidate boxes are tested in the query's
 own frame. Only matching entities consume the result limit. Delegating overloads share the
 widened box; independent queries made inside a predicate still perform their own fold.
+Periodic intersection is checked before the caller's predicate, so unrelated middle rows do
+not invoke expensive AI/selector conditions or enter the intermediate result list. The broad
+storage query is retained: simply clipping it to two canonical slices misses valid offset
+hitboxes outside the stored row range. A dense regression reduces caller predicate evaluations
+from 259 to 2 with the same results; this is a deterministic work count, not an FPS claim.
 This can inspect more entities in the same columns, especially in height-16 dimensions, where
 every query is near a seam. Stored entities and world data are not duplicated.
 

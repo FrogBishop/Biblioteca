@@ -12,6 +12,9 @@ public final class FabricBibliotecaClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         BibliotecaClient.initialize(FabricLoader.getInstance().getConfigDir());
+        String rendererMods = java.util.stream.Stream.of("sodium", "embeddium", "iris", "voxy")
+                .filter(FabricLoader.getInstance()::isModLoaded).collect(java.util.stream.Collectors.joining(", "));
+        babel.biblioteca.client.ClientDiagnostics.setRendererMods(rendererMods.isEmpty() ? "vanilla" : rendererMods);
         //? if >=1.20.5 {
         ClientPlayNetworking.registerGlobalReceiver(LoopingStatePayload.TYPE,
                 (payload, context) -> context.client().execute(

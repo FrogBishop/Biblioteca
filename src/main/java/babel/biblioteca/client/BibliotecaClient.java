@@ -10,6 +10,7 @@ public final class BibliotecaClient {
     private BibliotecaClient() {}
 
     public static void initialize(Path configDirectory) {
+        babel.biblioteca.BibliotecaDiagnostics.setClientCapture(ClientDiagnostics::capture);
         LoopingClientSettings.setConfigDirectory(configDirectory);
         // Wire the client checkers into the shared LoopingRegistry.
         LoopingRegistry.setClientChecker(LoopingDimensionCache::isLooping);

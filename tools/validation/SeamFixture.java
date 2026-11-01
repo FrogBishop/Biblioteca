@@ -27,6 +27,7 @@ import java.util.function.Predicate;
 
 /** Physical storage only: the real Level mixins decide when a query crosses a world boundary. */
 public final class SeamFixture implements Opcodes {
+    private static final java.util.concurrent.atomic.AtomicInteger ENTITY_IDS = new java.util.concurrent.atomic.AtomicInteger();
     private static final Map<Level, Data> DATA = new IdentityHashMap<>();
     private static final Set<Entity> STOP_AFTER_POSITION = Collections.newSetFromMap(new IdentityHashMap<>());
     private static Class<?> levelClass, chunkClass, sourceClass, livingClass;
@@ -38,6 +39,7 @@ public final class SeamFixture implements Opcodes {
     }
 
     public static Data data(Level level) { return DATA.get(level); }
+    public static int nextEntityId() { return ENTITY_IDS.incrementAndGet(); }
     public static boolean hasSections() {
         try { Class.forName("net.minecraft.world.level.entity.EntityTypeTest"); return true; }
         catch (ClassNotFoundException ignored) { return false; }
@@ -122,7 +124,8 @@ public final class SeamFixture implements Opcodes {
         fieldGetter(w, name, "biblioteca$isLooping", "looping", "Z");
         fieldGetter(w, name, "isClientSide", "client", "Z");
         constant(w, "getRelativeTickSpeed", "()F", FCONST_1, FRETURN);
-        constant(w, "getNextEntityId", "()I", ICONST_1, IRETURN);
+        MethodVisitor nextId = method(w, "getNextEntityId", "()I");
+        call(nextId, "nextEntityId", "()I"); finish(nextId, IRETURN);
         constant(w, "noCollision", "(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;)Z", ICONST_1, IRETURN);
         MethodVisitor mv = method(w, "getBlockState", "(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;");
         mv.visitVarInsn(ALOAD, 0); mv.visitVarInsn(ALOAD, 1);

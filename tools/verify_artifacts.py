@@ -11,7 +11,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = tomllib.loads((ROOT / 'stonecutter.properties.toml').read_text(encoding='utf-8'))
 VERSIONS = [key for key in CONFIG if re.fullmatch(r'\d+(?:\.\d+)+', key)]
-UI_AUDIO = {'ClientLevelDirtyMixin', 'OptionsSubScreenAccessor', 'VideoSettingsScreenMixin',
+UI_AUDIO = {'ClientLevelDirtyMixin', 'DebugOverlayYLoopMixin',
             'ClientLevelSoundYLoopMixin', 'SoundEngineYLoopMixin', 'SubtitleDirectionYLoopMixin'}
 
 
@@ -57,7 +57,8 @@ def inspect(version, no_render, mod_version, artifact_dir=None):
             assert set(client['client']) == core, (file, 'no-render hook drift')
         else:
             visibility = 'SectionOcclusionGraphLoopMixin' if node >= (1, 20, 2) else 'LegacyTerrainVisibilityMixin'
-            assert {'RainImpactsYLoopMixin', visibility, 'BlockEntityRenderRangeYLoopMixin'} <= set(client['client']), (file, 'missing visuals')
+            assert {'RainImpactsYLoopMixin', visibility, 'BlockEntityRenderRangeYLoopMixin',
+                    'OptionsSubScreenAccessor', 'VideoSettingsScreenMixin'} <= set(client['client']), (file, 'missing visuals')
             expected = ('LevelRendererYLoopMixin' if node >= (26, 3) else 'GpuTerrainYLoopMixin' if node >= (1, 21, 6)
                         else 'GpuLayerTerrainYLoopMixin' if node >= (1, 21, 5) else 'ClassicTerrainYLoopMixin' if node >= (1, 17)
                         else 'FixedTerrainYLoopMixin')

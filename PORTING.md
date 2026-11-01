@@ -118,7 +118,7 @@ it for better performance. Earlier Minecraft versions use the sorted path withou
 - Entities and ordinary block entities appear at their nearest periodic row. Distance checks
   happen before extraction and are adapted too. Beacon rendering uses the scanned beam height,
   never the vanilla 1024/2048-block stretch, with at most nine visible-range copies.
-- Clouds retain one nearest layer. The lower sky disc is suppressed through the active level's
+- Clouds share one native mesh across bounded periodic draws. The lower sky disc is suppressed through the active level's
   horizon query. Void fog is suppressed only when `no_void_fog` is true.
 - Rain/snow ranges are sliced at the boundary. Sampling stays in source coordinates, geometry
   moves by whole periods. The native animation and graphics path remain in use. Impact generation
@@ -205,8 +205,10 @@ throughout the matrix. `PARITY.md` distinguishes source/injection/data validatio
 
 These are shared limits of the reference behaviour, not completed integrations:
 
-- Ordinary entities/block entities and clouds intentionally have one nearest image; only terrain,
-  bounded beacon beams and weather geometry repeat through the visible periods.
+- Entity/block-entity and cloud copies are bounded to 65 per source, with separate client switches.
+  Modern entity images have independent extraction states; block entities retain their source
+  data and submit independent poses. Clouds share mesh/CloudInfo storage and allocate transforms
+  through the native frame allocator. This does not create server-side objects or chunks.
 - Voxy/far-LOD/replacement renderers bypass the vanilla extraction path. No bridge is supplied.
 - Quad-centre sorting does not split intersecting polygons or solve cyclic overlap.
 - Automated checks do not run a game world or verify driver-specific visuals/audio. Interactive

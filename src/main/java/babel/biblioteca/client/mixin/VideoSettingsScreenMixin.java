@@ -31,5 +31,7 @@ method = "addOptions",
         if (list == null) return;
 
         list.addBig(LoopingClientSettings.createPreloadOption());
+        list.addBig(LoopingClientSettings.createEntityMirrorsOption());
+        list.addBig(LoopingClientSettings.createCloudLayersOption());
     }
 }

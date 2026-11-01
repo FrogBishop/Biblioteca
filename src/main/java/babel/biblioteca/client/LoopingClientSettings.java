@@ -42,6 +42,8 @@ public final class LoopingClientSettings {
     private static final String PRELOAD_KEY = "seamPreloadSections";
 
     private static int preloadSections = MIN_PRELOAD_SECTIONS;
+    private static boolean entityMirrors = true;
+    private static boolean multipleCloudLayers = true;
     private static boolean loaded;
     private static Path configDirectory;
 
@@ -51,6 +53,8 @@ public final class LoopingClientSettings {
         configDirectory = java.util.Objects.requireNonNull(directory);
         loaded = false;
         preloadSections = MIN_PRELOAD_SECTIONS;
+        entityMirrors = true;
+        multipleCloudLayers = true;
     }
 
     /** Extra sections of slack to keep warm on the far side of the seam. */
@@ -69,13 +73,40 @@ public final class LoopingClientSettings {
     }
 
     public static void setPreloadSections(int value) {
+        preloadSections();
         preloadSections = Mth.clamp(value, MIN_PRELOAD_SECTIONS, MAX_PRELOAD_SECTIONS);
         loaded = true;
         save();
     }
 
+    public static boolean entityMirrors() {
+        if (configDirectory != null) preloadSections();
+        return entityMirrors;
+    }
+
+    public static boolean multipleCloudLayers() {
+        if (configDirectory != null) preloadSections();
+        return multipleCloudLayers;
+    }
+
+    public static void setEntityMirrors(boolean enabled) {
+        preloadSections(); entityMirrors = enabled; save();
+    }
+
+    public static void setMultipleCloudLayers(boolean enabled) {
+        preloadSections(); multipleCloudLayers = enabled; save();
+    }
+
     /** The slider that appears in the video settings screen. */
 //? if >=1.19 {
+    public static OptionInstance<Boolean> createEntityMirrorsOption() {
+        return OptionInstance.createBoolean("biblioteca.options.entity_mirrors", entityMirrors(), LoopingClientSettings::setEntityMirrors);
+    }
+
+    public static OptionInstance<Boolean> createCloudLayersOption() {
+        return OptionInstance.createBoolean("biblioteca.options.cloud_layers", multipleCloudLayers(), LoopingClientSettings::setMultipleCloudLayers);
+    }
+
     public static OptionInstance<Integer> createPreloadOption() {
         return new OptionInstance<>(
                 "biblioteca.options.preload",
@@ -88,7 +119,19 @@ public final class LoopingClientSettings {
 
 
 //?} else {
-/*    public static ProgressOption createPreloadOption() {
+/*    public static ProgressOption createEntityMirrorsOption() {
+        return booleanOption("biblioteca.options.entity_mirrors", LoopingClientSettings::entityMirrors, LoopingClientSettings::setEntityMirrors);
+    }
+    public static ProgressOption createCloudLayersOption() {
+        return booleanOption("biblioteca.options.cloud_layers", LoopingClientSettings::multipleCloudLayers, LoopingClientSettings::setMultipleCloudLayers);
+    }
+    private static ProgressOption booleanOption(String key, java.util.function.BooleanSupplier read, java.util.function.Consumer<Boolean> write) {
+        return new ProgressOption(key, 0, 1, 1.0f, options -> read.getAsBoolean() ? 1.0 : 0.0,
+                (options, value) -> write.accept(value >= 0.5),
+                (options, option) -> babel.biblioteca.Compat.translatable("options.generic_value",
+                        babel.biblioteca.Compat.translatable(key), babel.biblioteca.Compat.translatable(read.getAsBoolean() ? "options.on" : "options.off")));
+    }
+    public static ProgressOption createPreloadOption() {
         return new ProgressOption("biblioteca.options.preload", MIN_PRELOAD_SECTIONS, MAX_PRELOAD_SECTIONS, 1.0f,
                 options -> (double) preloadSections(),
                 (options, value) -> setPreloadSections((int) Math.round(value)),
@@ -112,6 +155,8 @@ public final class LoopingClientSettings {
                 preloadSections = Mth.clamp(root.get(PRELOAD_KEY).getAsInt(),
                         MIN_PRELOAD_SECTIONS, MAX_PRELOAD_SECTIONS);
             }
+            if (root.has("entityMirrors")) entityMirrors = root.get("entityMirrors").getAsBoolean();
+            if (root.has("multipleCloudLayers")) multipleCloudLayers = root.get("multipleCloudLayers").getAsBoolean();
         } catch (IOException | RuntimeException exception) {
             Biblioteca.LOGGER.warn("[Biblioteca] Could not read {}", path, exception);
         }
@@ -120,6 +165,8 @@ public final class LoopingClientSettings {
     private static void save() {
         JsonObject root = new JsonObject();
         root.addProperty(PRELOAD_KEY, preloadSections);
+        root.addProperty("entityMirrors", entityMirrors);
+        root.addProperty("multipleCloudLayers", multipleCloudLayers);
 
         Path path = file();
         try {

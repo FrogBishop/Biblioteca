@@ -49,6 +49,21 @@ public final class SeamChecks {
             AABB query = new AABB(-1, min - 1, -1, 1, min + 1, 1);
             check(level.getEntities((Entity) null, query, e -> true).equals(List.of(high, low)), "ring search filters widened middle rows");
             check(typedSearch(level, query, e -> true).equals(List.of(high, low)), "typed ring search");
+            for (int i = 0; i < 256; i++) data.entities.add(item(level, min + period * 0.5));
+            var predicateCalls = new java.util.concurrent.atomic.AtomicInteger();
+            check(level.getEntities((Entity) null, query, e -> { predicateCalls.incrementAndGet(); return true; })
+                    .equals(List.of(high, low)), "dense ring search preserves results");
+            check(predicateCalls.get() == 2, "unrelated candidates reached caller predicate: " + predicateCalls.get());
+            data.entities.subList(3, data.entities.size()).clear();
+            ItemEntity offset = item(level, top - 0.25);
+            AABB offsetBox = new AABB(-0.5, top + 0.25, -0.5, 0.5, top + 3, 0.5);
+            offset.setBoundingBox(offsetBox); data.entities.add(offset);
+            check(level.getEntities((Entity) null, query, e -> e == offset).equals(List.of(offset)),
+                    "periodic query keeps an offset hitbox outside canonical rows");
+            check(!offsetBox.intersects(new AABB(-1, min, -1, 1, min + 1, 1))
+                    && !offsetBox.intersects(new AABB(-1, top - 1, -1, 1, top, 1)),
+                    "fixture must expose why simply clipping to two canonical slices loses an entity");
+            data.entities.removeIf(entity -> entity == offset);
             if (!SeamFixture.hasSections()) {
                 check(Level.class.getMethod("getLoadedEntitiesOfClass", Class.class, AABB.class, java.util.function.Predicate.class)
                         .invoke(level, ItemEntity.class, query, null).equals(List.of(high, low)), "loaded class search in legacy chunks");
@@ -80,7 +95,10 @@ public final class SeamChecks {
             near(frame.getBoundingBox().getCenter().y, frame.getY(), "item frame box matches entity position");
             Method anchor = find(frame.getClass(), "biblioteca$attachmentPos", 0);
             check(((BlockPos) anchor.invoke(frame)).getY() == min, "item frame attachment follows box");
-            if (client) checkInterpolation(level, top);
+            if (client) {
+                checkInterpolation(level, top);
+                checkMirrorPicking(level, min, period);
+            }
         }
         System.out.println("DATA_OK seam: native entity queries, previous positions, spawn/path surfaces, path nodes and decoration anchors (16/" + nativeHeight + " rows)" + (client ? ", native/queued client interpolation" : ""));
     }
@@ -92,6 +110,20 @@ public final class SeamChecks {
         ItemEntity entity = new ItemEntity((EntityType<? extends ItemEntity>) types.getField("ITEM").get(null), level);
         entity.setPos(0, y, 0);
         return entity;
+    }
+
+    private static void checkMirrorPicking(Level level, int min, int period) throws Exception {
+        ItemEntity source = item(level, min + 6), target = item(level, min + 1);
+        SeamFixture.Data data = SeamFixture.data(level); data.entities.clear(); data.entities.addAll(List.of(source, target));
+        Vec3 from = new Vec3(0, min + 6, 0), to = new Vec3(0, min + period * 3.0, 0);
+        AABB search = new AABB(-1, min, -1, 1, min + period * 3.0, 1);
+        var hit = net.minecraft.world.entity.projectile.ProjectileUtil.getEntityHitResult(source, from, to, search, e -> e == target, from.distanceToSqr(to));
+        check(hit != null && hit.getEntity() == target, "extended reach misses the next visible entity image");
+        near(hit.getLocation().y, target.getBoundingBox().minY - target.getPickRadius() + period, "closest forward entity image selected");
+        level.getClass().getField("looping").setBoolean(level, false);
+        check(net.minecraft.world.entity.projectile.ProjectileUtil.getEntityHitResult(source, from, to, search, e -> e == target, from.distanceToSqr(to)) == null,
+                "ordinary picking must not invent a forward image");
+        level.getClass().getField("looping").setBoolean(level, true); data.entities.clear();
     }
 
     private static void checkSpawnOffset(Level level, int period) throws Exception {

@@ -4,6 +4,7 @@ import babel.biblioteca.Compat;
 
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.SeamCull;
+import babel.biblioteca.client.EntityMirrors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.culling.Frustum;
 import org.spongepowered.asm.mixin.Mixin;
@@ -44,6 +45,50 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class FrustumYLoopMixin {
 
     @Shadow private double camY;
+
+    @org.spongepowered.asm.mixin.injection.ModifyVariable(
+            //? if >=1.21.2 {
+            method = "cubeInFrustum(DDDDDD)I",
+            //?} else {
+            /*method = "cubeInFrustum(DDDDDD)Z",
+            *///?}
+            at = @At("HEAD"), argsOnly = true, ordinal = 1)
+    private double biblioteca$copyMinimum(double y) { return y + EntityMirrors.cullShift(); }
+
+    @org.spongepowered.asm.mixin.injection.ModifyVariable(
+            //? if >=1.21.2 {
+            method = "cubeInFrustum(DDDDDD)I",
+            //?} else {
+            /*method = "cubeInFrustum(DDDDDD)Z",
+            *///?}
+            at = @At("HEAD"), argsOnly = true, ordinal = 4)
+    private double biblioteca$copyMaximum(double y) { return y + EntityMirrors.cullShift(); }
+
+    //? if >=1.21.9 {
+    @org.spongepowered.asm.mixin.injection.ModifyVariable(method = "pointInFrustum", at = @At("HEAD"), argsOnly = true, ordinal = 1)
+    private double biblioteca$copyPoint(double y) { return y + EntityMirrors.cullShift(); }
+    /** Particle groups use a point test instead of the box path below. */
+    @Inject(method = "pointInFrustum", at = @At("RETURN"), cancellable = true)
+    private void biblioteca$particlePointAtRingPosition(double x, double y, double z, CallbackInfoReturnable<Boolean> cir) {
+        if (cir.getReturnValue() || SeamCull.inTwinTest()) return;
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null || !LoopingRegistry.isLooping(minecraft.level)) return;
+        int period = Compat.height(minecraft.level);
+        long nearest = Math.round((camY - y) / period);
+        SeamCull.enterTwinTest();
+        try {
+            for (long step = -1; step <= 1; step++) {
+                long offset = nearest + step;
+                if (offset != 0 && ((Frustum) (Object) this).pointInFrustum(x, y + offset * period, z)) {
+                    cir.setReturnValue(true);
+                    return;
+                }
+            }
+        } finally {
+            SeamCull.exitTwinTest();
+        }
+    }
+    //?}
 
     @Inject(
 //? if >=1.21.2 {

@@ -4,9 +4,11 @@ import babel.biblioteca.Compat;
 
 import babel.biblioteca.LoopingRegistry;
 import babel.biblioteca.client.ClientCompat;
+import babel.biblioteca.client.EntityMirrors;
 import babel.biblioteca.SeamPositions;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -43,7 +45,26 @@ public abstract class EntityRenderDispatcherYLoopMixin {
         if (period <= 0) return;
 
         Vec3 cameraPosition = ClientCompat.position(camera);
+        if (EntityMirrors.isImage(entity)) {
+            cir.setReturnValue(EntityMirrors.distanceToSqr(entity, cameraPosition));
+            return;
+        }
         double y = SeamPositions.foldToward(entity.getY(), cameraPosition.y, period);
         cir.setReturnValue(cameraPosition.distanceToSqr(entity.getX(), y, entity.getZ()));
+    }
+
+    @Inject(method = "shouldRender", at = @At("RETURN"), cancellable = true)
+    private void biblioteca$visibleImages(Entity entity, Frustum frustum, double x, double y, double z,
+            //? if >=26.3 {
+            float partial,
+            //?}
+            CallbackInfoReturnable<Boolean> cir) {
+        if (EntityMirrors.isCulling()) return;
+        EntityMirrors.remember(camera, frustum);
+        if (cir.getReturnValue() || !EntityMirrors.enabled(Compat.level(entity))) return;
+        //? if <26.3 {
+        /*float partial = 0;
+        *///?}
+        if (EntityMirrors.anyVisible((EntityRenderDispatcher) (Object) this, entity, frustum, x, y, z, partial)) cir.setReturnValue(true);
     }
 }

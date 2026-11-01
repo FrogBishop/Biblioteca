@@ -47,6 +47,8 @@ public final class NeoForgeChecks {
         ApiChecks.run(classes);
         CoreChecks.run(client);
         LightSyncChecks.run();
+        GameEventChecks.run();
+        EffectBroadcastChecks.run();
         if (System.getProperty("biblioteca.validation.minecraft").equals("1.21.11")) {
             Class.forName("babel.biblioteca.validation.neoforge12111.SnowGolemAimChecks").getMethod("run").invoke(null);
         }
@@ -102,6 +104,9 @@ public final class NeoForgeChecks {
             DimensionModelChecks.run();
             if (currentRenderer) runCurrentChecks("DimensionConfigChecks");
             if (!noRender) {
+                ParticleRenderChecks.run();
+                CloudRenderChecks.run();
+                AttachmentRenderChecks.run();
                 if (currentRenderer) {
                     runCurrentChecks("SeamClientChecks");
                     runCurrentChecks("SkyLightClientChecks");

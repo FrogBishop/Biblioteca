@@ -89,7 +89,11 @@
     "TreeFeatureYLoopMixin",
     "VineBlockYLoopMixin",
     "WalkNodeEvaluatorYLoopMixin",
-    "WitherAimYLoopMixin"
+    "WitherAimYLoopMixin",
+    "GameEventDispatchYLoopMixin",
+    "GameEventRegistryYLoopMixin",
+    "LegacyGameEventDispatchYLoopMixin",
+    "LegacyGameEventRegistryYLoopMixin"
   ],
   "injectors": {
     "defaultRequire": 1

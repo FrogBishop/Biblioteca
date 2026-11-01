@@ -95,6 +95,19 @@ public final class SeamClientChecks {
             check(Math.abs(state.y - cameraY) <= 1, "rendered entity stays beside camera across seam");
             for (var leash : state.leashStates) near(leash.end.y - leash.start.y, direction, "rendered leash takes the short seam path");
             check(mob.shouldRender(0, cameraY, 0), "seam entity passes native distance culling");
+            java.util.Set<EntityRenderState> copies = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+            copies.add(state);
+            for (int image = -4; image <= 4; image++) {
+                double shift = image * (double) level.getHeight();
+                EntityRenderState copy = babel.biblioteca.client.EntityMirrors.image(mob, shift, () -> dispatcher.extractEntity(mob, 0.5f));
+                check(copies.add(copy), "queued mirror states must have independent identities");
+                near(copy.y, start + shift, "explicit visual copy retains its layer");
+                check(copy.leashStates != state.leashStates, "mirror leash states are independent");
+                double distance = babel.biblioteca.client.EntityMirrors.image(mob, shift, () -> dispatcher.distanceToSqr(mob));
+                near(distance, (start + shift - cameraY) * (start + shift - cameraY), "mirror shadow/name distance");
+            }
+            check(!babel.biblioteca.client.EntityMirrors.isImage(mob), "mirror context leaked into ordinary draws");
+            near(mob.getY(), start, "visual extraction did not move the logical entity");
         }
     }
 

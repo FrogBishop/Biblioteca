@@ -40,6 +40,7 @@ public final class LoopingDimensionCache {
 
     /** Drops what the last server said; called on disconnect. */
     public static void clear() {
+        EntityMirrors.clear();
         snapshot = EMPTY;
         LoopingRegistry.bumpRevision();
     }

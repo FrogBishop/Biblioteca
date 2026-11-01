@@ -17,6 +17,9 @@ import net.neoforged.neoforge.common.NeoForge;
 public final class NeoForgeBibliotecaClient {
     public NeoForgeBibliotecaClient(IEventBus modBus) {
         BibliotecaClient.initialize(FMLPaths.CONFIGDIR.get());
+        String rendererMods = java.util.stream.Stream.of("sodium", "embeddium", "iris", "voxy")
+                .filter(net.neoforged.fml.ModList.get()::isLoaded).collect(java.util.stream.Collectors.joining(", "));
+        babel.biblioteca.client.ClientDiagnostics.setRendererMods(rendererMods.isEmpty() ? "vanilla" : rendererMods);
         modBus.addListener(NeoForgeBibliotecaClient::registerPayloadHandlers);
         NeoForge.EVENT_BUS.addListener(NeoForgeBibliotecaClient::disconnected);
     }

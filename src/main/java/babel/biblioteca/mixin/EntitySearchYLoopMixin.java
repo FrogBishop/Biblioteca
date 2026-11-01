@@ -66,7 +66,7 @@ public abstract class EntitySearchYLoopMixin {
         AABB search = biblioteca$widen(level, box);
         if (search == box) return original.call(except, box, selector);
 
-        List<Entity> found = biblioteca$bounded(search, () -> original.call(except, search, selector));
+        List<Entity> found = biblioteca$bounded(search, () -> original.call(except, search, biblioteca$selectRing(level, box, selector)));
         return biblioteca$keepRingIntersections(level, box, found);
     }
 
@@ -81,7 +81,7 @@ public abstract class EntitySearchYLoopMixin {
         AABB search = biblioteca$widen(level, box);
         if (search == box) return original.call(type, box, selector);
 
-        List<T> found = biblioteca$bounded(search, () -> original.call(type, search, selector));
+        List<T> found = biblioteca$bounded(search, () -> original.call(type, search, biblioteca$selectRing(level, box, selector)));
         return biblioteca$keepRingIntersections(level, box, found);
     }
 
@@ -93,7 +93,7 @@ public abstract class EntitySearchYLoopMixin {
         Level level = (Level) (Object) this;
         AABB search = biblioteca$widen(level, box);
         if (search == box) return original.call(type, box, selector);
-        return biblioteca$keepRingIntersections(level, box, biblioteca$bounded(search, () -> original.call(type, search, selector)));
+        return biblioteca$keepRingIntersections(level, box, biblioteca$bounded(search, () -> original.call(type, search, biblioteca$selectRing(level, box, selector))));
     }
 
     @WrapMethod(method = {"getEntitiesOfClass", "getLoadedEntitiesOfClass"})
@@ -102,7 +102,7 @@ public abstract class EntitySearchYLoopMixin {
         Level level = (Level) (Object) this;
         AABB search = biblioteca$widen(level, box);
         if (search == box) return original.call(type, box, selector);
-        return biblioteca$keepRingIntersections(level, box, biblioteca$bounded(search, () -> original.call(type, search, selector)));
+        return biblioteca$keepRingIntersections(level, box, biblioteca$bounded(search, () -> original.call(type, search, biblioteca$selectRing(level, box, selector))));
     }
 
 *///?}
@@ -184,6 +184,11 @@ public abstract class EntitySearchYLoopMixin {
         }
 
         return kept;
+    }
+
+    /** Keep broad storage coverage for offset/tall hitboxes, but reject unrelated rows before user predicates and list allocation. */
+    private static <T extends Entity> Predicate<T> biblioteca$selectRing(Level level, AABB box, Predicate<? super T> selector) {
+        return entity -> biblioteca$ringIntersects(level, box, entity.getBoundingBox()) && (selector == null || selector.test(entity));
     }
 
     private static boolean biblioteca$ringIntersects(Level level, AABB box, AABB entityBox) {

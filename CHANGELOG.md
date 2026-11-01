@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+Development work is tracked in [ROADMAP.md](ROADMAP.md). Shader interfaces are deferred;
+the active scope includes particle continuity, periodic game events, diagnostics, entity-query
+evaluation, network coverage, complete entity copies and multiple cloud layers.
+
+- Preserve living campfire, portal and other billboard particles across camera crossings, including
+  older vibration particles, without resetting their age or simulation state.
+- Dispatch game events across the Y seam, retaining native vibration distance, travel time, wool
+  occlusion and once-per-registry delivery in short worlds.
+- Add F3 diagnostics, `/biblioteca diagnostics`, Y-section exports and an interactive light viewer.
+- Filter periodic entity intersections before expensive caller predicates while retaining the
+  storage coverage needed by displaced or oversized hitboxes.
+- Add bounded visual entity/block-entity copies and distant first-person player copies, with
+  independent render states/poses and per-image shadow/name distance. Extended pick rays can hit
+  the next displayed image of a logical entity.
+- Restore multiple cloud layers using shared geometry and independent native draw transforms,
+  including fancy/flat clouds and the 26.3 OIT path. Video Settings has separate entity/cloud switches.
+- Keep crystal/guardian beams and fishing lines short across the seam without rewriting canonical
+  entity metadata. Add independent-observer packet serialization and effect-recipient regressions.
+- Omit the seam preload, entity-copy and cloud-layer controls from Video Settings in no-render
+  builds. The complete builds retain all three rendering controls.
+
 ## 1.0.3 — 2026-10-31
 
 Stable release for all 35 supported Fabric versions from Minecraft 1.16.5 through 26.3,

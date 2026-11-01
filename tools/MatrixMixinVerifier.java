@@ -123,6 +123,8 @@ public class MatrixMixinVerifier {
             loader.loadClass("babel.biblioteca.validation.CoreChecks").getMethod("run", boolean.class)
                     .invoke(null, environment == EnvType.CLIENT);
             loader.loadClass("babel.biblioteca.validation.LightSyncChecks").getMethod("run").invoke(null);
+            loader.loadClass("babel.biblioteca.validation.GameEventChecks").getMethod("run").invoke(null);
+            loader.loadClass("babel.biblioteca.validation.EffectBroadcastChecks").getMethod("run").invoke(null);
             loader.loadClass("babel.biblioteca.validation.SeamChecks").getMethod("run", boolean.class)
                     .invoke(null, environment == EnvType.CLIENT);
             loader.loadClass("babel.biblioteca.validation.SkyChecks").getMethod("run").invoke(null);
@@ -138,6 +140,9 @@ public class MatrixMixinVerifier {
                 }
             }
             if (environment == EnvType.CLIENT) {
+                loader.loadClass("babel.biblioteca.validation.ParticleRenderChecks").getMethod("run").invoke(null);
+                loader.loadClass("babel.biblioteca.validation.CloudRenderChecks").getMethod("run").invoke(null);
+                loader.loadClass("babel.biblioteca.validation.AttachmentRenderChecks").getMethod("run").invoke(null);
                 loader.loadClass("babel.biblioteca.validation.DimensionModelChecks").getMethod("run").invoke(null);
                 loader.loadClass("babel.biblioteca.validation.TerrainChecks").getMethod("run").invoke(null);
                 if (config.get("minecraft").getAsString().equals("26.3")) {

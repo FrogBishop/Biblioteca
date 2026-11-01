@@ -20,5 +20,13 @@
   "biblioteca.sky_light.looping.description": "Direct sky requires a transparent column through the entire vertical loop. Light propagates across the boundary.",
   "biblioteca.sky_light.hybrid.description": "Direct sky uses vanilla exposure: unobstructed from this cell to the dimension's top. Light propagation and sampling still wrap across the boundary.",
   "biblioteca.command.sky_light.query": "Sky light in %s: %s (%s)",
-  "biblioteca.command.sky_light.set": "Set sky light in %s to %s (%s)"
+  "biblioteca.command.sky_light.set": "Set sky light in %s to %s (%s)",
+  "biblioteca.diagnostics.summary": "Biblioteca %s: Y=%s..%s, height=%s, looping=%s, sky mode=%s, local sky/block light=%s/%s",
+  "biblioteca.diagnostics.saved": "Saved diagnostic section: %s (singleplayer also writes a -client.json comparison).",
+  "biblioteca.diagnostics.failed": "Could not save diagnostics: %s",
+  "biblioteca.diagnostics.client.mode": "Biblioteca: looping=%s, sky=%s",
+  "biblioteca.diagnostics.client.position": "Y bounds %s..%s (H=%s); camera %s -> canonical %s",
+  "biblioteca.diagnostics.client.render": "Renderer mods: %s; FOV=%s, view=%s; potential layers=%s",
+  "biblioteca.options.entity_mirrors": "Periodic entity copies",
+  "biblioteca.options.cloud_layers": "Multiple cloud layers"
 }

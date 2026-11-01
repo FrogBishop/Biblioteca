@@ -83,8 +83,8 @@ The 1.16.5 and 1.17 artifacts also require Java 17 or newer at game runtime.
 Outputs are named `biblioteca-<mod-version>+<minecraft>.jar` and
 `biblioteca-<mod-version>+<minecraft>-norender.jar`. The mod version comes from
 `stonecutter.properties.toml`; existing older artifacts are separate files. The normal JAR works on clients and servers.
-The no-render variant removes visual Mixins but retains gameplay, prediction, audio and
-configuration UI. Both use the same mod ID; install only one per instance. Clients need the
+The no-render variant removes visual Mixins and their Video Settings controls but retains gameplay,
+prediction, audio and dimension configuration UI. Both use the same mod ID; install only one per instance. Clients need the
 normal artifact for the visual loop. Source JARs stay in each node's `build/libs` directory.
 
 The build resolves Fabric API from its pinned published bundle. Only directly used modules form
@@ -229,10 +229,37 @@ Renderer contracts:
 - Own and release only additional CPU/GPU index storage. GL replaces buffer storage; 1.21.5–26.2
   use ordered command uploads; 26.3 rotates mapped buffers with fences.
 
-Entities, ordinary block entities and clouds use one nearest copy, matching `main`. Beacons
-repeat their bounded scanned lengths. Rain/snow use boundary slices with source-world biome,
-surface and light sampling. Rain impact audio, splashes, smoke, positional sounds, subtitles
-and particle range tests use the same periodic coordinate model.
+Entities and ordinary block entities have visual copies throughout the vertical view range,
+including distant copies of the local player. First-person rendering hides the nearest player
+body. Each source is limited to 65 copies; there is still one logical entity or block entity.
+Modern entity extraction creates independent render states, while older versions repeat native
+draws with separate poses. Name tags and shadows use the distance to the displayed copy.
+Beacons retain their existing bounded beam renderer.
+
+Clouds also repeat through the vertical view range, up to 65 layers. All layers share one native
+cloud mesh; modern renderers use separate transform slices without replaying cloud preparation
+or overwriting the cloud buffer ring for each layer. Fancy, flat and 26.3 OIT cloud paths are
+supported. In the complete build, **Periodic entity copies** and **Multiple cloud layers** appear in Video Settings,
+are enabled by default, and persist in `config/biblioteca-client.json`. Turning either off
+restores its nearest-copy behavior. Ordinary dimensions retain vanilla rendering. The no-render
+variant omits these two controls and the **Seam preload** slider from Video Settings.
+
+Living particles choose their display layer each frame without resetting age, velocity or
+stored origins. Game events find listeners across the seam and deliver the source in the
+listener's local frame, retaining native vibration travel time, wool occlusion and scheduling.
+Short dimensions deduplicate listener registries. Vibration particle targets, fishing lines,
+guardian beams and crystal beam endpoints also use the short periodic path. Rain/snow retain
+boundary slices with source-world biome, surface and light sampling. The coordinate audit is
+in [NETWORK_AUDIT.md](NETWORK_AUDIT.md).
+
+F3 includes the looping/sky mode, dimension bounds, camera/storage Y, renderer, FOV, view
+distance and estimated number of vertical terrain periods. Reduced-debug mode hides the
+coordinate details. Operators can use `/biblioteca diagnostics` for a dimension summary and
+`/biblioteca diagnostics export` to save a 17-column Y section under the world's
+`biblioteca-diagnostics/` directory. An integrated client adds a separate client/server light
+comparison. Samples are taken on their owning threads and may come from different ticks.
+`python tools/render_diagnostics.py path/to/section-client.json --output section.html` produces
+an interactive section viewer. Dedicated-server exports contain server samples only.
 
 ## Verification
 
@@ -262,6 +289,16 @@ Minecraft requirements, class versions, access wideners, refmaps and no-render c
 Reports live in `build/validation`; CI uploads them with `build/distributions`. Gameplay, audio
 output and driver-specific rendering still need an interactive client: see the manual scenarios
 in [PARITY.md](PARITY.md). Passing data and injection checks is not a claim of visual GPU testing.
+
+Periodic follow-up checks additionally exercise native living-particle interpolation, game-event
+registry dispatch, vibration destinations, independent packet observers, extended-reach entity
+picking, cloud mesh capacity and native fishing-line vertices. `tools/verify_periodic_effects.py`
+opens a disposable 26.3 world copy: the default `effects` scenario checks actual sculk sensors,
+wool occlusion, persistent particles and diagnostic exports; `--scenario visuals` adds a
+height-16 dimension and records actual entity/block-entity submissions, cloud draw bindings,
+beam endpoints, repeated crossings, first-person self copies and option/ordinary-world controls.
+Both scenarios support Fabric and NeoForge and keep a frozen copy of the tested JAR with their
+logs and screenshots. These graphics scenarios do not imply visual testing of every older node.
 
 `tools/verify_neoforge_save.py --loader fabric` also runs the packaged Fabric 26.3 JAR through
 real server save/stop/reopen, with the same checks used by NeoForge. Pass the exported runtime

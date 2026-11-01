@@ -3,7 +3,7 @@
 mod.id = "biblioteca"
 mod.name = "Biblioteca"
 mod.group = "babel.biblioteca"
-mod.version = "1.0.3"
+mod.version = "1.0.4-dev.1"
 
 deps.fabric_loader = "0.19.5"
 loomx.loom_version = "1.18-SNAPSHOT"

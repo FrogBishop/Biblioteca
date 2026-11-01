@@ -113,7 +113,9 @@ public final class Biblioteca {
                                 .then(dimensionAttribute("no_void_fog", "disabled", "No void fog",
                                         LoopingDimensionManager::hasNoVoidFog,
                                         LoopingDimensionManager::setNoVoidFog))
-                                .then(skyLightCommand()));
+                                .then(skyLightCommand())
+                                .then(Commands.literal("diagnostics").executes(ctx -> BibliotecaDiagnostics.report(ctx.getSource()))
+                                        .then(Commands.literal("export").executes(ctx -> BibliotecaDiagnostics.export(ctx.getSource())))));
     }
 
     /** Literal mode names synchronize and complete on clients without a custom argument type. */

@@ -69,7 +69,9 @@
     "TreeFeatureYLoopMixin",
     "VineBlockYLoopMixin",
     "WalkNodeEvaluatorYLoopMixin",
-    "WitherAimYLoopMixin"
+    "WitherAimYLoopMixin",
+    "GameEventDispatchYLoopMixin",
+    "GameEventRegistryYLoopMixin"
   ],
   "client": [
     "BeaconBeamRenderYLoopMixin",
@@ -90,6 +92,8 @@
     "LevelRendererYLoopMixin",
     "OptionsSubScreenAccessor",
     "ParticleYLoopMixin",
+    "ParticleRenderYLoopMixin",
+    "VibrationParticleYLoopMixin",
     "ProjectileUtilYLoopMixin",
     "RainImpactsYLoopMixin",
     "RenderRegionCacheYLoopMixin",
@@ -101,7 +105,13 @@
     "VideoSettingsScreenMixin",
     "ViewAreaAccessor",
     "VoidFogMixin",
-    "WeatherEffectRendererYLoopMixin"
+    "WeatherEffectRendererYLoopMixin",
+    "DebugOverlayYLoopMixin",
+    "EntityCopyStateMixin",
+    "EntityMirrorExtractionMixin",
+    "CrystalBeamYLoopMixin",
+    "GuardianBeamYLoopMixin",
+    "FishingLineYLoopMixin"
   ],
   "clientCore": [
     "ClientLevelDirtyMixin",
@@ -109,12 +119,11 @@
     "ClientPacketListenerYLoopMixin",
     "CreateWorldScreenMoreTabMixin",
     "GridLayoutTabAccessor",
-    "OptionsSubScreenAccessor",
     "ProjectileUtilYLoopMixin",
     "SoundEngineYLoopMixin",
     "SubtitleDirectionYLoopMixin",
     "SubtitleDistanceYLoopMixin",
-    "VideoSettingsScreenMixin"
+    "DebugOverlayYLoopMixin"
   ],
   "excludedClientClasses": [
     "LegacyDimensionConfigScreen",

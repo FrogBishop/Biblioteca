@@ -3,6 +3,9 @@ package babel.biblioteca.client.mixin;
 import babel.biblioteca.Compat;
 
 import babel.biblioteca.LoopingRegistry;
+import babel.biblioteca.client.EntityMirrors;
+import com.llamalad7.mixinextras.sugar.Local;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,7 +28,8 @@ public abstract class LegacyEntityRender1211YLoopMixin {
             at = @At("HEAD"),
             argsOnly = true,
             ordinal = 1)
-    private double biblioteca$foldRenderY(double y) {
+    private double biblioteca$foldRenderY(double y, @Local(argsOnly = true) Entity entity) {
+        if (EntityMirrors.isImage(entity)) return y;
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || !LoopingRegistry.isLooping(minecraft.level)) return y;
 

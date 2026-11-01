@@ -152,6 +152,11 @@ val excludedServerMixins = if (sc.current.version == "26.3") {
     rootProject.fileTree("src/main/java/babel/biblioteca/mixin").matching { include("*.java") }
         .files.map { it.nameWithoutExtension }.toSet() - sources263.getValue("mixins").toSet()
 } else buildSet {
+    if (sc.current.parsed < "1.19.3") add("GameEventDispatchYLoopMixin")
+    else add("LegacyGameEventDispatchYLoopMixin")
+    if (sc.current.parsed < "1.19") add("GameEventRegistryYLoopMixin")
+    else add("LegacyGameEventRegistryYLoopMixin")
+    if (sc.current.parsed < "1.17") addAll(listOf("LegacyGameEventDispatchYLoopMixin", "LegacyGameEventRegistryYLoopMixin"))
     if (sc.current.parsed < "1.20") add("SkyLightEngineYLoopMixin")
     else addAll(listOf("LegacySkyLightEngineYLoopMixin", "LegacyLightStorageYLoopMixin"))
     if (sc.current.parsed < "1.21.6") add("LeashableYLoopMixin")
@@ -231,8 +236,8 @@ val clientCoreMixins = if (sc.current.version == "26.3") sources263.getValue("cl
     else add("LegacyCreateWorldScreenMixin")
     addAll(listOf(
     "ClientLevelDirtyMixin",
+    "DebugOverlayYLoopMixin",
     "ProjectileUtilYLoopMixin",
-    "OptionsSubScreenAccessor", "VideoSettingsScreenMixin",
     "ClientLevelSoundYLoopMixin", "SoundEngineYLoopMixin",
     "SubtitleDirectionYLoopMixin",
     ))
@@ -241,12 +246,17 @@ val clientCoreMixins = if (sc.current.version == "26.3") sources263.getValue("cl
 }
 val selectedClientMixins = if (sc.current.version == "26.3") sources263.getValue("client").toSet() else buildSet {
     addAll(clientCoreMixins)
+    addAll(listOf("OptionsSubScreenAccessor", "VideoSettingsScreenMixin"))
     if (sc.current.parsed < "1.21.2") add("LegacyLeashRenderYLoopMixin")
     else if (sc.current.parsed < "1.21.9") add("LeashRenderStateYLoopMixin")
     add("EntityRenderDispatcherYLoopMixin")
+    addAll(listOf("CrystalBeamYLoopMixin", "GuardianBeamYLoopMixin", "FishingLineYLoopMixin"))
+    if (sc.current.parsed >= "1.21.9") addAll(listOf("EntityCopyStateMixin", "EntityMirrorExtractionMixin"))
+    else add("LegacyEntityMirrorsMixin")
     if (sc.current.parsed >= "1.21.6") add("TrackedWaypointYLoopMixin")
     addAll(listOf("FrustumInvoker", "FrustumYLoopMixin", "EntityShouldRenderYLoopMixin",
-            "ParticleYLoopMixin", "ClientHorizonYLoopMixin", "ViewAreaAccessor"))
+            "ParticleYLoopMixin", "ParticleRenderYLoopMixin", "ClientHorizonYLoopMixin", "ViewAreaAccessor"))
+    if (sc.current.parsed >= "1.17") add("VibrationParticleYLoopMixin")
     if (sc.current.parsed >= "1.21.6") add("VoidFogMixin") else add("LegacyVoidFogMixin")
     if (sc.current.parsed >= "1.21.2") add("CloudRendererLoopMixin") else add("LegacyClouds1211Mixin")
     add("RainImpactsYLoopMixin")

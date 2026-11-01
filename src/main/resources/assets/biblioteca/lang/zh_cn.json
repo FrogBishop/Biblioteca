@@ -20,5 +20,13 @@
   "biblioteca.sky_light.looping.description": "竖直方向绕完整一圈都无遮挡的列才提供直射天空光；光照跨边界循环传播。",
   "biblioteca.sky_light.hybrid.description": "按原版判断露天：从这一格向上到维度顶层无遮挡。光照传播、遮挡、衰减和越界采样仍按循环空间处理。",
   "biblioteca.command.sky_light.query": "%s 的天空光照：%s（%s）",
-  "biblioteca.command.sky_light.set": "已将 %s 的天空光照设为 %s（%s）"
+  "biblioteca.command.sky_light.set": "已将 %s 的天空光照设为 %s（%s）",
+  "biblioteca.diagnostics.summary": "Biblioteca %s：Y=%s..%s，高度=%s，循环=%s，天空模式=%s，当前位置天空/方块光照=%s/%s",
+  "biblioteca.diagnostics.saved": "已保存诊断剖面：%s（单人游戏还会生成 -client.json 对照）。",
+  "biblioteca.diagnostics.failed": "无法保存诊断信息：%s",
+  "biblioteca.diagnostics.client.mode": "Biblioteca：循环=%s，天空模式=%s",
+  "biblioteca.diagnostics.client.position": "Y 边界 %s..%s（高度=%s）；相机 %s -> 存储坐标 %s",
+  "biblioteca.diagnostics.client.render": "渲染模组：%s；FOV=%s，视距=%s；理论层数=%s",
+  "biblioteca.options.entity_mirrors": "循环实体镜像",
+  "biblioteca.options.cloud_layers": "多层循环云"
 }
