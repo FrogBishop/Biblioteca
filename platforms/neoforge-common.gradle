@@ -80,7 +80,15 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('processResources') {
     inputs.file selectionFile
     def metadata = [version: project.version, minecraft_version: minecraftVersion,
-                    neo_min_version: project.neo_min_version, neo_upper_version: project.neo_upper_version]
+                    neo_min_version: project.neo_min_version, neo_upper_version: project.neo_upper_version,
+                    sodium_compatibility: minecraftVersion == '26.3' ? '''
+[[dependencies.biblioteca]]
+modId="sodium"
+type="optional"
+versionRange="[0.9.3-beta.1,)"
+ordering="NONE"
+side="CLIENT"
+''' : '']
     inputs.properties metadata
     filesMatching('META-INF/neoforge.mods.toml') { expand metadata }
     filesMatching('*.mixins.json') { expand java: "JAVA_${targetJava}" }
@@ -117,6 +125,7 @@ def noRenderResources = tasks.register('prepareNoRenderResources') {
                 new File(resources.get().asFile, 'META-INF/neoforge.mods.toml').text
                         .replace("version=\"${project.version}\"", "version=\"${project.version}-norender\"")
                         .replace('displayName="Biblioteca"', 'displayName="Biblioteca (No Render)"')
+                        .replaceAll(/(?m)^\[\[mixins\]\]\r?\nconfig="biblioteca\.sodium-compat\.mixins\.json"\r?\n?/, '')
     }
 }
 def noRenderJar = tasks.register('noRenderJar', Jar) {
@@ -124,6 +133,7 @@ def noRenderJar = tasks.register('noRenderJar', Jar) {
     archiveClassifier = 'norender'
     from(sourceSets.main.output) {
         exclude 'biblioteca.client.mixins.json', 'META-INF/neoforge.mods.toml'
+        exclude 'biblioteca.sodium-compat.mixins.json', 'babel/biblioteca/client/sodiumcompat/**'
         exclude { entry ->
             if (!entry.path.startsWith('babel/biblioteca/client/mixin/')) return false
             def dropped = (selection.get().client as Set) - (selection.get().clientCore as Set)

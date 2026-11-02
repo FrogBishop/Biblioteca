@@ -1,0 +1,34 @@
+{
+  "required": true,
+  "package": "babel.biblioteca.client.sodiumcompat.mixin",
+  "compatibilityLevel": "${java}",
+  "plugin": "babel.biblioteca.client.sodiumcompat.SodiumCompatPlugin",
+  "client": [
+    "LegacySectionManagerMixin",
+    "CullerMixin",
+    "OutOfGraphMixin",
+    "AsyncSectionManagerMixin",
+    "SnapshotPositionMixin",
+    "SnapshotInitMixin",
+    "LegacyBiomeSnapshotMixin",
+    "SnapshotCloneMixin",
+    "CacheInvalidationMixin",
+    "PackedCacheInvalidationMixin",
+    "FacesMixin",
+    "WorldRendererVisibilityMixin",
+    "RendererDraw5Mixin",
+    "RendererDraw6Mixin",
+    "RendererDraw7Mixin",
+    "RendererDraw8Mixin",
+    "RendererDraw9Mixin",
+    "RendererDraw10Mixin",
+    "RendererDraw11Mixin",
+    "CloudDraw7Mixin",
+    "CloudDraw6Mixin",
+    "CloudDraw9Mixin",
+    "CloudOrientationMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -43,6 +43,9 @@ def inspect_jar(jar, selection, variant, runtime):
         assert metadata['mods'][0]['modId'] == 'biblioteca'
         assert metadata['mods'][0]['version'] == expected_version
         assert any(d['modId'] == 'minecraft' and d['versionRange'] == '[' + runtime['minecraft'] + ']' for d in metadata['dependencies']['biblioteca'])
+        if runtime['minecraft'] == '26.3':
+            assert any(d['modId'] == 'sodium' and d['type'] == 'optional' and d['side'] == 'CLIENT'
+                       and d['versionRange'] == '[0.9.3-beta.1,)' for d in metadata['dependencies']['biblioteca'])
         assert 'fabric.mod.json' not in names and not any(n.endswith('.accesswidener') for n in names)
         for name, key, expected in [('biblioteca.mixins.json', 'mixins', selection['mixins']),
                                     ('biblioteca.client.mixins.json', 'client', expected_client)]:
@@ -63,6 +66,12 @@ def inspect_jar(jar, selection, variant, runtime):
         if variant == 'norender':
             for name in set(selection['client']) - set(selection['clientCore']):
                 assert f'babel/biblioteca/client/mixin/{name}.class' not in names
+            assert 'biblioteca.sodium-compat.mixins.json' not in names
+            assert not any(n.startswith('babel/biblioteca/client/sodiumcompat/') for n in names)
+            assert not any(m['config'] == 'biblioteca.sodium-compat.mixins.json' for m in metadata.get('mixins', []))
+        else:
+            assert 'biblioteca.sodium-compat.mixins.json' in names
+            assert any(m['config'] == 'biblioteca.sodium-compat.mixins.json' for m in metadata.get('mixins', []))
     return hashlib.sha256(jar.read_bytes()).hexdigest()
 
 

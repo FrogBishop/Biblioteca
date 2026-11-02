@@ -51,7 +51,17 @@ public class MatrixMixinVerifier {
         } else {
             System.setProperty("fabric.addMods", config.get("fabricApi").getAsString());
         }
-        System.setProperty("mixin.debug.countInjections", "true");
+        if (config.has("extraMods")) {
+            java.util.List<String> mods = new java.util.ArrayList<>();
+            String existing = System.getProperty("fabric.addMods");
+            if (existing != null && !existing.isBlank()) mods.add(existing);
+            for (JsonElement mod : config.getAsJsonArray("extraMods")) mods.add(mod.getAsString());
+            System.setProperty("fabric.addMods", String.join(java.io.File.pathSeparator, mods));
+        }
+        // Third-party mixins may deliberately target optional methods with require=0.
+        // Their debug-only expect counts must not turn a valid combination into a failure.
+        System.setProperty("mixin.debug.countInjections", Boolean.toString(!config.has("checkOptionalInjections")
+                || config.get("checkOptionalInjections").getAsBoolean()));
         // The old Log4j bundled with 1.16/1.17 does not understand Loom's newer GUI/arbiter appenders.
         Path logging = runDir.resolve("matrix-log4j2.xml");
         Files.writeString(logging, "<Configuration status=\"WARN\"><Appenders>"
@@ -69,6 +79,24 @@ public class MatrixMixinVerifier {
         ClassLoader loader = new Knot(environment).init(new String[] {
                 "--gameDir", runDir.toString(), "--version", config.get("minecraft").getAsString()
         });
+        if (config.has("requiredMods")) for (JsonElement id : config.getAsJsonArray("requiredMods")) {
+            var mod = FabricLoader.getInstance().getModContainer(id.getAsString()).orElseThrow();
+            System.out.println("EXTRA_MOD_OK " + id.getAsString() + " " + mod.getMetadata().getVersion().getFriendlyString());
+        }
+        if (config.has("targetNamespace")) {
+            Set<String> mappedTargets = new TreeSet<>();
+            for (String target : targets) mappedTargets.add(FabricLoader.getInstance().getMappingResolver()
+                    .mapClassName(config.get("targetNamespace").getAsString(), target));
+            targets = mappedTargets;
+        }
+        if (environment == EnvType.CLIENT) {
+            for (String optional : java.util.List.of("biblioteca.sodium.mixins.json", "biblioteca.sodium-compat.mixins.json")) {
+                if (!Files.isRegularFile(resources.resolve(optional))) continue;
+                Set<String> optionalTargets = new TreeSet<>();
+                readTargets(resources.resolve(optional), classes, "client", optionalTargets);
+                for (String target : optionalTargets) if (loader.getResource(target.replace('.', '/') + ".class") != null) targets.add(target);
+            }
+        }
         if (config.has("fabricApiModules")) {
             int checked = 0;
             for (JsonElement value : config.getAsJsonArray("fabricApiModules")) {
@@ -81,12 +109,15 @@ public class MatrixMixinVerifier {
             }
             System.out.println("DATA_OK Fabric API runtime modules: " + checked);
         }
-        String version = FabricLoader.getInstance().getModContainer("biblioteca").orElseThrow()
-                .getMetadata().getVersion().getFriendlyString();
-        String expectedVersion = new JsonParser().parse(Files.readString(resources.resolve("fabric.mod.json")))
-                .getAsJsonObject().get("version").getAsString();
-        if (!version.equals(expectedVersion) || !version.endsWith("+" + config.get("minecraft").getAsString())) {
-            throw new AssertionError("Loaded the wrong node: " + version);
+        if (!config.has("sodiumOnly") || !config.get("sodiumOnly").getAsBoolean()) {
+            String version = FabricLoader.getInstance().getModContainer("biblioteca").orElseThrow()
+                    .getMetadata().getVersion().getFriendlyString();
+            String expectedVersion = new JsonParser().parse(Files.readString(resources.resolve("fabric.mod.json")))
+                    .getAsJsonObject().get("version").getAsString();
+            String nodeSuffix = "+" + config.get("minecraft").getAsString();
+            if (!version.equals(expectedVersion) || !(version.endsWith(nodeSuffix) || version.endsWith(nodeSuffix + "-norender"))) {
+                throw new AssertionError("Loaded the wrong node: " + version);
+            }
         }
         java.util.List<String> failures = new java.util.ArrayList<>();
         for (String target : targets) {
@@ -94,6 +125,18 @@ public class MatrixMixinVerifier {
                 Class<?> type = Class.forName(target, false, loader);
                 type.getDeclaredMethods();
                 type.getDeclaredConstructors();
+                if (Files.isRegularFile(resources.resolve("biblioteca.sodium-compat.mixins.json"))
+                        && FabricLoader.getInstance().isModLoaded("biblioteca")
+                        && (target.endsWith(".DefaultChunkRenderer") || target.endsWith(".RegionChunkRenderer"))
+                        && java.util.Arrays.stream(type.getDeclaredMethods()).noneMatch(m -> m.getName().contains("biblioteca$images"))) {
+                    throw new AssertionError("Sodium native draw adapter was not selected: " + target);
+                }
+                if (Files.isRegularFile(resources.resolve("biblioteca.sodium-compat.mixins.json"))
+                        && FabricLoader.getInstance().isModLoaded("biblioteca")
+                        && target.endsWith(".render.immediate.CloudRenderer")
+                        && java.util.Arrays.stream(type.getDeclaredMethods()).noneMatch(m -> m.getName().contains("biblioteca$clouds"))) {
+                    throw new AssertionError("Sodium cloud adapter was not selected: " + target);
+                }
             } catch (Throwable failure) {
                 try (var stream = loader.getResourceAsStream(target.replace('.', '/') + ".class")) {
                     if (stream != null) new ClassReader(stream).accept(new ClassVisitor(Opcodes.ASM9) {

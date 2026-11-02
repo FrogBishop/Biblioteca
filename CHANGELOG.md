@@ -8,6 +8,13 @@ evaluation, network coverage, complete entity copies and multiple cloud layers.
 
 - Preserve living campfire, portal and other billboard particles across camera crossings, including
   older vibration particles, without resetting their age or simulation state.
+- Fix startup with Sodium 0.2.0+build.4 on Fabric 1.16.5. The living-particle injection now has
+  sufficient priority to target Sodium's replacement billboard method while retaining its fast
+  vertex path and periodic particle continuity.
+- Audit Sodium across all 35 Fabric and six NeoForge nodes, with exact release/hash records and
+  separate graphical evidence. Document unresolved terrain conflicts through Fabric 1.21.5 and
+  missing periodic terrain on newer Sodium renderers in `SODIUM_COMPATIBILITY.md`; passing native
+  Minecraft regressions does not establish Sodium support.
 - Dispatch game events across the Y seam, retaining native vibration distance, travel time, wool
   occlusion and once-per-registry delivery in short worlds.
 - Add F3 diagnostics, `/biblioteca diagnostics`, Y-section exports and an interactive light viewer.

@@ -1,6 +1,7 @@
 {
   "required": true,
   "package": "babel.biblioteca.client.mixin",
+  "plugin": "babel.biblioteca.RendererMixinPlugin",
   "compatibilityLevel": "${java}",
   "client": [],
   "injectors": {

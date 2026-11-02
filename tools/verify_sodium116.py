@@ -30,6 +30,8 @@ def main():
     parser.add_argument('--java', default='java')
     parser.add_argument('--javac', default='javac')
     parser.add_argument('--loader-jar', type=Path)
+    parser.add_argument('--mixin-jar', type=Path, help='Match the installed loader\'s Mixin implementation')
+    parser.add_argument('--vanilla-particles', action='store_true', help='Disable only Sodium\'s optional particle rewrite')
     args = parser.parse_args()
     if not args.label.replace('-', '').replace('_', '').isalnum():
         raise SystemExit('Label must contain only letters, digits, hyphens and underscores.')
@@ -48,6 +50,8 @@ def main():
     (run / 'options.txt').write_text('renderDistance:8\npauseOnLostFocus:false\nmaxFps:60\nfullscreen:false\nfov:0.0\n', encoding='utf-8')
     (run / 'config').mkdir()
     (run / 'config/sodium-options.json').write_text(json.dumps({'advanced': {'use_chunk_multidraw': not args.oneshot}}))
+    if args.vanilla_particles:
+        (run / 'config/sodium-mixins.properties').write_text('mixin.features.particle.fast_render=false\n', encoding='utf-8')
     classes = run / 'probe-classes'
     classes.mkdir()
     sources = sorted((ROOT / 'tools/validation/sodium116').glob('*.java'))
@@ -63,7 +67,7 @@ def main():
             'entrypoints': {'main': ['biblioteca.sodiumtest.SodiumProbe'], 'client': ['biblioteca.sodiumtest.SodiumProbe']},
             'mixins': [{'config': 'sodium-probe.mixins.json', 'environment': 'client'}]}))
         jar.writestr('sodium-probe.mixins.json', json.dumps({'required': True, 'package': 'biblioteca.sodiumtest.mixin',
-            'compatibilityLevel': 'JAVA_17', 'client': ['SodiumDrawObserver', 'SodiumOriginObserver'], 'injectors': {'defaultRequire': 1}}))
+            'compatibilityLevel': 'JAVA_17', 'client': ['SodiumDrawObserver', 'SodiumOriginObserver', 'SodiumParticleObserver', 'SodiumChestObserver'], 'injectors': {'defaultRequire': 1}}))
     cp = list(cfg['classpath'])
     if args.jar:
         cp = [p for p in cp if p not in (cfg['classes'], cfg['resources'])]
@@ -71,8 +75,12 @@ def main():
     if args.loader_jar:
         cp = [p for p in cp if '/net.fabricmc/fabric-loader/' not in p.replace('\\', '/')]
         cp.append(str(args.loader_jar.resolve()))
+    if args.mixin_jar:
+        cp = [p for p in cp if not Path(p).name.startswith('sponge-mixin-')]
+        cp.append(str(args.mixin_jar.resolve()))
     cp.append(str(probe))
-    options = ['-Xmx2G', '-Dfile.encoding=UTF-8', '-Duser.language=en', '-Dbiblioteca.sodiumTest.baseline=' + str(args.baseline).lower()]
+    options = ['-Xmx2G', '-Dfile.encoding=UTF-8', '-Duser.language=en', '-Dbiblioteca.sodiumTest.baseline=' + str(args.baseline).lower(),
+               '-Dbiblioteca.sodiumTest.vanillaParticles=' + str(args.vanilla_particles).lower()]
     launch = Path(next(p.split('=', 1)[1] for p in cfg['clientJvmArgs'] if p.startswith('-Dfabric.dli.config=')))
     group = ''
     for line in launch.read_text(encoding='utf-8').splitlines():
@@ -99,10 +107,16 @@ def main():
     text = log.read_text(encoding='utf-8', errors='replace')
     samples = [line for line in text.splitlines() if 'SODIUM_' in line]
     frames = [run / (name + '.png') for name in ('ordinary', 'loop-ground', 'loop-ceiling', 'restored')]
+    if not args.baseline:
+        frames.extend(run / ('particles-' + str(i) + '.png') for i in range(1, 4))
     result = {'passed': code == 0 and 'SODIUM_DONE passed=true' in text and 'SODIUM_FAILURE' not in text and all(p.is_file() for p in frames),
         'exitCode': code, 'log': str(log.relative_to(ROOT)), 'frames': [str(p.relative_to(ROOT)) for p in frames], 'samples': samples,
-        'sodiumSha256': hashlib.sha256(args.sodium_jar.read_bytes()).hexdigest(),
-        'artifactSha256': hashlib.sha256(args.jar.read_bytes()).hexdigest() if args.jar else None}
+        'sodiumSha256': hashlib.sha256((run / 'mods' / args.sodium_jar.name).read_bytes()).hexdigest(),
+        'artifactSha256': hashlib.sha256((run / 'mods' / args.jar.name).read_bytes()).hexdigest() if args.jar else None,
+        'vanillaParticles': args.vanilla_particles,
+        'loaderJar': str(args.loader_jar) if args.loader_jar else None,
+        'mixinJar': str(args.mixin_jar) if args.mixin_jar else None}
+    (run / 'results.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     (base / 'results.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     print('\n'.join(samples))
     print(('SODIUM_OK ' if result['passed'] else 'SODIUM_FAILED ') + str(log), flush=True)

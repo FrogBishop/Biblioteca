@@ -275,6 +275,7 @@ val selectedClientMixins = if (sc.current.version == "26.3") sources263.getValue
         add(if (sc.current.parsed < "1.21.2") "LegacyEntityRender1211YLoopMixin" else "LegacyEntityRender1218YLoopMixin")
     }
     add("BlockEntityRenderRangeYLoopMixin")
+    if (sc.current.parsed >= "1.17" && sc.current.parsed < "1.21.6") add("SodiumCloudHeightMixin")
     add(when {
         sc.current.parsed >= "1.21.6" -> "RenderRegionCacheYLoopMixin"
         sc.current.parsed >= "1.18" -> "LegacyRenderChunkYLoopMixin"
@@ -289,6 +290,7 @@ val allClientMixins = rootProject.fileTree("src/main/java/babel/biblioteca/clien
     .matching { include("*.java") }.files.map { it.nameWithoutExtension }.toSet()
 sourceSets.named("main") {
     if (sc.current.version != "1.16.5") java.exclude("babel/biblioteca/client/sodium/**")
+    else java.exclude("babel/biblioteca/client/sodiumcompat/**")
     if (sc.current.parsed < "26.3") java.exclude("babel/biblioteca/client/LoopingConfigScreen.java")
     else java.exclude("babel/biblioteca/client/LegacyDimensionConfigScreen.java")
     java.exclude((allClientMixins - selectedClientMixins).map { "babel/biblioteca/client/mixin/$it.java" })
@@ -315,6 +317,7 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.processResources {
     if (sc.current.version != "1.16.5") exclude("biblioteca.sodium.mixins.json")
+    else exclude("biblioteca.sodium-compat.mixins.json")
     val apiVersion = sc.properties["deps.fabric_api"] as String
     val apiBundle = rootProject.file(".gradle/fabric-api/$apiVersion/fabric-api.jar")
     val apiId = ZipFile(apiBundle).use { zip ->
@@ -349,6 +352,15 @@ tasks.processResources {
             metadataFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + "\n")
         }
 
+        if (sc.current.version != "1.16.5") {
+            val metadataFile = outputDir.resolve("fabric.mod.json")
+            @Suppress("UNCHECKED_CAST")
+            val metadata = groovy.json.JsonSlurper().parse(metadataFile) as MutableMap<String, Any?>
+            metadata["mixins"] = (metadata["mixins"] as List<*>) + mapOf(
+                "config" to "biblioteca.sodium-compat.mixins.json", "environment" to "client")
+            metadataFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + "\n")
+        }
+
         if (excludedServerMixins.isNotEmpty()) {
             val configFile = outputDir.resolve("biblioteca.mixins.json")
             val slurper = groovy.json.JsonSlurper()
@@ -363,6 +375,7 @@ tasks.processResources {
         val clientConfig = mutableMapOf<String, Any?>(
             "required" to true,
             "package" to "babel.biblioteca.client.mixin",
+            "plugin" to "babel.biblioteca.RendererMixinPlugin",
             "compatibilityLevel" to "JAVA_${requiredJava.majorVersion}",
             "client" to selectedClientMixins.sorted(),
             "injectors" to mapOf("defaultRequire" to 1),
@@ -422,7 +435,7 @@ val prepareNoRenderResources = tasks.register("prepareNoRenderResources") {
         metadata["version"] = metadata["version"].toString() + "-norender"
         metadata["name"] = metadata["name"].toString() + " (No Render)"
         metadata["mixins"] = (metadata["mixins"] as List<*>).filterNot {
-            it is Map<*, *> && it["config"] == "biblioteca.sodium.mixins.json"
+            it is Map<*, *> && it["config"] in setOf("biblioteca.sodium.mixins.json", "biblioteca.sodium-compat.mixins.json")
         }
         File(out, metadataFile.name).writeText(
             groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + "\n")
@@ -476,6 +489,7 @@ val noRenderJar = tasks.register("noRenderJar") {
                     val name = entry.name
                     if (name in rewritten) continue
                     if (name == "biblioteca.sodium.mixins.json" || name.startsWith("babel/biblioteca/client/sodium/")) continue
+                    if (name == "biblioteca.sodium-compat.mixins.json" || name.startsWith("babel/biblioteca/client/sodiumcompat/")) continue
                     if (name in droppedClasses || droppedNested.any { name.startsWith(it) }) continue
                     val copy = ZipEntry(name)
                     copy.time = entry.time

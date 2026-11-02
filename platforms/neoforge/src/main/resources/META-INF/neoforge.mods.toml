@@ -10,10 +10,14 @@ logoFile="assets/biblioteca/icon.png"
 authors="FrogBishop"
 description='''Adds per-dimension period to Y-axis.'''
 
+${sodium_compatibility}
+
 [[mixins]]
 config="biblioteca.mixins.json"
 [[mixins]]
 config="biblioteca.client.mixins.json"
+[[mixins]]
+config="biblioteca.sodium-compat.mixins.json"
 
 [[dependencies.biblioteca]]
 modId="neoforge"

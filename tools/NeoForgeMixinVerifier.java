@@ -46,14 +46,27 @@ public final class NeoForgeMixinVerifier {
         try (var fml = FMLLoader.create(startup)) {
             if (fml.getLoadingModList().hasErrors()) throw new AssertionError(fml.getLoadingModList().getModLoadingIssues());
             ClassLoader loader = fml.getCurrentClassLoader();
-            int bootstrappers = 0;
-            for (var bootstrapper : ServiceLoader.load(JUnitGameBootstrapper.class, loader)) {
-                bootstrapper.bootstrap(fml);
-                bootstrappers++;
+            if (client && Files.isRegularFile(classes.resolve("biblioteca.sodium-compat.mixins.json"))) {
+                Set<String> optional = new TreeSet<>();
+                readTargets(classes, "biblioteca.sodium-compat.mixins.json", "client", optional);
+                for (String target : optional) if (loader.getResource(target.replace('.', '/') + ".class") != null) targets.add(target);
             }
-            if (bootstrappers != 1) throw new AssertionError("Expected the NeoForge game bootstrapper, got " + bootstrappers);
-            if (client) loader.loadClass("net.neoforged.neoforge.client.network.registration.ClientNetworkRegistry")
-                    .getMethod("setup").invoke(null);
+            boolean transformsOnly = config.has("transformsOnly") && config.get("transformsOnly").getAsBoolean();
+            if (config.has("requiredMods")) for (var required : config.getAsJsonArray("requiredMods")) {
+                var mod = fml.getLoadingModList().getMods().stream()
+                        .filter(info -> info.getModId().equals(required.getAsString())).findFirst().orElseThrow();
+                System.out.println("EXTRA_MOD_OK " + mod.getModId() + " " + mod.getVersion());
+            }
+            if (!transformsOnly) {
+                int bootstrappers = 0;
+                for (var bootstrapper : ServiceLoader.load(JUnitGameBootstrapper.class, loader)) {
+                    bootstrapper.bootstrap(fml);
+                    bootstrappers++;
+                }
+                if (bootstrappers != 1) throw new AssertionError("Expected the NeoForge game bootstrapper, got " + bootstrappers);
+                if (client) loader.loadClass("net.neoforged.neoforge.client.network.registration.ClientNetworkRegistry")
+                        .getMethod("setup").invoke(null);
+            }
 
             List<String> failed = new ArrayList<>();
             for (String target : targets) {
@@ -61,6 +74,13 @@ public final class NeoForgeMixinVerifier {
                     Class<?> type = Class.forName(target, false, loader);
                     type.getDeclaredMethods();
                     type.getDeclaredConstructors();
+                    if (!config.has("sodiumOnly") || !config.get("sodiumOnly").getAsBoolean()) {
+                        if (Files.isRegularFile(classes.resolve("biblioteca.sodium-compat.mixins.json"))
+                                && (target.endsWith(".DefaultChunkRenderer") || target.endsWith(".RegionChunkRenderer"))
+                                && java.util.Arrays.stream(type.getDeclaredMethods()).noneMatch(m -> m.getName().contains("biblioteca$images"))) {
+                            throw new AssertionError("Sodium native draw adapter was not selected: " + target);
+                        }
+                    }
                     System.out.println("TARGET_OK " + target);
                 } catch (Throwable failure) {
                     System.err.println("TARGET_FAILED " + target);
@@ -69,7 +89,7 @@ public final class NeoForgeMixinVerifier {
                 }
             }
             if (!failed.isEmpty()) throw new AssertionError("Failed transformed targets: " + failed);
-            loader.loadClass("babel.biblioteca.validation.neoforge.NeoForgeChecks")
+            if (!transformsOnly) loader.loadClass("babel.biblioteca.validation.neoforge.NeoForgeChecks")
                     .getMethod("run", Path.class, boolean.class, boolean.class)
                     .invoke(null, classes, client, noRender);
             System.out.println("NEOFORGE_OK " + config.get("minecraft").getAsString() + " " + config.get("neoforge").getAsString() + " "

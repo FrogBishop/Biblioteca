@@ -58,13 +58,13 @@ public final class ParticleRenderChecks implements Opcodes {
                     double y = direction > 0 ? minimum + period - 1.25 : minimum + 1.25;
                     put(particle, "y", y); put(particle, "yo", y - 0.25);
                     for (double eye : new double[]{minimum + 0.5, minimum + period - 0.5, minimum + 0.5,
-                            minimum + 3.0 * period + 0.5}) {
+                            minimum + 3.0 * period + 0.5, y - period * 0.5, y + period * 0.5}) {
                         put(camera, "positionValue", new Vec3(0, eye, 0));
                         for (float alpha : new float[]{0, 0.5f, 1}) {
                             double expected = y - 0.25 + alpha * 0.25 - eye;
                             if (looping) {
                                 while (expected > period * 0.5) expected -= period;
-                                while (expected < -period * 0.5) expected += period;
+                                while (expected <= -period * 0.5) expected += period;
                             }
                             double actual = draw(particle, camera, nativeDraw, sink, alpha);
                             check(Math.abs(actual - expected) < 0.0001, "native particle position after crossing: " + actual + " expected " + expected);

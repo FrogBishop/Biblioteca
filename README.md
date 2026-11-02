@@ -321,6 +321,10 @@ periodic bedrock layer and restored ordinary rendering. Supply `--sodium-jar`, `
 `--assets-dir` and optionally the remapped Biblioteca `--jar`; `--oneshot` selects Sodium's other
 drawing backend. First export `:1.16.5:writeValidationConfig`. Reports, worlds and screenshots
 stay under `build/validation/1.16.5/sodium/`.
+The probe also tracks the same campfire/portal particles through both Y boundaries and captures
+vertices sent to Sodium's actual particle sink. It checks increasing age and unchanged simulation
+state. `--vanilla-particles` disables only Sodium's optional particle rewrite to check the native
+fallback; `--loader-jar` and `--mixin-jar` can match an installed loader precisely.
 
 `tools/verify_world_creation.py` checks the real creation screen on every supported version from
 1.16.5 through 1.20.4. The classic layout ends at 1.19.3; 1.19.4 introduces the Game/World/More
@@ -347,6 +351,18 @@ It preserves Sodium's native buffers, shaders and drawing backends while adding 
 copies and boundary snapshots. Sodium's native section-based transparency behavior remains in
 use; this is separate from the vanilla renderer's quad sorting. The bridge is excluded from
 no-render builds. Compatibility with other Sodium versions is not implied by this 1.16.5 adapter.
+
+The broader Sodium audit confirms that complete rendering is **not yet supported on other
+Minecraft versions**. Fabric 1.17–1.21.5 has required terrain-hook conflicts. Most selected
+releases through 1.20.6 also have a particle-hook conflict; 1.20.1 with Sodium 0.5.13 has only
+the terrain conflict. The selected 1.21.6+ releases pass class transformation, but
+Sodium replaces the terrain path used by the periodic copies. A real 26.3 + Sodium 0.9.2 run
+confirms missing terrain copies despite working particle continuity, entity copies and cloud
+layers. All 35 Fabric no-render builds pass the corresponding transformation audit. NeoForge's
+six no-render nodes pass with the selected releases except that 26.3 requires Sodium's tested
+0.9.3-beta.1 instead of 0.9.2 for compatibility with the audited NeoForge 26.3.0.98 runtime.
+These loading checks are not graphical guarantees. See [SODIUM_COMPATIBILITY.md](SODIUM_COMPATIBILITY.md)
+for exact versions, evidence, reproduction commands and remaining work.
 
 Voxy and other far-LOD/replacement renderers bypass vanilla terrain extraction and need a separate
 integration. That is a shared compatibility limitation of `main` and this branch. Shader packs

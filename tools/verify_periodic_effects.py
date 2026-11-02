@@ -27,6 +27,8 @@ def main():
     parser.add_argument('--java', default='java')
     parser.add_argument('--javac', default='javac')
     parser.add_argument('--scenario', choices=['effects', 'visuals'], default='effects')
+    parser.add_argument('--extra-mod', action='append', default=[], type=Path, help='Copy an additional mod into the isolated client')
+    parser.add_argument('--label', help='Keep an extra-mod run separate from the native renderer baseline')
     args = parser.parse_args()
     runtime = json.loads(args.runtime_config.read_text(encoding='utf-8'))
     if runtime['minecraft'] != '26.3':
@@ -35,6 +37,10 @@ def main():
         raise SystemExit('World template must contain level.dat.')
     args.jar = args.jar.resolve()
     output = ROOT / 'build/validation/26.3' / ('periodic-' + args.scenario) / args.loader
+    if args.label:
+        if not args.label.replace('-', '').replace('_', '').isalnum():
+            parser.error('Label must contain only letters, digits, hyphens and underscores')
+        output /= args.label
     output.mkdir(parents=True, exist_ok=True)
     sources = ROOT / 'tools/validation/periodic-effects'
     adapter = 'FabricPeriodicEffectsProbe' if args.loader == 'fabric' else 'NeoForgePeriodicEffectsProbe'
@@ -46,6 +52,9 @@ def main():
         probe_sources = [sources / name for name in ['PeriodicVisualChecks.java', 'VisualCloudObserver.java',
                          'VisualEntityObserver.java', 'VisualExtractionObserver.java', 'VisualWorldOpenObserver.java', 'VisualBlockObserver.java', 'VisualGuardianObserver.java']] + [generated / (adapter + '.java')]
         mixins = ['VisualCloudObserver', 'VisualEntityObserver', 'VisualExtractionObserver', 'VisualWorldOpenObserver', 'VisualBlockObserver', 'VisualGuardianObserver']
+        if any('sodium' in mod.name.lower() for mod in args.extra_mod):
+            probe_sources.append(sources / 'VisualSodiumTerrainObserver.java')
+            mixins.append('VisualSodiumTerrainObserver')
     else:
         probe_sources = [sources / name for name in ['PeriodicEffectsChecks.java', 'PeriodicParticleObserver.java', adapter + '.java']]
         mixins = ['PeriodicParticleObserver']
@@ -78,6 +87,12 @@ def main():
                     'compatibilityLevel': 'JAVA_25', 'client': mixins, 'injectors': {'defaultRequire': 1}}))
     run = output / ('run-' + time.strftime('%Y%m%d-%H%M%S'))
     (run / 'saves').mkdir(parents=True)
+    extra_mods = []
+    for mod in args.extra_mod:
+        (run / 'mods').mkdir(exist_ok=True)
+        frozen_mod = run / 'mods' / mod.name
+        shutil.copy2(mod, frozen_mod)
+        extra_mods.append({'file': str(frozen_mod), 'sha256': hashlib.sha256(frozen_mod.read_bytes()).hexdigest()})
     source_jar = args.jar
     args.jar = run / source_jar.name
     shutil.copy2(source_jar, args.jar)
@@ -114,6 +129,8 @@ def main():
     options = ['-Xmx2G', '-XX:StackShadowPages=32', '--sun-misc-unsafe-memory-access=allow',
                '--enable-native-access=ALL-UNNAMED', '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED',
                '-Dfile.encoding=UTF-8', '-Duser.language=en', '-Duser.country=US']
+    if args.scenario == 'visuals' and any('sodium' in mod.name.lower() for mod in args.extra_mod):
+        options.append('-Dbiblioteca.visuals.sodiumTerrain=true')
     launch_args = []
     if args.loader == 'fabric':
         cp += [str(args.jar), str(probe)]
@@ -155,6 +172,7 @@ def main():
     screenshots = sorted(str(file.relative_to(ROOT)) for file in (run / 'screenshots').glob('*.png'))
     passed = code == 0 and 'PERIODIC_DONE failed=false' in text and 'PERIODIC_FAILURE' not in text and len(screenshots) == (9 if args.scenario == 'visuals' else 4)
     report = {'jar': str(args.jar), 'sourceJar': str(source_jar), 'sha256': hashlib.sha256(args.jar.read_bytes()).hexdigest(),
+              'extraMods': extra_mods,
               'loader': args.loader, 'scenario': args.scenario, 'passed': passed, 'exitCode': code, 'log': str(log.relative_to(ROOT)),
               'samples': samples, 'screenshots': screenshots}
     for target in [run / 'result.json', output / 'results.json']:

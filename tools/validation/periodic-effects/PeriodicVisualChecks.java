@@ -29,6 +29,8 @@ public final class PeriodicVisualChecks {
     private static final Map<EntityRenderState, Entity> owners = new IdentityHashMap<>();
     private static final Set<Object> cloudBuffers = Collections.newSetFromMap(new IdentityHashMap<>());
     private static final Set<Float> blockHeights = new HashSet<>();
+    private static final Set<Integer> terrainOffsets = new HashSet<>();
+    private static final boolean sodiumTerrain = Boolean.getBoolean("biblioteca.visuals.sodiumTerrain");
     private static volatile boolean setup;
     private static volatile Throwable failure;
     private static int ticks, phase, frame, sampledFrame, cloudDraws, entityCopies, selfCopies, totalCloudPasses, initialBuffers, guardianBeams, crystalCopies, shadowPieces;
@@ -63,7 +65,8 @@ public final class PeriodicVisualChecks {
         } catch (Throwable error) { failure = error; }
     }
 
-    public static void begin() { owners.clear(); blockHeights.clear(); guardianBeams = 0; crystalCopies = 0; shadowPieces = 0; }
+    public static void begin() { owners.clear(); blockHeights.clear(); terrainOffsets.clear(); guardianBeams = 0; crystalCopies = 0; shadowPieces = 0; }
+    public static void terrain() { terrainOffsets.add(babel.biblioteca.client.sodiumcompat.SodiumBridge.imageOffset()); }
     public static void guardianBeam(net.minecraft.world.phys.Vec3 vector) {
         guardianBeams++;
         if (babel.biblioteca.LoopingRegistry.isLooping(Minecraft.getInstance().level) && Math.abs(vector.y) > 8)
@@ -132,6 +135,7 @@ public final class PeriodicVisualChecks {
                     mc.options.improvedTransparency().set(false); next();
                 }
                 case 1, 2, 3 -> {
+                    if (sodiumTerrain) check(terrainOffsets.size() > 3, "native Sodium terrain images missing: " + terrainOffsets);
                     check(cloudDraws > 3, "expected more than three cloud layers: " + cloudDraws);
                     check(entityCopies >= 3, "expected several native cow states: " + entityCopies);
                     check(blockHeights.size() >= 3, "expected several native chest poses: " + blockHeights.size());
@@ -168,6 +172,7 @@ public final class PeriodicVisualChecks {
                     pitch = 0; command(mc.getSingleplayerServer(), "biblioteca looping set biblioteca:visuals false"); next();
                 }
                 case 9 -> {
+                    if (sodiumTerrain) check(terrainOffsets.equals(Set.of(0)), "ordinary Sodium terrain was not restored: " + terrainOffsets);
                     check(cloudDraws == 1 && entityCopies == 1 && selfCopies == 0 && blockHeights.size() == 1, "ordinary world controls");
                     capture(mc, "visuals-ordinary");
                     check(cloudBuffers.size() <= initialBuffers + 6, "native cloud buffer ring grew with layer count: " + cloudBuffers.size());
@@ -181,6 +186,7 @@ public final class PeriodicVisualChecks {
     private static void next() { phase++; ticks = 0; sampledFrame = frame; }
     private static void capture(Minecraft mc, String name) {
         System.out.println("VISUAL_SAMPLE name=" + name + " frame=" + frame + " entityCopies=" + entityCopies + " selfCopies=" + selfCopies + " cloudDraws=" + cloudDraws + " chestCopies=" + blockHeights.size() + " guardianBeams=" + guardianBeams + " crystalCopies=" + crystalCopies + " shadowPieces=" + shadowPieces);
+        if (sodiumTerrain) System.out.println("VISUAL_SODIUM_TERRAIN name=" + name + " offsets=" + new java.util.TreeSet<>(terrainOffsets));
         Screenshot.grab(mc.gameDirectory, name + ".png", mc.gameRenderer.mainRenderTarget(), 1, msg -> System.out.println("PERIODIC_FRAME " + name));
     }
     private static Object field(Object value, String name) throws Exception {

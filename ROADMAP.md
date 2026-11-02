@@ -51,9 +51,35 @@ remain outside this validation. Full evidence and exact artifact hashes are reco
 
 Follow-up: no-render builds omit all three rendering controls from Video Settings (seam preload,
 entity copies and cloud layers). Their dedicated settings injection and accessor are packaged
-only in the complete builds. All 41 no-render artifacts were inspected; the 41 complete JARs
-remain byte-identical to the graphical-validation baseline. NeoForge's 24 packaged checks pass
+only in the complete builds. All 41 no-render artifacts were inspected; that packaging correction
+left the 41 complete JARs byte-identical to the graphical-validation baseline. NeoForge's 24 packaged checks pass
 again after this packaging correction. Details are in `build/periodic-followups/no-render-video-settings/`.
+
+Sodium follow-up: the new particle hook initially conflicted with Sodium 0.2's priority-1000
+billboard overwrite on 1.16.5. Raising only this version's injection priority to 1100 fixes
+startup and retains Sodium's fast vertex path. Loader 0.20.1 with Mixin 0.17.5/0.8.7 passes
+actual Multidraw, Oneshot and particle-optimization-disabled runs, including living particles
+through both boundaries. The enhanced observer still reproduces the old JAR's startup failure.
+The no-Sodium 1.16.5 native client/server checks also pass. Evidence and 21 inspected screenshots
+are recorded in `build/sodium-particle-1.16.5/report.json`; only the 1.16.5 complete JAR changed.
+
+## Sodium coverage still to implement (audit 2026-11-02)
+
+The earlier 35-version native matrix does not establish Sodium compatibility. The separate
+audit covers 82 packaged variant/loader combinations; its exact versions, failures and two
+additional NeoForge beta results are recorded in `SODIUM_COMPATIBILITY.md`.
+
+- [ ] Add the Sodium terrain path for Fabric 1.17–1.21.4 and address its required vanilla-hook
+  conflicts. Extend the living-particle fix through 1.20.6 with actual optimized-draw checks.
+- [ ] Add the Sodium terrain path for Fabric 1.21.5, whose `GpuLayerTerrainYLoopMixin` also
+  conflicts with Sodium's replaced section-layer method.
+- [ ] Add the Sodium terrain path for Fabric 1.21.6+ and the supported NeoForge versions.
+  Passing class transformation is insufficient: 26.3 screenshots show repeated entities above
+  only one terrain platform. Preserve source geometry, periodic visibility, seam snapshots,
+  block/light invalidation and transparency in each backend; verify both boundaries in-game.
+- [ ] Extend the real Sodium graphical scenarios beyond Fabric 1.16.5 and 26.3. The 26.3
+  particle/entity/cloud scenarios pass, while terrain copies remain missing. NeoForge 26.3
+  with Sodium 0.9.2 also fails without Biblioteca; 0.9.3-beta.1 passes the loading audit.
 
 ## Deferred research
 

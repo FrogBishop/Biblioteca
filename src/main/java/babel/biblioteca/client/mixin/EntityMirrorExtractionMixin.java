@@ -26,6 +26,7 @@ import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Coerce;
 import java.util.List;
@@ -36,6 +37,7 @@ import java.util.List;
 /*@Mixin(LevelRenderer.class)
 *///?}
 public abstract class EntityMirrorExtractionMixin {
+    @Unique private EntityRenderState biblioteca$omittedState;
     //? if >=26.2 {
     @Shadow @Final private LevelRenderer levelRenderer;
     //?} else {
@@ -56,6 +58,7 @@ public abstract class EntityMirrorExtractionMixin {
     private EntityRenderState biblioteca$extractImages(@Coerce Object owner, Entity entity, float partial,
             Operation<EntityRenderState> original, @Local(argsOnly = true) Camera camera,
             @Local(argsOnly = true) Frustum frustum, @Local(argsOnly = true) LevelRenderState output) {
+        biblioteca$omittedState = null;
         EntityRenderState nearestState = original.call(owner, entity, partial);
         if (nearestState == null || !EntityMirrors.enabled(Compat.level(entity))) return nearestState;
         //? if >=26.2 {
@@ -80,11 +83,18 @@ public abstract class EntityMirrorExtractionMixin {
             if (first == null) first = state;
             else output.entityRenderStates.add(state);
         }
+        // Some native versions inspect glow metadata after adding the state. Keep a valid
+        // bookkeeping value when the first-person body is the only candidate, and omit its draw.
+        if (first == null) {
+            biblioteca$omittedState = nearestState;
+            return nearestState;
+        }
         return first;
     }
 
     @WrapOperation(method = "extractVisibleEntities", at = @At(value = "INVOKE", target = "Ljava/util/List;add(Ljava/lang/Object;)Z"))
     private boolean biblioteca$omitHiddenCameraBody(List<Object> states, Object state, Operation<Boolean> original) {
+        if (state == biblioteca$omittedState) { biblioteca$omittedState = null; return false; }
         return state != null && original.call(states, state);
     }
 }

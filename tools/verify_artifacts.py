@@ -77,6 +77,18 @@ def inspect(version, no_render, mod_version, artifact_dir=None):
             assert not any(name.startswith('me/jellysquid/') for name in names), (file, 'bundled Sodium code')
         else:
             assert sodium_config not in names and not sodium_classes, (file, 'Sodium bridge leaked into another target or no-render')
+        modern_sodium = 'biblioteca.sodium-compat.mixins.json'
+        modern_sodium_classes = [name for name in names if name.startswith('babel/biblioteca/client/sodiumcompat/')]
+        if version != '1.16.5' and not no_render:
+            optional = json.loads(jar.read(modern_sodium))
+            assert {'config': modern_sodium, 'environment': 'client'} in meta['mixins']
+            assert optional['required'] and optional['injectors']['defaultRequire'] == 1
+            for mixin in optional['client']:
+                assert optional['package'].replace('.', '/') + '/' + mixin + '.class' in names
+            assert 'sodium' not in meta['depends']
+            assert not any(name.startswith(('me/jellysquid/', 'net/caffeinemc/')) for name in names)
+        else:
+            assert modern_sodium not in names and not modern_sodium_classes, (file, 'optional Sodium bridge leaked into no-render')
         if 'accessWidener' in meta:
             header = ' '.join(jar.read(meta['accessWidener']).decode().splitlines()[0].split())
             assert header == ('accessWidener v2 official' if java == 25 else 'accessWidener v2 intermediary'), (file, header)
