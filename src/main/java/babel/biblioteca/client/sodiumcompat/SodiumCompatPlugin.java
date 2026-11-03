@@ -41,6 +41,7 @@ public final class SodiumCompatPlugin implements IMixinConfigPlugin {
                 case "CloudDraw7Mixin" -> has(node, "render", 7);
                 case "CloudDraw6Mixin" -> has(node, "render", 6);
                 case "CloudDraw9Mixin" -> has(node, "render", 9);
+                case "CloudDraw10Mixin" -> has(node, "render", 10);
                 case "CloudOrientationMixin" -> has(node, "getOrientation", 3);
                 case "WorldRendererVisibilityMixin" -> node.methods.stream().anyMatch(m -> m.name.equals("isEntityVisible"));
                 default -> throw new IllegalStateException("Unclassified Sodium adapter: " + name);

@@ -152,6 +152,7 @@ val excludedServerMixins = if (sc.current.version == "26.3") {
     rootProject.fileTree("src/main/java/babel/biblioteca/mixin").matching { include("*.java") }
         .files.map { it.nameWithoutExtension }.toSet() - sources263.getValue("mixins").toSet()
 } else buildSet {
+    if (sc.current.parsed < "1.21.2") add("EntityMovementRecordMixin")
     if (sc.current.parsed < "1.19.3") add("GameEventDispatchYLoopMixin")
     else add("LegacyGameEventDispatchYLoopMixin")
     if (sc.current.parsed < "1.19") add("GameEventRegistryYLoopMixin")

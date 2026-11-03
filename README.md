@@ -344,25 +344,27 @@ the actual pose and captures six screenshots. Both loader adapters use the same 
 settings, with dynamic FOV disabled. This diagnostic is limited to the selected graphics device
 and draw path. Reports and screenshots are written under `build/validation/26.3/visibility/`.
 
+`tools/verify_entity_physics.py --version MC --eula-file PATH` runs real dedicated-server
+regressions in a disposable world: continuous sand/gravel/anvil falls, signed movement through
+both boundaries (including more than a whole period), concrete powder/water, actual landing,
+item/TNT/mob movement history and the native 600-tick timeout in both looping and ordinary worlds. `--short` uses a 16-row world on
+versions with a native dimension-type schema. Results and frozen artifacts stay under
+`build/validation/MC/entity-physics/`.
+
 ## Compatibility and documentation
 
-The Fabric 1.16.5 build includes an optional bridge for **Sodium 0.2.0+build.4**.
-It preserves Sodium's native buffers, shaders and drawing backends while adding periodic terrain
-copies and boundary snapshots. Sodium's native section-based transparency behavior remains in
-use; this is separate from the vanilla renderer's quad sorting. The bridge is excluded from
-no-render builds. Compatibility with other Sodium versions is not implied by this 1.16.5 adapter.
+Full builds include optional Sodium adapters for the supported Fabric and NeoForge nodes.
+They reuse Sodium's terrain meshes, shaders, drawing backends and transparency indices while
+adding periodic visibility, boundary snapshots and block/light invalidation. Living particles
+also retain their position history through Sodium's optimized particle paths. Sodium remains
+optional; no-render builds exclude the rendering adapters and the related video controls.
 
-The broader Sodium audit confirms that complete rendering is **not yet supported on other
-Minecraft versions**. Fabric 1.17–1.21.5 has required terrain-hook conflicts. Most selected
-releases through 1.20.6 also have a particle-hook conflict; 1.20.1 with Sodium 0.5.13 has only
-the terrain conflict. The selected 1.21.6+ releases pass class transformation, but
-Sodium replaces the terrain path used by the periodic copies. A real 26.3 + Sodium 0.9.2 run
-confirms missing terrain copies despite working particle continuity, entity copies and cloud
-layers. All 35 Fabric no-render builds pass the corresponding transformation audit. NeoForge's
-six no-render nodes pass with the selected releases except that 26.3 requires Sodium's tested
-0.9.3-beta.1 instead of 0.9.2 for compatibility with the audited NeoForge 26.3.0.98 runtime.
-These loading checks are not graphical guarantees. See [SODIUM_COMPATIBILITY.md](SODIUM_COMPATIBILITY.md)
-for exact versions, evidence, reproduction commands and remaining work.
+The selected releases are listed in [SODIUM_COMPATIBILITY.md](SODIUM_COMPATIBILITY.md), together
+with separate loading and real graphical results. Graphical coverage samples 14 Fabric Minecraft
+versions and NeoForge 26.3; it does not cover every historical Sodium release or every modpack.
+On the tested NeoForge 26.3.0.98 runtime, use **Sodium 0.9.3-beta.1 or newer**. Both Biblioteca
+variants declare that minimum when Sodium is present because 0.9.2 fails independently of
+Biblioteca. Other Minecraft nodes use their own compatible Sodium release from the matrix.
 
 Voxy and other far-LOD/replacement renderers bypass vanilla terrain extraction and need a separate
 integration. That is a shared compatibility limitation of `main` and this branch. Shader packs

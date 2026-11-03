@@ -11,10 +11,17 @@ evaluation, network coverage, complete entity copies and multiple cloud layers.
 - Fix startup with Sodium 0.2.0+build.4 on Fabric 1.16.5. The living-particle injection now has
   sufficient priority to target Sodium's replacement billboard method while retaining its fast
   vertex path and periodic particle continuity.
-- Audit Sodium across all 35 Fabric and six NeoForge nodes, with exact release/hash records and
-  separate graphical evidence. Document unresolved terrain conflicts through Fabric 1.21.5 and
-  missing periodic terrain on newer Sodium renderers in `SODIUM_COMPATIBILITY.md`; passing native
-  Minecraft regressions does not establish Sodium support.
+- Extend optional Sodium integration across supported Fabric and NeoForge versions: periodic
+  terrain visibility/drawing, boundary block/light/biome snapshots, cache invalidation and native
+  cloud layers. Retain native buffers and transparency indices. Cover optimized particle callbacks
+  and fix the 1.16.5 chest double offset and newer first-person render-state null case.
+- Require Sodium 0.9.3-beta.1 or newer only when installed on NeoForge 26.3. Record the exact
+  tested releases and separate loading from graphical coverage in `SODIUM_COMPATIBILITY.md`.
+- Retain the native 600-tick falling-block timeout in both looping and ordinary dimensions,
+  including item drops after expiry. Boundary crossings preserve age and real landing behavior.
+- Translate physical movement history, swept paths and known-speed baselines together at the seam.
+  Preserve signed distances above half or multiple world heights; also fix item, TNT and mob paths
+  that previously included a synthetic whole-world segment.
 - Dispatch game events across the Y seam, retaining native vibration distance, travel time, wool
   occlusion and once-per-registry delivery in short worlds.
 - Add F3 diagnostics, `/biblioteca diagnostics`, Y-section exports and an interactive light viewer.

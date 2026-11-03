@@ -179,3 +179,17 @@ so ordinary mesh reads retain their constant-time local index lookup.
 1.16.5 stores entities in chunks instead of the later LevelEntityGetter; both paths keep physical
 storage unchanged and widen/filter the public query. The oldest API returns collision streams
 and accepts a caller predicate, which is preserved when adding periodic collision shapes.
+
+## Optional Sodium rendering and movement history
+
+Sodium adapters reuse native meshes, buffers and transparency indices for visible periodic images.
+Draw count grows with visible images, bounded by the copy limit; geometry is not rebuilt per image.
+The 0.9 path waits for asynchronous collection to reach its safe read phase before native fallback
+discovery in looping worlds. This is a correctness choice, not a measured FPS improvement. Dense
+scenes, short dimensions and transparency remain profiling targets; there is no per-image global
+transparent-quad re-sort.
+
+Physical movement translates cached endpoints only on an actual boundary crossing. The ordinary
+in-range path does not allocate a translation set; crossing work is proportional to that entity's
+bounded native movement records. Signed travel is retained across multiple periods. Falling-block
+age is not reset; the native 600-tick expiry and landing/collision behavior are retained.

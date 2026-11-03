@@ -26,6 +26,7 @@
     "CloudDraw7Mixin",
     "CloudDraw6Mixin",
     "CloudDraw9Mixin",
+    "CloudDraw10Mixin",
     "CloudOrientationMixin"
   ],
   "injectors": {

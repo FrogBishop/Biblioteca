@@ -63,23 +63,29 @@ through both boundaries. The enhanced observer still reproduces the old JAR's st
 The no-Sodium 1.16.5 native client/server checks also pass. Evidence and 21 inspected screenshots
 are recorded in `build/sodium-particle-1.16.5/report.json`; only the 1.16.5 complete JAR changed.
 
-## Sodium coverage still to implement (audit 2026-11-02)
+## Sodium integration (completed 2026-11-04)
 
-The earlier 35-version native matrix does not establish Sodium compatibility. The separate
-audit covers 82 packaged variant/loader combinations; its exact versions, failures and two
-additional NeoForge beta results are recorded in `SODIUM_COMPATIBILITY.md`.
+Exact releases, loading coverage and graphical limits are recorded in `SODIUM_COMPATIBILITY.md`.
+The old failure audit remains under `build/sodium-matrix/final/` as a negative control; it is
+superseded by the integration report rather than rewritten as a passing historical run.
 
-- [ ] Add the Sodium terrain path for Fabric 1.17–1.21.4 and address its required vanilla-hook
-  conflicts. Extend the living-particle fix through 1.20.6 with actual optimized-draw checks.
-- [ ] Add the Sodium terrain path for Fabric 1.21.5, whose `GpuLayerTerrainYLoopMixin` also
-  conflicts with Sodium's replaced section-layer method.
-- [ ] Add the Sodium terrain path for Fabric 1.21.6+ and the supported NeoForge versions.
-  Passing class transformation is insufficient: 26.3 screenshots show repeated entities above
-  only one terrain platform. Preserve source geometry, periodic visibility, seam snapshots,
-  block/light invalidation and transparency in each backend; verify both boundaries in-game.
-- [ ] Extend the real Sodium graphical scenarios beyond Fabric 1.16.5 and 26.3. The 26.3
-  particle/entity/cloud scenarios pass, while terrain copies remain missing. NeoForge 26.3
-  with Sodium 0.9.2 also fails without Biblioteca; 0.9.3-beta.1 passes the loading audit.
+- [x] Add legacy and modern Sodium terrain paths, including the 1.21.1 backport and 26.2 signatures.
+- [x] Retain native geometry, transparency indices, periodic visibility, block/light/biome snapshots
+  and opposite-seam cache invalidation. Reuse cloud buffers across layers.
+- [x] Cover optimized particles and the native fallback. Correct 1.16.5 block-entity double
+  translation and newer first-person omitted-state handling.
+- [x] Extend real graphical scenes to 14 Fabric versions and NeoForge 26.3, checking terrain
+  replacement, both crossings, particles, entities, clouds and ordinary-world restoration.
+- [x] Declare the optional NeoForge 26.3 Sodium minimum and retain no-render UI/packaging exclusion.
+
+## Continuous movement (completed 2026-11-04)
+
+- [x] Reproduce age-601 falling-block removal and retain that vanilla timeout in all dimensions
+  at the user's request; fix physical displacement independently.
+- [x] Preserve physical signed displacement; translate native movement queues and speed baselines
+  in the same frame, including multiple moves within a tick.
+- [x] Run real server sand/gravel/anvil, concrete/water, collision/placement and item/TNT/mob
+  regressions across movement-storage version boundaries, with ordinary-world controls.
 
 ## Deferred research
 

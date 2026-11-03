@@ -25,6 +25,7 @@
     "EntitySearchYLoopMixin",
     "EntityTypeSpawnYLoopMixin",
     "EntityYLoopMixin",
+    "EntityMovementRecordMixin",
     "FallingBlockEntityYLoopMixin",
     "GhastAimYLoopMixin",
     "GrassBlockYLoopMixin",
