@@ -102,7 +102,9 @@ def main():
     if not args.label.replace('-', '').replace('_', '').isalnum():
         raise SystemExit('Label must contain only letters, digits, hyphens and underscores.')
     versions = args.versions.split(',') if args.versions else [p.stem for p in (ROOT / 'build/validation/runtime').glob('*.json')
-        if (1, 16, 5) <= tuple(map(int, p.stem.split('.'))) <= (1, 20, 4)]
+        if p.stem != '20w14infinite' and (1, 16, 5) <= tuple(map(int, p.stem.split('.'))) <= (1, 20, 4)]
+    if '20w14infinite' in versions:
+        raise SystemExit('Use tools/verify_infinite_scene.py for the snapshot world-creation UI.')
     versions.sort(key=lambda v: tuple(map(int, v.split('.'))))
     args.artifact_dir = args.artifact_dir.resolve()
     report = ROOT / 'build/validation/world-creation' / args.label / 'results.json'

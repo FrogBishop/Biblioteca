@@ -28,9 +28,15 @@ public interface LightStorageAccessor extends babel.biblioteca.LoopingLightStora
     /*@Accessor("updatingSectionData") DataLayerStorageMap<?> biblioteca$updating();
     @Accessor("changedSections") LongSet biblioteca$changed();
     @Accessor("sectionsAffectedByLightUpdates") LongSet biblioteca$affected();
+    //? if >=1.16 {
     @Accessor("untrustedSections") LongSet biblioteca$untrusted();
+    //?}
     @Invoker("getDataLayer") DataLayer biblioteca$layer(long section, boolean updating);
     @Invoker("runAllUpdates") void biblioteca$allocateSections();
+    //? if >=1.16 {
     @Invoker("queueSectionData") void biblioteca$queueLegacy(long section, DataLayer data, boolean trusted);
+    //?} else {
+    @Invoker("queueSectionData") void biblioteca$queueLegacy(long section, DataLayer data);
+    //?}
     *///?}
 }

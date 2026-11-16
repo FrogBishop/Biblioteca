@@ -47,7 +47,11 @@ public abstract class LevelBlockAccessMixin {
 
     // MC 26.3: Level.setBlock has only the 4-argument form (BlockPos, BlockState, int, int)
     @ModifyVariable(
+            //? if >=1.16 {
             method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
+            //?} else {
+            /*method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Z",
+            *///?}
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$wrapSetBlock(BlockPos pos) {
         return biblioteca$fold(pos);

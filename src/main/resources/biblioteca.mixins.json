@@ -10,6 +10,8 @@
     "BlazeAimYLoopMixin",
     "BlockAttachedEntityAccessor",
     "BlockCollisionsYLoopMixin",
+    "InfiniteBlockCollisionsMixin",
+    "InfinitePlayerJoinMixin",
     "BlockLightEngineYLoopMixin",
     "BreezeAimYLoopMixin",
     "ChorusFlowerBlockYLoopMixin",

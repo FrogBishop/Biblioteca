@@ -460,7 +460,7 @@ def publication_lock():
 
 
 def targets(config, versions, loaders):
-    fabric = [v for v in config if re.fullmatch(r'\d+(?:\.\d+)+', v)]
+    fabric = [v for v in config if v == '20w14infinite' or re.fullmatch(r'\d+(?:\.\d+)+', v)]
     neo = {p.name.removeprefix('neoforge-') for p in (ROOT / 'platforms').glob('neoforge-*')
            if p.is_dir() and (p / 'build.gradle').is_file()}
     selected = csv(versions, fabric, 'Minecraft versions')
@@ -487,8 +487,9 @@ def inspect_artifact(path, version, loader, mc, variant):
             if loader == 'fabric':
                 meta = json.loads(jar.read('fabric.mod.json'))
                 valid = (meta['id'] == 'biblioteca' and meta['version'] == expected
-                         and meta['depends']['minecraft'] == mc
-                         and ('fabric-api' in meta['depends'] or 'fabric' in meta['depends'])
+                         and meta['depends']['minecraft'] == ('1.16-alpha.20.13.inf' if mc == '20w14infinite' else mc)
+                         and ({'fabric-api-base', 'fabric-commands-v0', 'fabric-networking-v0', 'fabric-resource-loader-v0'} <= set(meta['depends'])
+                              if mc == '20w14infinite' else ('fabric-api' in meta['depends'] or 'fabric' in meta['depends']))
                          and 'META-INF/neoforge.mods.toml' not in jar.namelist())
             else:
                 meta = tomllib.loads(jar.read('META-INF/neoforge.mods.toml').decode('utf-8'))

@@ -197,6 +197,8 @@ def main():
         print('SELECTED', row['loader'], row['minecraft'], (row['release'] or {}).get('version_number', 'UNAVAILABLE'), flush=True)
     if args.download_only:
         return
+    if not any(row['release'] for row in rows):
+        parser.error('No published Sodium release matches these targets; no compatibility checks ran.')
     results = []
     report = BASE / args.label / 'results.json'
     report.parent.mkdir(parents=True, exist_ok=True)

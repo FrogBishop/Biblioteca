@@ -6,7 +6,8 @@ Biblioteca connects a dimension's top and bottom. The server stores one period;
 the client displays the visible periodic copies. No blocks, items, dimensions or generation
 presets are added, and existing terrain (including bedrock) is retained.
 
-`multiversion` is the default and maintained branch, covering **all 35 releases from 1.16.5 through 26.3**.
+`multiversion` is the default and maintained branch, covering **all 35 releases from 1.16.5 through 26.3**. Development builds also include
+**20w14infinite (20w14∞) on Fabric**, for 36 Fabric targets; see [the snapshot guide](INFINITE_COMPATIBILITY.md).
 `main` is permanently archived as the historical Minecraft 26.3 Fabric implementation.
 Each release has an exact-version artifact; a JAR
 compiled for one release is not relabelled to accept a broader API range.
@@ -38,9 +39,9 @@ the changes through 1.0.0. [PORTING.md](PORTING.md) describes the version breakp
 
 | Component | Configuration |
 |---|---|
-| Minecraft nodes | 1.16.5; 1.17–1.17.1; 1.18–1.18.2; 1.19–1.19.4; 1.20–1.20.6; 1.21–1.21.11; 26.1–26.1.2; 26.2; 26.3 |
+| Minecraft nodes | 20w14infinite; 1.16.5; 1.17–1.17.1; 1.18–1.18.2; 1.19–1.19.4; 1.20–1.20.6; 1.21–1.21.11; 26.1–26.1.2; 26.2; 26.3 |
 | Gradle runtime | JDK 25; wrapper uses Gradle 9.8.0 |
-| Output Java targets | 17 for 1.16.5–1.20.4; 21 for 1.20.5–1.21.11; 25 for 26.1+ |
+| Output Java targets | 17 for 20w14infinite and 1.16.5–1.20.4; 21 for 1.20.5–1.21.11; 25 for 26.1+ |
 | Fabric Loader | 0.19.5 |
 | Fabric API | Pinned per release in `stonecutter.properties.toml` |
 | NeoForge (26.x targets) | 26.1.0.19-beta / 26.1.1.15-beta / 26.1.2.122 / 26.2.0.93 / 26.3.0.98 (also verified with 26.3.0.99); ModDevGradle 2.0.148, Java 25 |
@@ -78,7 +79,7 @@ python tools/verify_artifacts.py
 On Linux/macOS use `./gradlew`; `SC_VERSIONS=1.21.5,26.3 ./gradlew :1.21.5:build` selects a subset.
 `verify_matrix.py --versions 1.21.5,26.3` validates a subset of exported configurations.
 The verifier accepts `--java` and `--javac` paths and uses Python 3.11 or newer together with the artifact auditor.
-The 1.16.5 and 1.17 artifacts also require Java 17 or newer at game runtime.
+The 20w14infinite, 1.16.5 and 1.17 artifacts also require Java 17 or newer at game runtime.
 
 Outputs are named `biblioteca-<mod-version>+<minecraft>.jar` and
 `biblioteca-<mod-version>+<minecraft>-norender.jar`. The mod version comes from
@@ -93,6 +94,13 @@ Loom prepares those modules in each node's mappings before launch. The verifier 
 applicable module is present, including companion renderer Mixins. Old umbrella IDs (`fabric`)
 and newer IDs (`fabric-api`) are read from the actual bundle. Dependencies are cached by Gradle.
 
+20w14infinite uses its dedicated old API modules for base events, commands, networking and resources.
+Those four unmodified modules are bundled in both variants; the old API umbrella is not required.
+The snapshot attributes screen also lists all 43 native Easter egg dimensions by their original
+book strings, with paging and settings available before the dimensions are visited.
+The old umbrella's published Minecraft version declaration conflicts with modern Fabric Loader. There is no
+NeoForge loader for this snapshot, so no NeoForge snapshot artifact is produced.
+
 Publishing uses the isolated Mod Publish Plugin project under `publishing/`. Run
 `python tools/publish.py --versions 26.3` for a dry run, or add `--build` to build and validate
 the selected targets first. See [PUBLISHING.md](PUBLISHING.md) for external credentials,
@@ -102,7 +110,7 @@ batch uploads, resume behavior and synchronization of the project description.
 
 Stored block rows occupy `[minY, minY + height)`. In the normal Overworld this is `[-64, 320)`;
 the **boundary** identifies the planes at `y = -64` and `y = 320`.
-The vanilla 1.16.5/1.17 Overworld instead uses `[0, 256)`. 1.16.5 has a fixed zero floor;
+The snapshot and vanilla 1.16.5/1.17 Overworld instead use `[0, 256)`. The snapshot and 1.16.5 have a fixed zero floor;
 from 1.17 the helpers use the level's native minimum and height.
 
 ```text

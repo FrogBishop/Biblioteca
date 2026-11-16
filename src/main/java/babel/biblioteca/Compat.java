@@ -8,9 +8,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.Component;
+//? if >=1.16 {
 import net.minecraft.network.chat.MutableComponent;
+//?}
 import net.minecraft.commands.CommandSourceStack;
+//? if >=1.16 {
 import com.mojang.serialization.Codec;
+//?}
 import java.util.function.Supplier;
 //? if >=1.19.3 {
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -91,7 +95,11 @@ public final class Compat {
 
     public static BlockPos blockPos(Vec3 point) { return blockPos(point.x, point.y, point.z); }
 
+    //? if >=1.16 {
     public static MutableComponent literal(String text) {
+    //?} else {
+    /*public static Component literal(String text) {
+    *///?}
         //? if >=1.19 {
         return Component.literal(text);
         //?} else {
@@ -99,7 +107,11 @@ public final class Compat {
         *///?}
     }
 
+    //? if >=1.16 {
     public static MutableComponent translatable(String key, Object... args) {
+    //?} else {
+    /*public static Component translatable(String key, Object... args) {
+    *///?}
         //? if >=1.19 {
         return Component.translatable(key, args);
         //?} else {
@@ -118,8 +130,10 @@ public final class Compat {
     public static java.util.List<net.minecraft.world.phys.shapes.VoxelShape> entityCollisions(Level level, Entity entity, AABB area) {
         //? if >=1.18 {
         return level.getEntityCollisions(entity, area);
-        //?} else {
+        //?} else if >=1.16 {
         /*return level.getEntityCollisions(entity, area, candidate -> true).toList();
+        *///?} else {
+        /*return level.getEntityCollisions(entity, area, java.util.Set.of()).toList();
         *///?}
     }
 
@@ -131,17 +145,37 @@ public final class Compat {
         *///?}
     }
 
-    public static ResourceKey<Level> dimensionKey(Identifier id) {
-        //? if >=1.19.3 {
-        return ResourceKey.create(Registries.DIMENSION, id);
+    public static ResourceKey<Level> dimension(Level level) {
+        //? if >=1.16 {
+        return level.dimension();
         //?} else {
-        /*return ResourceKey.create(Registry.DIMENSION_REGISTRY, id);
+        /*return dimensionKey(net.minecraft.world.level.dimension.DimensionType.getName(level.dimension.getType()));
         *///?}
     }
 
+    public static net.minecraft.server.level.ServerLevel overworld(net.minecraft.server.MinecraftServer server) {
+        //? if >=1.16 {
+        return server.getLevel(Level.OVERWORLD);
+        //?} else {
+        /*return server.getLevel(net.minecraft.world.level.dimension.DimensionType.OVERWORLD);
+        *///?}
+    }
+
+    public static ResourceKey<Level> dimensionKey(Identifier id) {
+        //? if >=1.19.3 {
+        return ResourceKey.create(Registries.DIMENSION, id);
+        //?} else if >=1.16 {
+        /*return ResourceKey.create(Registry.DIMENSION_REGISTRY, id);
+        *///?} else {
+        /*return new babel.biblioteca.compat.InfiniteDimensionKey(id);
+        *///?}
+    }
+
+    //? if >=1.16 {
     public static Codec<ResourceKey<Level>> dimensionCodec() {
         return Identifier.CODEC.xmap(Compat::dimensionKey, Compat::keyId);
     }
+    //?}
 
     public static Registry<Identifier> customStats() {
         //? if >=1.19.3 {
@@ -182,7 +216,9 @@ public final class Compat {
     public static Identifier keyId(ResourceKey<Level> key) {
         //? if >=1.21.11 {
         return key.identifier();
-        //?} else {
+        //?} else if >=1.16 {
+        /*return key.location();
+        *///?} else {
         /*return key.location();
         *///?}
     }

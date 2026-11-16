@@ -65,14 +65,22 @@ method = "create(Lnet/minecraft/server/level/ServerLevel;Ljava/util/function/Con
 method = "create(Lnet/minecraft/server/level/ServerLevel;Ljava/util/function/Consumer;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/MobSpawnType;ZZ)Lnet/minecraft/world/entity/Entity;",
 //?} else if >=1.19.3 {
 method = "create(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/nbt/CompoundTag;Ljava/util/function/Consumer;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/MobSpawnType;ZZ)Lnet/minecraft/world/entity/Entity;",
-//?} else {
+//?} else if >=1.16 {
 method = "create(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/nbt/CompoundTag;Lnet/minecraft/network/chat/Component;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/MobSpawnType;ZZ)Lnet/minecraft/world/entity/Entity;",
+//?} else {
+method = "create(Lnet/minecraft/world/level/Level;Lnet/minecraft/nbt/CompoundTag;Lnet/minecraft/network/chat/Component;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/MobSpawnType;ZZ)Lnet/minecraft/world/entity/Entity;",
 //?}
 
 *///?}
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private BlockPos biblioteca$foldSpawnPosition(
-            BlockPos spawnPos, @Local(argsOnly = true) ServerLevel level) {
+            BlockPos spawnPos,
+            //? if >=1.16 {
+            @Local(argsOnly = true) ServerLevel level
+            //?} else {
+            /*@Local(argsOnly = true) Level level
+            *///?}
+            ) {
         return LoopingRegistry.isLooping(level) ? SeamPositions.foldBlockPos(level, spawnPos) : spawnPos;
     }
 

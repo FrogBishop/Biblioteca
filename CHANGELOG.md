@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- List all 43 native 20w14infinite Easter egg dimensions in the attributes UI, after the three
+  vanilla dimensions. Preserve their exact original book strings in every language, sort by name,
+  provide paging and full long-name tooltips, and save settings for unvisited dimensions without
+  registering worlds or altering the secret passphrase.
+
+- Add exact-version Fabric 20w14infinite complete/no-render builds on Java 17+, with four
+  bundled legacy API modules and no obsolete API umbrella dependency. Adapt generated dimension
+  identifiers, NBT persistence, networking, integrated-server initialization, native rendering,
+  physics, and the pre-PoseStack settings UI. No-render builds omit video controls.
+- Keep the snapshot's native falling-block timeout. NeoForge has no loader for 20w14infinite;
+  existing NeoForge targets continue to use the shared code. See `INFINITE_COMPATIBILITY.md`.
+
 Development work is tracked in [ROADMAP.md](ROADMAP.md). Shader interfaces are deferred;
 the active scope includes particle continuity, periodic game events, diagnostics, entity-query
 evaluation, network coverage, complete entity copies and multiple cloud layers.

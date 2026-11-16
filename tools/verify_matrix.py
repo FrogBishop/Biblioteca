@@ -76,6 +76,8 @@ def main():
             target = ROOT / 'build/validation' / config['minecraft'] / 'checks'
             target.mkdir(parents=True, exist_ok=True)
             sources = list((ROOT / 'tools/validation').glob('*.java'))
+            if config['minecraft'] == '20w14infinite':
+                sources = [ROOT / 'tools/validation/infinite/InfiniteDataChecks.java']
             if config['minecraft'] == '26.3':
                 sources.append(ROOT / 'tools/validation/renderpearl/RenderingChecks.java')
                 sources.extend(sorted((ROOT / 'tools/validation/main100').glob('*.java')))

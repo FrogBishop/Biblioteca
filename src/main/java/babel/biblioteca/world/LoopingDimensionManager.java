@@ -44,7 +44,7 @@ public final class LoopingDimensionManager {
     private LoopingDimensionManager() {}
 
     public static void onServerStarted(MinecraftServer server) {
-        ServerLevel overworld = server.getLevel(Level.OVERWORLD);
+        ServerLevel overworld = babel.biblioteca.Compat.overworld(server);
         if (overworld == null) {
             Biblioteca.LOGGER.error("[Biblioteca] Could not find overworld when loading looping data!");
             return;

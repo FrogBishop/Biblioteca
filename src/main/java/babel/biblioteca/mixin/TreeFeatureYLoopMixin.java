@@ -3,7 +3,9 @@ package babel.biblioteca.mixin;
 import babel.biblioteca.LoopingRegistry;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+//? if >=1.17 {
 import net.minecraft.world.level.WorldGenLevel;
+//?}
 import net.minecraft.world.level.levelgen.feature.TreeFeature;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.Constant;
@@ -24,7 +26,11 @@ import org.spongepowered.asm.mixin.injection.At;
  * <p>The bounds are returned one short of the integer limits because vanilla adds one to each
  * before comparing; returning {@code Integer.MAX_VALUE} would overflow that comparison.
  */
+//? if >=1.16 {
 @Mixin(TreeFeature.class)
+//?} else {
+/*@Mixin(net.minecraft.world.level.levelgen.feature.AbstractSmallTreeFeature.class)
+*///?}
 public abstract class TreeFeatureYLoopMixin {
 
 //? if >=1.17 {
@@ -43,12 +49,24 @@ public abstract class TreeFeatureYLoopMixin {
     }
 
 //?} else {
-/*    @ModifyConstant(method = "doPlace", constant = @Constant(intValue = 1, ordinal = 0))
+/*    @ModifyConstant(
+            //? if >=1.16 {
+            method = "doPlace",
+            //?} else {
+            method = "getProjectedOrigin",
+            //?}
+            constant = @Constant(intValue = 1, ordinal = 0))
     private int biblioteca$legacyFloor(int bound, @Local(argsOnly = true) net.minecraft.world.level.LevelSimulatedRW level) {
         return level instanceof net.minecraft.world.level.Level real && LoopingRegistry.isLooping(real)
                 ? Integer.MIN_VALUE + 1 : bound;
     }
-    @ModifyConstant(method = "doPlace", constant = @Constant(intValue = 256))
+    @ModifyConstant(
+            //? if >=1.16 {
+            method = "doPlace",
+            //?} else {
+            method = "getProjectedOrigin", require = 3, expect = 3,
+            //?}
+            constant = @Constant(intValue = 256))
     private int biblioteca$legacyCeiling(int bound, @Local(argsOnly = true) net.minecraft.world.level.LevelSimulatedRW level) {
         return level instanceof net.minecraft.world.level.Level real && LoopingRegistry.isLooping(real)
                 ? Integer.MAX_VALUE - 1 : bound;

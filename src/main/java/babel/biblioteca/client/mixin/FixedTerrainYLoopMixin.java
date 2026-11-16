@@ -6,7 +6,9 @@ import babel.biblioteca.client.ClientCompat;
 import babel.biblioteca.client.FixedTerrainBackend;
 import babel.biblioteca.client.LegacyTerrainSources;
 import babel.biblioteca.client.SeamCull;
+//? if >=1.16 {
 import babel.biblioteca.client.sodium.SodiumRenderContext;
+//?}
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -29,7 +31,9 @@ public abstract class FixedTerrainYLoopMixin {
     private void biblioteca$drawCopies(RenderType layer, PoseStack poses, double x, double y, double z, CallbackInfo ci) {
         Level level = Minecraft.getInstance().level;
         if (level == null || !LoopingRegistry.isLooping(level)) return;
+        //? if >=1.16 {
         if (SodiumRenderContext.isActive()) return;
+        //?}
         if (this.biblioteca$backend == null) this.biblioteca$backend = new FixedTerrainBackend();
         LegacyTerrainSources sources = (LegacyTerrainSources) this;
         Frustum frustum = sources.biblioteca$terrainFrustum();

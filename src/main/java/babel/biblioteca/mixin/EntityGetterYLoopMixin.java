@@ -43,8 +43,10 @@ public interface EntityGetterYLoopMixin {
             Entity source, AABB testArea,
 //? if >=1.18 {
             CallbackInfoReturnable<List<VoxelShape>> cir
-//?} else {
+//?} else if >=1.16 {
 /*            java.util.function.Predicate<Entity> selector, CallbackInfoReturnable<java.util.stream.Stream<VoxelShape>> cir
+*///?} else {
+/*            java.util.Set<Entity> ignored, CallbackInfoReturnable<java.util.stream.Stream<VoxelShape>> cir
 *///?}
             ) {
 
@@ -52,8 +54,10 @@ public interface EntityGetterYLoopMixin {
 
         //? if >=1.18 {
         java.util.function.Predicate<Entity> extraFilter = entity -> true;
-        //?} else {
+        //?} else if >=1.16 {
         /*java.util.function.Predicate<Entity> extraFilter = selector;
+        *///?} else {
+        /*java.util.function.Predicate<Entity> extraFilter = entity -> !ignored.contains(entity);
         *///?}
 
         int minY = Compat.minY(level);

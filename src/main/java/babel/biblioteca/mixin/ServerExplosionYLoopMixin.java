@@ -106,6 +106,7 @@ public abstract class ServerExplosionYLoopMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;getEyeY()D"))
     private double biblioteca$foldEyeY(double y) { return biblioteca$foldOriginY(y); }
 
+    //? if >=1.16 {
     @ModifyExpressionValue(
             //? if >=1.21.2 {
             method = "hurtEntities",
@@ -114,6 +115,8 @@ public abstract class ServerExplosionYLoopMixin {
             //?}
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;getY()D"))
     private double biblioteca$foldTntY(double y) { return biblioteca$foldOriginY(y); }
+
+    //?}
 
     private double biblioteca$foldOriginY(double originY) {
         //? if >=1.21.2 {

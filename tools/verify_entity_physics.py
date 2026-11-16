@@ -32,7 +32,23 @@ def main():
     frozen = out / 'mods' / jar.name
     shutil.copy2(jar, frozen)
     classes = out / 'probe-classes'
-    compile_java(a.javac, cfg['classpath'], classes, [ROOT / 'tools/validation/entity-physics/EntityPhysicsProbe.java'], out / 'compile.log')
+    sources = [ROOT / 'tools/validation/entity-physics/EntityPhysicsProbe.java']
+    probe_classpath = list(cfg['classpath'])
+    if a.version == '20w14infinite':
+        # The test-only lifecycle module predates v1; production bundles base/commands/network/resources.
+        api = ROOT / '.gradle/fabric-api/0.5.7+build.2-20w14infinite'
+        lifecycle = next(api.glob('fabric-events-lifecycle-v0-*.jar'))
+        shutil.copy2(lifecycle, out / 'mods' / lifecycle.name)
+        probe_classpath.append(str(lifecycle))
+        source = sources[0].read_text(encoding='utf-8')
+        source = source.replace('net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents', 'net.fabricmc.fabric.api.event.server.ServerStartCallback')
+        source = source.replace('net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents', 'net.fabricmc.fabric.api.event.server.ServerTickCallback')
+        source = source.replace('ServerLifecycleEvents.SERVER_STARTED', 'ServerStartCallback.EVENT').replace('ServerTickEvents.END_SERVER_TICK', 'ServerTickCallback.EVENT')
+        generated = out / 'probe-source/EntityPhysicsProbe.java'
+        generated.parent.mkdir()
+        generated.write_text(source, encoding='utf-8')
+        sources = [generated]
+    compile_java(a.javac, probe_classpath, classes, sources, out / 'compile.log')
     (classes / 'fabric.mod.json').write_text(json.dumps({'schemaVersion': 1, 'id': 'biblioteca_physics_probe', 'version': '1.0.0', 'environment': 'server', 'entrypoints': {'main': ['biblioteca.physicsprobe.EntityPhysicsProbe']}}), encoding='utf-8')
     probe = out / 'probe.jar'
     with zipfile.ZipFile(probe, 'w') as z:

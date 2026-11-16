@@ -2,7 +2,8 @@
 
 `main` is permanently archived as the historical single-version Minecraft 26.3 Fabric branch.
 `multiversion` contains the adaptation
-of `main` commit `603f9a7` (1.0.0) to all 35 formal-release nodes in `settings.gradle.kts`.
+of `main` commit `603f9a7` (1.0.0) to all 35 formal-release nodes in `settings.gradle.kts`,
+plus the exact Fabric 20w14infinite snapshot target.
 The feature and validation audit is in [PARITY.md](PARITY.md).
 
 ## Loader scope
@@ -18,13 +19,14 @@ Every node has a full renderer and a matching no-render JAR. The old broad group
 even releases in one visual era change method descriptors, mapping IDs, buffer types and uniform
 layouts. Exact artifacts avoid declaring compatibility that the compiled bytecode does not have.
 
-`./gradlew build` builds all nodes and collects 70 deliverables in `build/distributions/`.
+`./gradlew build` builds all nodes and collects 72 Fabric deliverables in `build/distributions/`.
 `SC_VERSIONS` selects a smaller configured set; 26.3 is always added as the active source node.
 To build only one selected node, use its qualified task, for example `:1.21.8:build`.
 The former `SC_ALL` switch and `build/grouped` directory are no longer used.
 
 | Releases | Output Java | Mapping/runtime |
 |---|---|---|
+| 20w14infinite | 17 | Mojang development names; exact normalized predicate; four bundled old API modules |
 | 1.16.5–1.20.4 | 17 | Mojang development names; intermediary release JAR/refmap |
 | 1.20.5–1.21.11 | 21 | Mojang development names; intermediary release JAR/refmap |
 | 26.1–26.3 | 25 | Official unobfuscated classes |
@@ -35,9 +37,27 @@ so use complete class names rather than broad package prefixes. Client Mixin sel
 `build.gradle.kts` controls both compilation and the generated config; the checked-in empty
 client list is a template. All generated configs require their injections (`defaultRequire: 1`).
 
+## Infinity snapshot boundary
+
+The snapshot predates ResourceKey and modern serialization codecs. `InfiniteDimensionKey` stores
+its stable registry identifier; shared code obtains it through `Compat.dimension`. Snapshot NBT
+read/write preserves the per-dimension attributes and skips malformed entries without losing valid
+ones. Book dimensions keep their native `_generated:<number>` identity.
+
+Use explicit conditionals for types that cannot be reversed uniquely. In particular, a broad
+MutableComponent/Component string replacement also rewrites ordinary Component uses in reverse;
+the snapshot helper return types use conditional declarations instead.
+
+The snapshot integrated server overrides `loadLevel` without calling the base implementation.
+`InfiniteIntegratedServerMixin` invokes the common `LoopingServer` initialization hook there.
+Dedicated servers retain the base hook. Snapshot networking uses the older registry API and explicit
+join/disconnect hooks. Its UI uses strings and pre-PoseStack screen rendering.
+
+The full implementation and reproduction commands are in [INFINITE_COMPATIBILITY.md](INFINITE_COMPATIBILITY.md).
+
 ## Rendering generations
 
-### Fixed-function OpenGL: 1.16.5
+### Fixed-function OpenGL: 20w14infinite and 1.16.5
 
 `FixedTerrainBackend` preserves native material setup, pose transforms and source VBOs. Opaque
 copies use native quad draws; alpha copies share a globally ordered triangle-index stream. The

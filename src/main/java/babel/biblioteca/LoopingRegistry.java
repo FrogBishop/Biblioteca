@@ -99,8 +99,8 @@ public final class LoopingRegistry {
     /** The uncached answer. Only the Level-side cache should call this. */
     public static boolean isLoopingUncached(Level level) {
         return level.isClientSide()
-                ? clientCheck.test(level.dimension())
-                : serverCheck.test(level.dimension());
+                ? clientCheck.test(babel.biblioteca.Compat.dimension(level))
+                : serverCheck.test(babel.biblioteca.Compat.dimension(level));
     }
 
     /**
@@ -114,21 +114,21 @@ public final class LoopingRegistry {
     /** Does a beacon beam in this dimension skip the vanilla "must see the sky" rule? */
     public static boolean beaconsIgnoreSky(Level level) {
         return level.isClientSide()
-                ? clientBeaconCheck.test(level.dimension())
-                : serverBeaconCheck.test(level.dimension());
+                ? clientBeaconCheck.test(babel.biblioteca.Compat.dimension(level))
+                : serverBeaconCheck.test(babel.biblioteca.Compat.dimension(level));
     }
 
     /** Should the vanilla void-fog darkening be disabled in this dimension? */
     public static boolean hasNoVoidFog(Level level) {
         return level.isClientSide()
-                ? clientNoVoidFogCheck.test(level.dimension())
-                : serverNoVoidFogCheck.test(level.dimension());
+                ? clientNoVoidFogCheck.test(babel.biblioteca.Compat.dimension(level))
+                : serverNoVoidFogCheck.test(babel.biblioteca.Compat.dimension(level));
     }
 
     /** The selected sky source rule; consumers apply it only in looping dimensions. */
     public static SkyLightMode skyLightMode(Level level) {
         return level.isClientSide()
-                ? clientSkyLightMode.apply(level.dimension())
-                : serverSkyLightMode.apply(level.dimension());
+                ? clientSkyLightMode.apply(babel.biblioteca.Compat.dimension(level))
+                : serverSkyLightMode.apply(babel.biblioteca.Compat.dimension(level));
     }
 }

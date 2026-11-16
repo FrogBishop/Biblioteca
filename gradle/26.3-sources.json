@@ -127,6 +127,8 @@
     "DebugOverlayYLoopMixin"
   ],
   "excludedClientClasses": [
+    "InfiniteDimensionConfigScreen",
+    "InfiniteEasterEggDimensions",
     "LegacyDimensionConfigScreen",
     "ClassicTerrainBackend",
     "LegacyVertexData",

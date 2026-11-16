@@ -3,6 +3,30 @@
 Scope: Fabric and NeoForge. Forge support is cancelled. Tasks below are worked on in order;
 completed items must include regression evidence and any remaining version-specific limits.
 
+## Infinity Easter egg catalogue (completed 2026-11-16)
+
+- [x] Add all 43 native Easter egg dimensions after the vanilla three, using the original strings
+  without translation. Validate every hash and the complete hard-coded generator set.
+- [x] Support alphabetical display, paging, range counts and full long-name tooltips, with settings
+  for unvisited worlds applied, saved and synchronized without registering those worlds.
+- [x] Verify both variants in Chinese, including a narrow window; review all 12 screenshots.
+  Current snapshot hashes and evidence are in `build/infinite-easter-eggs/report.json`.
+
+## 20w14infinite Fabric port (completed 2026-11-16)
+
+- [x] Add an exact snapshot node and full/no-render artifacts on Java 17+, with four bundled
+  legacy API modules and correct normalized game-version metadata.
+- [x] Adapt native book-dimension identities, NBT storage, commands and state synchronization;
+  cover both dedicated servers and the snapshot's independent integrated-server load path.
+- [x] Adapt the native renderer, collision, path, sound and light APIs and the older settings UI.
+  Keep the vanilla falling-block timeout and hide video controls in the no-render variant.
+- [x] Verify both snapshot variants with real physics, separate book dimensions, save/restart,
+  invalid saved entries, joined-player state, particles, entity copies and cloud buffers.
+- [x] Regress all 36 Fabric nodes, all six existing NeoForge nodes and representative Sodium
+  combinations. Current output is 84 development JARs; logs/hashes are in `build/infinite-port/`.
+- [x] Document the NeoForge limit: no loader exists for this snapshot, so there is no NeoForge
+  snapshot artifact. See `INFINITE_COMPATIBILITY.md` for installation and validation scope.
+
 ## Completed in 1.0.4-dev.1 (2026-11-02)
 
 1. [x] Preserve already living particles across Y-boundary crossings. Campfire smoke and Nether

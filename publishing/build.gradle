@@ -166,7 +166,7 @@ def createResumableUploader = { Map manifest, Map state, Closure saveState, File
         if (entry.platform == 'modrinth') {
             def api = new ModrinthApi(token, endpoint)
             List dependencies = []
-            if (entry.loader == 'fabric') {
+            if (entry.loader == 'fabric' && entry.minecraft != '20w14infinite') {
                 if (!fabricApiIds.containsKey(endpoint)) {
                     fabricApiIds[endpoint] = request("${label}: resolve Fabric API", true, record, 'metadata') { api.checkProject('fabric-api').id }
                 }
@@ -201,7 +201,7 @@ def createResumableUploader = { Map manifest, Map state, Closure saveState, File
                 if (versions instanceof String) throw new GradleException("CurseForge version table unavailable in this run; resume later. ${versions}")
                 List ids = [versions.getMinecraftVersion(entry.minecraft), versions.getModLoaderVersion(entry.loader),
                             versions.getClientVersion(), versions.getServerVersion(), versions.getJavaVersion(JavaVersion.toVersion(entry.java))]
-                def relations = entry.loader == 'fabric' ? new CurseforgeApi.UploadFileRelations([
+                def relations = entry.loader == 'fabric' && entry.minecraft != '20w14infinite' ? new CurseforgeApi.UploadFileRelations([
                         new CurseforgeApi.ProjectFileRelation('fabric-api', CurseforgeApi.RelationType.REQUIRED_DEPENDENCY)]) : null
                 def metadata = new CurseforgeApi.UploadFileMetadata(manifest.changelog, CurseforgeApi.ChangelogType.MARKDOWN,
                         entry.displayName, null, ids, CurseforgeApi.ReleaseType.valueOf(manifest.releaseType.toUpperCase(Locale.ROOT)), relations)
@@ -347,7 +347,7 @@ publishMods {
                 destination.projectId.set(entry.projectId)
                 destination.minecraftVersions.add(entry.minecraft)
                 if (live) destination.accessToken.set(providers.environmentVariable(platformName.toUpperCase() + '_TOKEN'))
-                if (entry.loader == 'fabric') destination.requires('fabric-api')
+                if (entry.loader == 'fabric' && entry.minecraft != '20w14infinite') destination.requires('fabric-api')
             }
             if (platformName == 'modrinth') {
                 modrinth(destinationName) {

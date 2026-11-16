@@ -1,7 +1,9 @@
 package babel.biblioteca;
 
+//? if >=1.16 {
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+//?}
 
 /** Sky sources in a looping dimension; propagation and sampling remain periodic in both lit modes. */
 public enum SkyLightMode {
@@ -10,6 +12,7 @@ public enum SkyLightMode {
     HYBRID("hybrid");
 
     public static final SkyLightMode DEFAULT = LOOPING;
+    //? if >=1.16 {
     public static final Codec<SkyLightMode> CODEC = Codec.STRING.comapFlatMap(id -> {
         for (SkyLightMode mode : values()) if (mode.id.equals(id)) return DataResult.success(mode);
         //? if >=1.19.4 {
@@ -18,6 +21,7 @@ public enum SkyLightMode {
         /*return DataResult.error("Unknown sky light mode: " + id);
         *///?}
     }, SkyLightMode::id);
+    //?}
 
     private final String id;
     SkyLightMode(String id) { this.id = id; }

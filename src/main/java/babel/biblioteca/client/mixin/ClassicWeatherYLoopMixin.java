@@ -49,7 +49,11 @@ public abstract class ClassicWeatherYLoopMixin {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.enableDepthTest();
+        //? if >=1.16 {
         RenderSystem.depthMask(Minecraft.useShaderTransparency());
+        //?} else {
+        /*RenderSystem.depthMask(false);
+        *///?}
 //? if >=1.17 {
         RenderSystem.setShader(GameRenderer::getParticleShader);
 //?} else {

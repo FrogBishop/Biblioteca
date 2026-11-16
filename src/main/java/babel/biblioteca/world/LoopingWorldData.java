@@ -2,9 +2,11 @@ package babel.biblioteca.world;
 
 import babel.biblioteca.SkyLightMode;
 import babel.biblioteca.Compat;
+//? if >=1.16 {
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+//?}
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -64,6 +66,7 @@ public class LoopingWorldData extends SavedData {
         this.skyLightModes.values().removeIf(mode -> mode == SkyLightMode.DEFAULT);
     }
 
+    //? if >=1.16 {
     private static final Codec<LoopingWorldData> RECORD = RecordCodecBuilder.create(instance -> instance.group(
             Compat.dimensionCodec().listOf()
                     .optionalFieldOf("looping", List.of())
@@ -96,6 +99,7 @@ public class LoopingWorldData extends SavedData {
     public static final Codec<LoopingWorldData> CODEC = Codec.either(RECORD, LEGACY)
             .xmap(either -> either.map(record -> record, legacy -> legacy),
                     data -> Either.<LoopingWorldData, LoopingWorldData>left(data));
+    //?}
 
     /** A new world starts with every attribute off; all attributes are opt-in per dimension. */
     //? if >=26.1 {
@@ -129,7 +133,7 @@ public class LoopingWorldData extends SavedData {
     );
     *///?}
 
-    //? if <1.21.5 {
+    //? if >=1.16 <1.21.5 {
     /*public static LoopingWorldData decode(CompoundTag tag) {
         return CODEC.parse(NbtOps.INSTANCE, tag)
                 .result()
@@ -146,6 +150,46 @@ public class LoopingWorldData extends SavedData {
                 .orElse(tag);
     }
     *///?}
+    //? if <1.16 {
+    /*public static LoopingWorldData decode(CompoundTag tag) {
+        Map<ResourceKey<Level>, SkyLightMode> modes = new HashMap<>();
+        for (var id : readDimensions(tag, "no_sky_light")) modes.put(id, SkyLightMode.DISABLED);
+        CompoundTag storedModes = tag.getCompound("sky_light_mode");
+        for (String id : storedModes.getAllKeys()) {
+            try { modes.put(Compat.dimensionKey(Compat.parseId(id)), SkyLightMode.byId(storedModes.getString(id))); }
+            catch (IllegalArgumentException | NullPointerException invalid) { babel.biblioteca.Biblioteca.LOGGER.warn("Ignoring invalid saved sky mode for {}", id); }
+        }
+        return new LoopingWorldData(readDimensions(tag, "looping"), readDimensions(tag, "beacon_ignores_sky"),
+                readDimensions(tag, "no_void_fog"), modes);
+    }
+
+    private static Set<ResourceKey<Level>> readDimensions(CompoundTag tag, String key) {
+        Set<ResourceKey<Level>> result = new HashSet<>();
+        net.minecraft.nbt.ListTag list = tag.getList(key, 8);
+        for (int i = 0; i < list.size(); i++) {
+            try { result.add(Compat.dimensionKey(Compat.parseId(list.getString(i)))); }
+            catch (IllegalArgumentException | NullPointerException invalid) { babel.biblioteca.Biblioteca.LOGGER.warn("Ignoring invalid saved dimension {}", list.getString(i)); }
+        }
+        return result;
+    }
+
+    private static net.minecraft.nbt.ListTag writeDimensions(Set<ResourceKey<Level>> ids) {
+        net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
+        ids.stream().map(Object::toString).sorted().forEach(id -> list.add(net.minecraft.nbt.StringTag.valueOf(id)));
+        return list;
+    }
+
+    private CompoundTag writeTo(CompoundTag tag) {
+        tag.put("looping", writeDimensions(loopingDimensions));
+        tag.put("beacon_ignores_sky", writeDimensions(beaconIgnoresSky));
+        tag.put("no_void_fog", writeDimensions(noVoidFog));
+        CompoundTag modes = new CompoundTag();
+        skyLightModes.forEach((id, mode) -> modes.putString(id.toString(), mode.id()));
+        tag.put("sky_light_mode", modes);
+        return tag;
+    }
+    *///?}
+
     //? if >=1.20.5 <1.21.5 {
     /*@Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {

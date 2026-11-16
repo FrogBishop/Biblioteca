@@ -32,6 +32,7 @@ public final class SeamEntityCollisions {
      */
     public static void collect(Level level, Entity source, AABB box, double yShift, List<VoxelShape> out,
                                Predicate<Entity> selector) {
+        //? if >=1.16 {
         Predicate<Entity> canCollide = source == null
                 //? if >=1.20.2 {
                 ? EntitySelector.CAN_BE_COLLIDED_WITH
@@ -44,5 +45,15 @@ public final class SeamEntityCollisions {
         for (Entity entity : level.getEntities(source, box.move(0.0, yShift, 0.0).inflate(1.0E-7), canCollide.and(selector))) {
             out.add(Shapes.create(entity.getBoundingBox().move(0.0, -yShift, 0.0)));
         }
+        //?} else {
+        /*AABB query = box.move(0.0, yShift, 0.0).inflate(1.0E-7);
+        for (Entity entity : level.getEntities(source, query, EntitySelector.NO_SPECTATORS.and(selector))) {
+            if (source != null && source.isPassengerOfSameVehicle(entity)) continue;
+            AABB own = entity.getCollideBox();
+            if (own != null && query.intersects(own)) out.add(Shapes.create(own.move(0.0, -yShift, 0.0)));
+            AABB against = source == null ? null : source.getCollideAgainstBox(entity);
+            if (against != null && query.intersects(against)) out.add(Shapes.create(against.move(0.0, -yShift, 0.0)));
+        }
+        *///?}
     }
 }

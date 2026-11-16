@@ -106,7 +106,7 @@ public abstract class LegacyBeaconBlockEntityYLoopMixin {
                 }
             } else {
                 if (lastSection == null
-                        || biblioteca$blocksBeam(state, level, probe) && !state.is(Blocks.BEDROCK)) {
+                        || biblioteca$blocksBeam(state, level, probe) && state.getBlock() != Blocks.BEDROCK) {
                     break;
                 }
                 ((LegacyBeaconBeamSectionAccessor) lastSection).biblioteca$increaseHeight();

@@ -44,7 +44,7 @@ public abstract class ChunkHolderLightSyncMixin {
     private static boolean biblioteca$borderOnly(boolean borderOnly, LevelChunk chunk) {
         var level = chunk.getLevel();
         boolean authoritative = LoopingRegistry.isLooping(level)
-                || LoopingDimensionManager.needsServerLightSync(level.dimension());
+                || LoopingDimensionManager.needsServerLightSync(babel.biblioteca.Compat.dimension(level));
         return borderOnly && !authoritative;
     }
 }

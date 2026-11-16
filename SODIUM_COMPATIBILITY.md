@@ -6,11 +6,15 @@ All **82 selected loader/version/variant combinations passed** packaged class tr
 The full builds provide periodic terrain, particles, entity copies and cloud layers through the
 adapters described below. Graphical coverage is reported separately from loading coverage.
 
-Current development artifacts restore the vanilla falling-block timeout at the user's request.
-They are recorded in `build/falling-timeout-restore/report.json`. Comparison of all 82 JARs against
-those frozen baseline artifacts found only `FallingBlockEntityYLoopMixin.class` changed; all other
-classes/resources, including Sodium adapters, are identical. The Sodium/graphics results below
-retain their original hashes and were not rerun for this timeout-only edit.
+The November 4 timeout-restoration follow-up is retained at `build/falling-timeout-restore/report.json`.
+Current development artifacts and regression hashes are recorded in `build/infinite-port/report.json`.
+The snapshot port was followed by ten packaged Sodium regression combinations: Fabric 1.16.5,
+1.21.11 and 26.3, plus NeoForge 1.21.11 and 26.3, with both variants for every selected target.
+The full 82-combination baseline and older graphical results below retain their original frozen
+hashes; they are historical evidence, not reruns of every new artifact.
+
+The 20w14infinite development port uses its vanilla renderer adapter. No corresponding Sodium
+release is selected for that snapshot; it is not included in the 35-release Sodium baseline below.
 
 ## Integration
 
@@ -98,7 +102,7 @@ options/OIT, sculk 10/10 across the seam and 0/0 with wool or looping disabled. 
 has 6,528 samples with zero mismatches. Cloud buffers are shared across layers.
 
 The falling-block follow-up has nine real-server runs (eight versions plus the 26.3 16-row world),
-144 cases against the current timeout-restored artifacts, with sand/gravel/anvil age-601 expiry
+144 cases against the November 4 timeout-restored artifacts, with sand/gravel/anvil age-601 expiry
 and exactly one matching item, multi-period motion, concrete/water, real landing, item/TNT/mob
 history and ordinary-world expiry controls. The test chunk is forced and allowed to finish entity
 tracking setup before queries run.

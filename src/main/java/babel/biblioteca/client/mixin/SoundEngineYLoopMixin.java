@@ -30,6 +30,7 @@ public abstract class SoundEngineYLoopMixin {
     @Unique private double biblioteca$previousListenerY;
     @Unique private int biblioteca$previousPeriod;
 
+    //? if >=1.16 {
     @WrapOperation(method = "play", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/resources/sounds/SoundInstance;getY()D"))
     private double biblioteca$initialSoundY(SoundInstance instance, Operation<Double> original) {
@@ -49,6 +50,22 @@ public abstract class SoundEngineYLoopMixin {
         double y = original.call(instance);
         return instance.isRelative() ? y : LoopingSounds.nearestY(y);
     }
+
+    //?} else {
+    /*@WrapOperation(method = "play", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/resources/sounds/SoundInstance;getY()F"))
+    private float biblioteca$initialSnapshotSoundY(SoundInstance instance, Operation<Float> original) {
+        float y = original.call(instance);
+        return instance.isRelative() ? y : (float) LoopingSounds.nearestY(y);
+    }
+
+    @WrapOperation(method = "tickNonPaused", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/resources/sounds/TickableSoundInstance;getY()F"))
+    private float biblioteca$movingSnapshotSoundY(TickableSoundInstance instance, Operation<Float> original) {
+        float y = original.call(instance);
+        return instance.isRelative() ? y : (float) LoopingSounds.nearestY(y);
+    }
+    *///?}
 
     @Inject(method = "updateSource", at = @At("TAIL"))
     private void biblioteca$movePlayingSoundsWithListener(Camera camera, CallbackInfo ci) {

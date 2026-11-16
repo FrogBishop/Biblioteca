@@ -34,8 +34,10 @@ public final class CreateWorldScreenInjector {
                 PendingLoopingConfig.getPendingNoVoidFog(), PendingLoopingConfig.getPendingSkyLightModes());
         //? if >=26.3 {
         var screen = new LoopingConfigScreen(parent, model);
-        //?} else {
+        //?} else if >=1.16 {
         /*var screen = new LegacyDimensionConfigScreen(parent, model);
+        *///?} else {
+        /*var screen = new InfiniteDimensionConfigScreen(parent, model);
         *///?}
         //? if >=26.1 {
         Minecraft.getInstance().setScreenAndShow(screen);

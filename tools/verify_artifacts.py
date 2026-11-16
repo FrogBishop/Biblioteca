@@ -10,7 +10,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = tomllib.loads((ROOT / 'stonecutter.properties.toml').read_text(encoding='utf-8'))
-VERSIONS = [key for key in CONFIG if re.fullmatch(r'\d+(?:\.\d+)+', key)]
+VERSIONS = [key for key in CONFIG if key == '20w14infinite' or re.fullmatch(r'\d+(?:\.\d+)+', key)]
 UI_AUDIO = {'ClientLevelDirtyMixin', 'DebugOverlayYLoopMixin',
             'ClientLevelSoundYLoopMixin', 'SoundEngineYLoopMixin', 'SubtitleDirectionYLoopMixin'}
 
@@ -18,18 +18,32 @@ UI_AUDIO = {'ClientLevelDirtyMixin', 'DebugOverlayYLoopMixin',
 def inspect(version, no_render, mod_version, artifact_dir=None):
     suffix = '-norender' if no_render else ''
     file = (artifact_dir or ROOT / 'build/distributions') / f'biblioteca-{mod_version}+{version}{suffix}.jar'
-    node = tuple(map(int, version.split('.')))
+    infinite = version == '20w14infinite'
+    node = (1, 15) if infinite else tuple(map(int, version.split('.')))
     java = 25 if node >= (26, 1) else 21 if node >= (1, 20, 5) else 17
     with zipfile.ZipFile(file) as jar:
         names = set(jar.namelist())
         meta = json.loads(jar.read('fabric.mod.json'))
         assert meta['version'] == f'{mod_version}+{version}{suffix}', (file, 'version')
-        assert meta['depends']['minecraft'] == version, (file, 'unsafe Minecraft range')
+        assert meta['depends']['minecraft'] == ('1.16-alpha.20.13.inf' if infinite else version), (file, 'unsafe Minecraft range')
         assert meta['depends']['java'] == f'>={java}', (file, 'Java version')
         api_version = CONFIG[version]['deps']['fabric_api']
         with zipfile.ZipFile(ROOT / '.gradle/fabric-api' / api_version / 'fabric-api.jar') as api:
             api_id = json.loads(api.read('fabric.mod.json'))['id']
-        assert api_id in meta['depends'], (file, 'Fabric API dependency id', api_id)
+        if infinite:
+            expected_modules = {'fabric-api-base', 'fabric-commands-v0', 'fabric-networking-v0', 'fabric-resource-loader-v0'}
+            assert api_id not in meta['depends'], (file, 'obsolete API umbrella dependency')
+            bundled = set()
+            for nested in meta.get('jars', []):
+                path = nested['file']
+                with zipfile.ZipFile(__import__('io').BytesIO(jar.read(path))) as module:
+                    bundled.add(json.loads(module.read('fabric.mod.json'))['id'])
+                original = ROOT / '.gradle/fabric-api' / api_version / Path(path).name
+                assert jar.read(path) == original.read_bytes(), (file, 'modified bundled API', path)
+            assert bundled == expected_modules, (file, 'bundled API modules', bundled)
+            assert expected_modules <= set(meta['depends']), (file, 'undeclared API module dependencies')
+        else:
+            assert api_id in meta['depends'], (file, 'Fabric API dependency id', api_id)
         client = json.loads(jar.read('biblioteca.client.mixins.json'))
         common = json.loads(jar.read('biblioteca.mixins.json'))
         for config, key in [(client, 'client'), (common, 'mixins')]:
@@ -44,6 +58,8 @@ def inspect(version, no_render, mod_version, artifact_dir=None):
             assert 'net/minecraft/class_' in json.dumps(refmap), (file, 'refmap not intermediary')
         if no_render:
             core = UI_AUDIO | {'ProjectileUtilYLoopMixin'}
+            if infinite:
+                core.update({'InfiniteDisconnectMixin', 'InfiniteIntegratedServerMixin'})
             if node >= (1, 19, 4):
                 core.update({'CreateWorldScreenMoreTabMixin', 'GridLayoutTabAccessor'})
             else:
@@ -79,7 +95,7 @@ def inspect(version, no_render, mod_version, artifact_dir=None):
             assert sodium_config not in names and not sodium_classes, (file, 'Sodium bridge leaked into another target or no-render')
         modern_sodium = 'biblioteca.sodium-compat.mixins.json'
         modern_sodium_classes = [name for name in names if name.startswith('babel/biblioteca/client/sodiumcompat/')]
-        if version != '1.16.5' and not no_render:
+        if version not in ('1.16.5', '20w14infinite') and not no_render:
             optional = json.loads(jar.read(modern_sodium))
             assert {'config': modern_sodium, 'environment': 'client'} in meta['mixins']
             assert optional['required'] and optional['injectors']['defaultRequire'] == 1

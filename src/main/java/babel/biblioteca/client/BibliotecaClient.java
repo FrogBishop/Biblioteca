@@ -21,7 +21,7 @@ public final class BibliotecaClient {
 
     /** Called on the client thread by each loader's network handler. */
     public static void applyPayload(Minecraft client, LoopingStatePayload payload) {
-        var dimension = client.level == null ? null : client.level.dimension();
+        var dimension = client.level == null ? null : babel.biblioteca.Compat.dimension(client.level);
         boolean looping = dimension != null && LoopingDimensionCache.isLooping(dimension);
         var skyMode = dimension == null ? null : LoopingDimensionCache.getSkyLightMode(dimension);
         LoopingDimensionCache.applyPayload(payload);

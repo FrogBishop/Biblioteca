@@ -8,6 +8,12 @@ mod.version = "1.0.4-dev.1"
 deps.fabric_loader = "0.19.5"
 loomx.loom_version = "1.18-SNAPSHOT"
 
+["20w14infinite"]
+mod.mc_compat = "1.16-alpha.20.13.inf"
+mod.mc_releases = ["20w14infinite"]
+deps.fabric_api = "0.5.7+build.2-20w14infinite"
+deps.fabric_api_url = "https://cdn.modrinth.com/data/P7dR8mSH/versions/0.5.7%2Bbuild.2-20w14infinite/fabric-api-0.5.7%2Bbuild.2-20w14infinite.jar"
+
 
 ["1.16.5"]
 mod.mc_compat = "1.16.5"

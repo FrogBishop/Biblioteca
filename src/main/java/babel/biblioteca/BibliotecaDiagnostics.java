@@ -9,7 +9,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
+//? if >=1.16 {
 import net.minecraft.world.level.storage.LevelResource;
+//?}
 //? if >=1.19.3 {
 import net.minecraft.core.registries.BuiltInRegistries;
 //?} else {
@@ -35,7 +37,7 @@ public final class BibliotecaDiagnostics {
         BlockPos pos = Compat.blockPos(source.getPosition());
         boolean loaded = level.hasChunkAt(pos);
         Compat.sendSuccess(source, () -> Compat.translatable("biblioteca.diagnostics.summary",
-                Compat.keyId(level.dimension()).toString(), Compat.minY(level), Compat.maxY(level), Compat.height(level),
+                Compat.keyId(babel.biblioteca.Compat.dimension(level)).toString(), Compat.minY(level), Compat.maxY(level), Compat.height(level),
                 LoopingRegistry.isLooping(level), LoopingRegistry.skyLightMode(level).id(),
                 loaded ? level.getBrightness(LightLayer.SKY, pos) : "?",
                 loaded ? level.getBrightness(LightLayer.BLOCK, pos) : "?"), false);
@@ -47,7 +49,7 @@ public final class BibliotecaDiagnostics {
         BlockPos center = Compat.blockPos(source.getPosition());
         JsonObject data = new JsonObject();
         data.addProperty("schemaVersion", 1);
-        data.addProperty("dimension", Compat.keyId(level.dimension()).toString());
+        data.addProperty("dimension", Compat.keyId(babel.biblioteca.Compat.dimension(level)).toString());
         data.addProperty("serverGameTime", level.getGameTime());
         data.addProperty("minimumY", Compat.minY(level)); data.addProperty("height", Compat.height(level));
         data.addProperty("looping", LoopingRegistry.isLooping(level));
@@ -72,11 +74,16 @@ public final class BibliotecaDiagnostics {
             }
         }
         data.add("samples", samples);
-        Path file = source.getServer().getWorldPath(LevelResource.ROOT).resolve("biblioteca-diagnostics")
+        //? if >=1.16 {
+        Path directory = source.getServer().getWorldPath(LevelResource.ROOT);
+        //?} else {
+        /*Path directory = source.getServer().getStorageSource().getFile(source.getServer().getLevelIdName(), "").toPath();
+        *///?}
+        Path file = directory.resolve("biblioteca-diagnostics")
                 .resolve("section-" + level.getGameTime() + "-" + UUID.randomUUID().toString().substring(0, 8) + ".json");
         try {
             write(file, data);
-            clientCapture.accept(new Export(source.getServer(), level.dimension(), file, data));
+            clientCapture.accept(new Export(source.getServer(), babel.biblioteca.Compat.dimension(level), file, data));
             Compat.sendSuccess(source, () -> Compat.translatable("biblioteca.diagnostics.saved", file.toAbsolutePath().toString()), false);
             return 1;
         } catch (IOException error) {

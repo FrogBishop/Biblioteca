@@ -17,21 +17,33 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** Fits the dimension settings entry into each classic More World Options layout. */
 @Mixin(CreateWorldScreen.class)
 public abstract class LegacyCreateWorldScreenMixin extends Screen {
+    //? if >=1.16 {
     @Shadow private Button gameRulesButton;
+    //?} else {
+    /*@Shadow private Button moreOptionsButton;
+    *///?}
     @Unique private Button biblioteca$attributes;
     protected LegacyCreateWorldScreenMixin(Component title) { super(title); }
 
     @Inject(method = "init", at = @At("TAIL"))
     private void biblioteca$addAttributes(CallbackInfo ci) {
+        //? if >=1.16 {
+        int rowY = 151;
+        //?} else {
+        /*int rowY = 187;
+        this.moreOptionsButton.x = this.width / 2 - 155;
+        *///?}
         this.biblioteca$attributes = ClientCompat.button(Compat.translatable("biblioteca.gui.looping_button"),
-                this.width / 2 + 5, 151, 150, 20,
+                this.width / 2 + 5, rowY, 150, 20,
                 button -> CreateWorldScreenInjector.openConfig((CreateWorldScreen) (Object) this));
         //? if >=1.17 {
         this.addRenderableWidget(this.biblioteca$attributes);
         //?} else {
         /*this.addButton(this.biblioteca$attributes);
         *///?}
+        //? if >=1.16 {
         this.biblioteca$attributes.visible = !this.gameRulesButton.visible;
+        //?}
     }
 
 //? if >=1.17 {
@@ -41,6 +53,8 @@ public abstract class LegacyCreateWorldScreenMixin extends Screen {
 *///?}
 
     private void biblioteca$showAttributes(CallbackInfo ci) {
+        //? if >=1.16 {
         if (this.biblioteca$attributes != null) this.biblioteca$attributes.visible = !this.gameRulesButton.visible;
+        //?}
     }
 }

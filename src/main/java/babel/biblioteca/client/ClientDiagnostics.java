@@ -46,7 +46,7 @@ public final class ClientDiagnostics {
     public static void capture(BibliotecaDiagnostics.Export export) {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
-            if (mc.getSingleplayerServer() != export.server() || mc.level == null || !mc.level.dimension().equals(export.dimension())) return;
+            if (mc.getSingleplayerServer() != export.server() || mc.level == null || !babel.biblioteca.Compat.dimension(mc.level).equals(export.dimension())) return;
             var data = new com.google.gson.JsonParser().parse(export.data().toString()).getAsJsonObject();
             data.addProperty("clientGameTime", mc.level.getGameTime());
             data.addProperty("rendererMods", rendererMods);

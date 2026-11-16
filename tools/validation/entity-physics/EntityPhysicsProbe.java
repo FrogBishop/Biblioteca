@@ -25,8 +25,8 @@ public final class EntityPhysicsProbe implements ModInitializer {
     private int startupTicks;
     public void onInitialize() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            server.overworld().setChunkForced(0, 0, true);
-            server.overworld().getChunk(0, 0);
+            Compat.overworld(server).setChunkForced(0, 0, true);
+            Compat.overworld(server).getChunk(0, 0);
         });
         // Loading block data alone does not make entity sections visible on every version.
         // Allow the real server to process the forced chunk's tracking status before querying drops.
@@ -36,12 +36,12 @@ public final class EntityPhysicsProbe implements ModInitializer {
     }
     private static void run(MinecraftServer server) {
         try {
-            ServerLevel level = server.overworld();
+            ServerLevel level = Compat.overworld(server);
             level.getChunk(0, 0);
             int min = Compat.minY(level), height = Compat.height(level);
             for (int x = 5; x <= 11; x++) for (int z = 5; z <= 11; z++)
                 for (int y = min; y < min + height; y++) level.setBlock(new BlockPos(x,y,z), Blocks.AIR.defaultBlockState(), 2);
-            LoopingDimensionManager.setLooping(level.dimension(), true);
+            LoopingDimensionManager.setLooping(Compat.dimension(level), true);
             for (BlockState material : new BlockState[]{Blocks.SAND.defaultBlockState(), Blocks.GRAVEL.defaultBlockState(), Blocks.ANVIL.defaultBlockState()}) verify("falling_lifetime_" + material, () -> {
                 FallingBlockEntity e = falling(level, min + 3.5, material);
                 e.setDeltaMovement(0, -0.1, 0);
@@ -102,7 +102,7 @@ public final class EntityPhysicsProbe implements ModInitializer {
                 }
             });
             verify("ordinary_lifetime_control", () -> {
-                LoopingDimensionManager.setLooping(level.dimension(), false);
+                LoopingDimensionManager.setLooping(Compat.dimension(level), false);
                 FallingBlockEntity e = falling(level, min+height/2.0, Blocks.SAND.defaultBlockState());
                 e.setNoGravity(true);field(FallingBlockEntity.class,"time").setInt(e,600);old(e);e.tick();
                 check(removed(e),"ordinary dimensions retain the native age timeout");

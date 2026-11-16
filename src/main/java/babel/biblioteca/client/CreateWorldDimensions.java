@@ -23,9 +23,12 @@ public final class CreateWorldDimensions {
         /*return parent.worldGenSettingsComponent.settings().worldGenSettings().dimensions().keySet().stream()
                 .map(Compat::dimensionKey).toList();
         *///?}
-        //? if <1.19 {
+        //? if >=1.16 <1.19 {
         /*return parent.worldGenSettingsComponent.makeSettings(false).dimensions().keySet().stream()
                 .map(Compat::dimensionKey).toList();
+        *///?}
+        //? if <1.16 {
+        /*return InfiniteEasterEggDimensions.forCreation();
         *///?}
     }
 

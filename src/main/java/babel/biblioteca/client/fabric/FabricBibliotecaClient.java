@@ -4,8 +4,10 @@ import babel.biblioteca.client.BibliotecaClient;
 import babel.biblioteca.client.LoopingDimensionCache;
 import babel.biblioteca.network.LoopingStatePayload;
 import net.fabricmc.api.ClientModInitializer;
+//? if >=1.16 {
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+//?}
 import net.fabricmc.loader.api.FabricLoader;
 
 public final class FabricBibliotecaClient implements ClientModInitializer {
@@ -19,14 +21,22 @@ public final class FabricBibliotecaClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(LoopingStatePayload.TYPE,
                 (payload, context) -> context.client().execute(
                         () -> BibliotecaClient.applyPayload(context.client(), payload)));
-        //?} else {
+        //?} else if >=1.16 {
         /*ClientPlayNetworking.registerGlobalReceiver(LoopingStatePayload.ID,
                 (client, handler, buffer, responseSender) -> {
                     LoopingStatePayload payload = LoopingStatePayload.fromBuffer(buffer);
                     client.execute(() -> BibliotecaClient.applyPayload(client, payload));
                 });
+        *///?} else {
+        /*net.fabricmc.fabric.api.network.ClientSidePacketRegistry.INSTANCE.register(LoopingStatePayload.ID,
+                (context, buffer) -> {
+                    LoopingStatePayload payload = LoopingStatePayload.fromBuffer(buffer);
+                    context.getTaskQueue().execute(() -> BibliotecaClient.applyPayload(net.minecraft.client.Minecraft.getInstance(), payload));
+                });
         *///?}
+        //? if >=1.16 {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
                 client.execute(LoopingDimensionCache::clear));
+        //?}
     }
 }

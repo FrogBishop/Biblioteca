@@ -19,10 +19,22 @@ public final class ClientCompat {
             int x, int y, int width, int height, net.minecraft.client.gui.components.Button.OnPress onPress) {
         //? if >=1.19.3 {
         return net.minecraft.client.gui.components.Button.builder(label, onPress).bounds(x, y, width, height).build();
-        //?} else {
+        //?} else if >=1.16 {
         /*return new net.minecraft.client.gui.components.Button(x, y, width, height, label, onPress);
+        *///?} else {
+        /*return new net.minecraft.client.gui.components.Button(x, y, width, height, label.getColoredString(), onPress);
         *///?}
     }
+
+    //? if >=1.16 {
+    public static net.minecraft.network.chat.Component valueLabel(net.minecraft.network.chat.Component caption, Object value) {
+        return babel.biblioteca.Compat.translatable("options.generic_value", caption, value);
+    }
+    //?} else {
+    /*public static String valueLabel(net.minecraft.network.chat.Component caption, Object value) {
+        return caption.getString() + ": " + (value instanceof net.minecraft.network.chat.Component text ? text.getString() : value);
+    }
+    *///?}
 
     public static ParticleStatus particles() {
         //? if >=1.19 {

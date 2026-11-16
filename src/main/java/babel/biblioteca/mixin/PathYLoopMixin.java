@@ -28,7 +28,11 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(Path.class)
 public abstract class PathYLoopMixin {
 
+    //? if >=1.16 {
     @ModifyReturnValue(method = "getEntityPosAtNode", at = @At("RETURN"))
+    //?} else {
+    /*@ModifyReturnValue(method = "getPos", at = @At("RETURN"))
+    *///?}
     private Vec3 biblioteca$foldNodeY(Vec3 position, @Local(argsOnly = true) Entity entity) {
         if (position == null || entity == null) return position;
 

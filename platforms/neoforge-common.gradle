@@ -43,6 +43,7 @@ sourceSets {
         java.srcDir new File(repositoryRoot, 'platforms/neoforge/src/main/java')
         java.srcDir activeSourceVersion ? new File(repositoryRoot, 'src/main/java') : new File(exportRoot, 'java')
         java.exclude 'babel/biblioteca/fabric/**', 'babel/biblioteca/client/fabric/**'
+        java.exclude 'babel/biblioteca/compat/InfiniteDimensionKey.java'
         java.exclude 'babel/biblioteca/client/sodium/**'
         if (activeSourceVersion) {
             java.exclude { entry ->

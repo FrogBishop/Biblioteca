@@ -104,17 +104,27 @@ public abstract class ServerGamePacketListenerMixin {
             method = "handleUseItemOn",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/server/level/ServerPlayerGameMode;useItemOn("
+                            //? if >=1.16 {
                             + "Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/level/Level;"
+                            //?} else {
+                            /*+ "Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/level/Level;"
+                            *///?}
                             + "Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/InteractionHand;"
                             + "Lnet/minecraft/world/phys/BlockHitResult;)Lnet/minecraft/world/InteractionResult;"))
     private InteractionResult biblioteca$foldUseItemOnHitResult(
-            ServerPlayerGameMode gameMode, ServerPlayer player, Level level, ItemStack stack,
+            ServerPlayerGameMode gameMode,
+            //? if >=1.16 {
+            ServerPlayer player,
+            //?} else {
+            /*net.minecraft.world.entity.player.Player player,
+            *///?}
+            Level level, ItemStack stack,
             InteractionHand hand, BlockHitResult hit, Operation<InteractionResult> original) {
 
         return original.call(gameMode, player, level, stack, hand, biblioteca$foldHitResult(player, hit));
     }
 
-    private BlockHitResult biblioteca$foldHitResult(ServerPlayer player, BlockHitResult hit) {
+    private BlockHitResult biblioteca$foldHitResult(net.minecraft.world.entity.player.Player player, BlockHitResult hit) {
         ServerLevel level = (ServerLevel) Compat.level(player);
         if (!LoopingRegistry.isLooping(level)) return hit;
 

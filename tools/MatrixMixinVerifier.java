@@ -155,6 +155,10 @@ public class MatrixMixinVerifier {
         }
         if (!failures.isEmpty()) throw new AssertionError("Failed transformed targets: " + failures);
         if (args.length > 3) {
+            if (config.get("minecraft").getAsString().equals("20w14infinite")) {
+                loader.loadClass("babel.biblioteca.validation.InfiniteDataChecks").getMethod("run", boolean.class)
+                        .invoke(null, environment == EnvType.CLIENT);
+            } else {
             loader.loadClass("babel.biblioteca.validation.CoreChecks").getMethod("bootstrap").invoke(null);
             Class<?> entrypoint = loader.loadClass("babel.biblioteca.fabric.FabricBiblioteca");
             entrypoint.getMethod("onInitialize").invoke(entrypoint.getConstructor().newInstance());
@@ -191,6 +195,7 @@ public class MatrixMixinVerifier {
                 if (config.get("minecraft").getAsString().equals("26.3")) {
                     loader.loadClass("babel.biblioteca.validation.RenderingChecks").getMethod("run").invoke(null);
                 }
+            }
             }
         }
         System.out.println("MATRIX_OK " + config.get("minecraft").getAsString() + " "

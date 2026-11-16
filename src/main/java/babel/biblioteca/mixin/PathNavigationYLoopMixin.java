@@ -43,6 +43,7 @@ public abstract class PathNavigationYLoopMixin {
 
     @Shadow @Final protected Mob mob;
 
+    //? if >=1.16 {
     @WrapOperation(
             method = "followThePath",
             at = @At(value = "INVOKE",
@@ -60,6 +61,15 @@ public abstract class PathNavigationYLoopMixin {
     private BlockPos biblioteca$foldTimedNode(Path path, Operation<BlockPos> original) {
         return biblioteca$foldNode(original.call(path));
     }
+
+    //?} else {
+    /*@WrapOperation(method = {"updatePath", "doStuckDetection"}, at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/level/pathfinder/Path;currentPos()Lnet/minecraft/core/Vec3i;"))
+    private net.minecraft.core.Vec3i biblioteca$foldSnapshotNode(Path path, Operation<net.minecraft.core.Vec3i> original) {
+        var node = original.call(path);
+        return biblioteca$foldNode(new BlockPos(node));
+    }
+    *///?}
 
     @ModifyVariable(
 //? if >=1.17 {

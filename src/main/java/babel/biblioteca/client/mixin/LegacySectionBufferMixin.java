@@ -15,6 +15,10 @@ public abstract class LegacySectionBufferMixin {
     @Inject(method = "getBuffer", at = @At("RETURN"))
     private void biblioteca$tagTranslucentBuffer(RenderType layer, CallbackInfoReturnable<VertexBuffer> cir) {
         ((LegacyVertexData) cir.getReturnValue()).biblioteca$trackQuads(
-                layer == RenderType.translucent() || layer == RenderType.tripwire());
+                layer == RenderType.translucent()
+                //? if >=1.16 {
+                || layer == RenderType.tripwire()
+                //?}
+                );
     }
 }

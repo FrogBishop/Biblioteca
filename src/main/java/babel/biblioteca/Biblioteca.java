@@ -121,7 +121,7 @@ public final class Biblioteca {
     /** Literal mode names synchronize and complete on clients without a custom argument type. */
     private static LiteralArgumentBuilder<CommandSourceStack> skyLightCommand() {
         var command = Commands.literal("sky_light").executes(ctx -> {
-            ResourceKey<Level> dimension = ctx.getSource().getLevel().dimension();
+            ResourceKey<Level> dimension = babel.biblioteca.Compat.dimension(ctx.getSource().getLevel());
             SkyLightMode mode = LoopingDimensionManager.getSkyLightMode(dimension);
             Compat.sendSuccess(ctx.getSource(), () -> Compat.translatable("biblioteca.command.sky_light.query",
                     Compat.keyId(dimension).toString(), Compat.translatable(mode.translationKey()), mode.id()), false);
@@ -129,7 +129,7 @@ public final class Biblioteca {
         });
         for (SkyLightMode mode : SkyLightMode.values()) {
             command.then(Commands.literal(mode.id()).executes(ctx -> {
-                ResourceKey<Level> dimension = ctx.getSource().getLevel().dimension();
+                ResourceKey<Level> dimension = babel.biblioteca.Compat.dimension(ctx.getSource().getLevel());
                 LoopingDimensionManager.setSkyLightMode(dimension, mode);
                 broadcastState(ctx.getSource().getServer());
                 Compat.sendSuccess(ctx.getSource(), () -> Compat.translatable("biblioteca.command.sky_light.set",
@@ -159,7 +159,11 @@ public final class Biblioteca {
                         .then(Commands.argument("dimension", DimensionArgument.dimension())
                                 .then(Commands.argument("enabled", BoolArgumentType.bool())
                                         .executes(ctx -> {
+                                            //? if >=1.16 {
                                             Identifier id = IdentifierArgument.getId(ctx, "dimension");
+                                            //?} else {
+                                            /*Identifier id = net.minecraft.world.level.dimension.DimensionType.getName(DimensionArgument.getDimension(ctx, "dimension"));
+                                            *///?}
                                             ResourceKey<Level> dimension =
                                                     Compat.dimensionKey(id);
                                             boolean enabled = BoolArgumentType.getBool(ctx, "enabled");
@@ -186,7 +190,7 @@ public final class Biblioteca {
 
         return Commands.literal(literal)
                 .executes(ctx -> {
-                    ResourceKey<Level> dimension = ctx.getSource().getLevel().dimension();
+                    ResourceKey<Level> dimension = babel.biblioteca.Compat.dimension(ctx.getSource().getLevel());
                     boolean value = query.test(dimension);
                     Compat.sendSuccess(ctx.getSource(),
                             () -> Compat.literal(
@@ -196,7 +200,7 @@ public final class Biblioteca {
                 })
                 .then(Commands.argument(argument, BoolArgumentType.bool())
                         .executes(ctx -> {
-                            ResourceKey<Level> dimension = ctx.getSource().getLevel().dimension();
+                            ResourceKey<Level> dimension = babel.biblioteca.Compat.dimension(ctx.getSource().getLevel());
                             boolean value = BoolArgumentType.getBool(ctx, argument);
                             setter.accept(dimension, value);
                             broadcastState(ctx.getSource().getServer());

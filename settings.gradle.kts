@@ -15,6 +15,7 @@ plugins {
 }
 
 val allVersions = listOf(
+    "20w14infinite",
     "1.16.5", "1.17", "1.17.1",
     "1.18", "1.18.1", "1.18.2",
     "1.19", "1.19.1", "1.19.2", "1.19.3", "1.19.4",
@@ -39,7 +40,10 @@ val selected = when {
 
 stonecutter {
     create(rootProject) {
-        versions(*selected.distinct().toTypedArray())
+        for (node in selected.distinct()) {
+            // This April Fools snapshot predates the stable 1.16 dimension/network APIs.
+            version(node, if (node == "20w14infinite") "1.16-alpha.20.13.inf" else node)
+        }
         vcsVersion = "26.3"
     }
 }

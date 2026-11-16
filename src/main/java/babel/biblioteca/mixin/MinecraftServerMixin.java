@@ -2,12 +2,14 @@ package babel.biblioteca.mixin;
 
 import babel.biblioteca.Biblioteca;
 import babel.biblioteca.PendingLoopingConfig;
+import babel.biblioteca.LoopingServer;
 import babel.biblioteca.SkyLightMode;
 import babel.biblioteca.world.LoopingDimensionManager;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -24,10 +26,15 @@ import java.util.function.BiConsumer;
  * level; that is why this is attached to loadLevel rather than to a static initializer.
  */
 @Mixin(MinecraftServer.class)
-public class MinecraftServerMixin {
+public class MinecraftServerMixin implements LoopingServer {
 
     @Inject(at = @At("TAIL"), method = "loadLevel")
     private void biblioteca$onLevelLoaded(CallbackInfo ci) {
+        biblioteca$loadLoopingState();
+    }
+
+    @Override @Unique
+    public void biblioteca$loadLoopingState() {
         MinecraftServer server = (MinecraftServer) (Object) this;
         LoopingDimensionManager.onServerStarted(server);
 

@@ -54,8 +54,13 @@ public final class LoopingRainImpacts {
             BlockState block = level.getBlockState(blockPos);
             FluidState fluid = level.getFluidState(blockPos);
             double top = Math.max(block.getCollisionShape(level, blockPos).max(Direction.Axis.Y, x, z), fluid.getHeight(level, blockPos));
-            ParticleOptions type = !fluid.is(FluidTags.LAVA) && !block.is(Blocks.MAGMA_BLOCK)
-                    && !CampfireBlock.isLitCampfire(block) ? ParticleTypes.RAIN : ParticleTypes.SMOKE;
+            //? if >=1.16 {
+            boolean litCampfire = CampfireBlock.isLitCampfire(block);
+            //?} else {
+            /*boolean litCampfire = block.getBlock() == Blocks.CAMPFIRE && block.getValue(CampfireBlock.LIT);
+            *///?}
+            ParticleOptions type = !fluid.is(FluidTags.LAVA) && block.getBlock() != Blocks.MAGMA_BLOCK
+                    && !litCampfire ? ParticleTypes.RAIN : ParticleTypes.SMOKE;
             level.addParticle(type, blockPos.getX() + x, soundPos.getY() + top, blockPos.getZ() + z, 0.0, 0.0, 0.0);
         }
         if (soundPos != null && random.nextInt(3) < soundTime++) {

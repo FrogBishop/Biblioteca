@@ -16,8 +16,12 @@ public abstract class LegacyLightStorageYLoopMixin implements LoopingLightStorag
     }
     @Override public void biblioteca$queue(long section, DataLayer data) {
         LightStorageAccessor access = (LightStorageAccessor)(Object)this;
+        //? if >=1.16 {
         access.biblioteca$queueLegacy(section, data, true);
         if (data == null) access.biblioteca$untrusted().remove(section);
+        //?} else {
+        /*access.biblioteca$queueLegacy(section, data);
+        *///?}
     }
     @Override public void biblioteca$dirty(long section) {
         LightStorageAccessor access = (LightStorageAccessor)(Object)this;

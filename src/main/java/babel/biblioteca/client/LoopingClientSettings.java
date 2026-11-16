@@ -128,14 +128,14 @@ public final class LoopingClientSettings {
     private static ProgressOption booleanOption(String key, java.util.function.BooleanSupplier read, java.util.function.Consumer<Boolean> write) {
         return new ProgressOption(key, 0, 1, 1.0f, options -> read.getAsBoolean() ? 1.0 : 0.0,
                 (options, value) -> write.accept(value >= 0.5),
-                (options, option) -> babel.biblioteca.Compat.translatable("options.generic_value",
+                (options, option) -> ClientCompat.valueLabel(
                         babel.biblioteca.Compat.translatable(key), babel.biblioteca.Compat.translatable(read.getAsBoolean() ? "options.on" : "options.off")));
     }
     public static ProgressOption createPreloadOption() {
         return new ProgressOption("biblioteca.options.preload", MIN_PRELOAD_SECTIONS, MAX_PRELOAD_SECTIONS, 1.0f,
                 options -> (double) preloadSections(),
                 (options, value) -> setPreloadSections((int) Math.round(value)),
-                (options, option) -> babel.biblioteca.Compat.translatable("options.generic_value",
+                (options, option) -> ClientCompat.valueLabel(
                         babel.biblioteca.Compat.translatable("biblioteca.options.preload"), preloadSections()));
     }
 

@@ -32,7 +32,11 @@ public abstract class LegacyClouds1211Mixin {
     @ModifyExpressionValue(
             method = "renderClouds",
             at = @At(value = "INVOKE",
+                    //? if >=1.16 {
                     target = "Lnet/minecraft/client/renderer/DimensionSpecialEffects;getCloudHeight()F"))
+                    //?} else {
+                    /*target = "Lnet/minecraft/world/level/dimension/Dimension;getCloudHeight()F"))
+                    *///?}
     private float biblioteca$nearestCloudLayer(float cloudHeight, @Local(argsOnly = true, ordinal = 1) double cameraY) {
         boolean previous = biblioteca$layers.multiple();
         float height = biblioteca$layers.prepare(cloudHeight, cameraY, ClientCompat.renderDistance());

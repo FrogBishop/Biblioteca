@@ -9,6 +9,16 @@ stonecutter parameters {
     // keeps the shared sources readable and avoids a conditional around every
     // import.
     replacements {
+        string(current.parsed < "1.16") {
+            replace("import net.minecraft.resources.ResourceKey;", "import babel.biblioteca.compat.InfiniteDimensionKey;")
+            replace("ResourceKey<Level>", "InfiniteDimensionKey")
+            replace("world.item.context.BlockPlaceContext", "world.item.BlockPlaceContext")
+            replace("world/item/context/BlockPlaceContext", "world/item/BlockPlaceContext")
+            replace("DimensionArgument", "DimensionTypeArgument")
+            replace("Level.OVERWORLD", "babel.biblioteca.Compat.dimensionKey(babel.biblioteca.Compat.id(\"minecraft\", \"overworld\"))")
+            replace("Level.NETHER", "babel.biblioteca.Compat.dimensionKey(babel.biblioteca.Compat.id(\"minecraft\", \"the_nether\"))")
+            replace("Level.END", "babel.biblioteca.Compat.dimensionKey(babel.biblioteca.Compat.id(\"minecraft\", \"the_end\"))")
+        }
         string(current.parsed < "1.20.2") {
             replace("SectionRenderDispatcher.RenderSection", "ChunkRenderDispatcher.RenderChunk")
             replace("SectionRenderDispatcher\$RenderSection", "ChunkRenderDispatcher\$RenderChunk")

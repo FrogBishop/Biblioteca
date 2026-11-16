@@ -12,7 +12,10 @@ plugins {
     id("dev.kikugie.loom-back-compat")
 }
 
-version = "${property("mod.version")}+${sc.current.version}"
+val minecraftVersion = sc.current.project
+val infiniteSnapshot = minecraftVersion == "20w14infinite"
+
+version = "${property("mod.version")}+${minecraftVersion}"
 base.archivesName = property("mod.id") as String
 
 val accessWidener = when {
@@ -34,7 +37,7 @@ val requiredJava: JavaVersion = when {
 
 repositories {
     // Prefer the exact cached intermediary artifact when a cold Maven download stalls.
-    if (rootProject.file("local-repo/net/fabricmc/intermediary/${sc.current.version}/intermediary-${sc.current.version}-v2.jar").isFile) {
+    if (rootProject.file("local-repo/net/fabricmc/intermediary/${minecraftVersion}/intermediary-${minecraftVersion}-v2.jar").isFile) {
         exclusiveContent {
             forRepository {
                 maven { name = "Cached intermediary"; url = uri(rootProject.file("local-repo")) }
@@ -78,7 +81,7 @@ if (sc.current.parsed < "26.1") {
 // unavailable and avoids downloading every Fabric API module for every node.
 fun fabricApiModules(fabricApiVersion: String, bundleUrl: String): List<File> {
     val cache = rootProject.layout.projectDirectory.dir(".gradle/fabric-api/$fabricApiVersion").asFile
-    val wanted = listOf(
+    val wanted = if (infiniteSnapshot) listOf("fabric-api-base-", "fabric-commands-v0-", "fabric-networking-v0-", "fabric-resource-loader-v0-") else listOf(
         "fabric-api-base-",
         "fabric-command-api-v1-",
         "fabric-command-api-v2-",
@@ -114,27 +117,31 @@ fun fabricApiModules(fabricApiVersion: String, bundleUrl: String): List<File> {
     return jars
 }
 
+val compileApiModules = fabricApiModules(sc.properties["deps.fabric_api"] as String, sc.properties["deps.fabric_api_url"] as String)
+
 dependencies {
-    minecraft("com.mojang:minecraft:${sc.current.version}")
+    minecraft("com.mojang:minecraft:${minecraftVersion}")
     // Official mappings on obfuscated versions; a no-op from 26.1 on.
     loomx.applyMojangMappings()
 
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
-    if (sc.current.version == "1.16.5") {
+    if (minecraftVersion == "1.16.5") {
         modCompileOnly("maven.modrinth:sodium:mc1.16.5-0.2.0")
     }
 
     val fabricApiVersion = sc.properties["deps.fabric_api"] as String
     val fabricApiUrl = sc.properties["deps.fabric_api_url"] as String
-    val compileModules = fabricApiModules(fabricApiVersion, fabricApiUrl)
-    for (jar in compileModules) modImplementation(files(jar))
+    val compileModules = compileApiModules
+    for (jar in compileModules) {
+        modImplementation(files(jar))
+    }
     val apiCache = rootProject.file(".gradle/fabric-api/$fabricApiVersion")
     for (jar in apiCache.listFiles { file -> file.extension == "jar" && file.name != "fabric-api.jar" }.orEmpty()) {
-        if (jar !in compileModules) modRuntimeOnly(files(jar))
+        if (!infiniteSnapshot && jar !in compileModules) modRuntimeOnly(files(jar))
     }
     // Loom prepares the complete runtime bundle, including nested modules, in the node's mappings.
     // This also makes runClient/runServer satisfy the dependency on the Fabric API umbrella mod.
-    modRuntimeOnly(files(rootProject.file(".gradle/fabric-api/$fabricApiVersion/fabric-api.jar")))
+    if (!infiniteSnapshot) modRuntimeOnly(files(rootProject.file(".gradle/fabric-api/$fabricApiVersion/fabric-api.jar")))
 }
 
 java {
@@ -148,10 +155,12 @@ java {
 // Mixin would otherwise fail to load the class.
 @Suppress("UNCHECKED_CAST")
 val sources263 = groovy.json.JsonSlurper().parse(rootProject.file("gradle/26.3-sources.json")) as Map<String, List<String>>
-val excludedServerMixins = if (sc.current.version == "26.3") {
+val excludedServerMixins = if (minecraftVersion == "26.3") {
     rootProject.fileTree("src/main/java/babel/biblioteca/mixin").matching { include("*.java") }
         .files.map { it.nameWithoutExtension }.toSet() - sources263.getValue("mixins").toSet()
 } else buildSet {
+    if (infiniteSnapshot) add("BlockCollisionsYLoopMixin")
+    else addAll(listOf("InfiniteBlockCollisionsMixin", "InfinitePlayerJoinMixin"))
     if (sc.current.parsed < "1.21.2") add("EntityMovementRecordMixin")
     if (sc.current.parsed < "1.19.3") add("GameEventDispatchYLoopMixin")
     else add("LegacyGameEventDispatchYLoopMixin")
@@ -230,7 +239,8 @@ if (excludedServerMixins.isNotEmpty()) {
 
 // A single selection drives both compilation and runtime registration. No absent
 // renderer hook is hidden by require=0, and unselected implementations are not packaged.
-val clientCoreMixins = if (sc.current.version == "26.3") sources263.getValue("clientCore").toSet() else buildSet {
+val clientCoreMixins = if (minecraftVersion == "26.3") sources263.getValue("clientCore").toSet() else buildSet {
+    if (infiniteSnapshot) addAll(listOf("InfiniteDisconnectMixin", "InfiniteIntegratedServerMixin"))
     // Earlier subtitles have no audibility gate; the sound engine already gates their events.
     if (sc.current.parsed >= "1.20.3") add("SubtitleDistanceYLoopMixin")
     if (sc.current.parsed >= "1.19.4") addAll(listOf("CreateWorldScreenMoreTabMixin", "GridLayoutTabAccessor"))
@@ -245,7 +255,7 @@ val clientCoreMixins = if (sc.current.version == "26.3") sources263.getValue("cl
     if (sc.current.parsed >= "1.21.2") add("ClientPacketListenerYLoopMixin")
     if (sc.current.parsed < "26.1") add("LegacyInteractionLocationYLoopMixin")
 }
-val selectedClientMixins = if (sc.current.version == "26.3") sources263.getValue("client").toSet() else buildSet {
+val selectedClientMixins = if (minecraftVersion == "26.3") sources263.getValue("client").toSet() else buildSet {
     addAll(clientCoreMixins)
     addAll(listOf("OptionsSubScreenAccessor", "VideoSettingsScreenMixin"))
     if (sc.current.parsed < "1.21.2") add("LegacyLeashRenderYLoopMixin")
@@ -269,7 +279,7 @@ val selectedClientMixins = if (sc.current.version == "26.3") sources263.getValue
         add(if (sc.current.parsed >= "1.19") "LegacyVertexBufferMixin" else "BufferedVertexYLoopMixin")
         add(if (sc.current.parsed >= "1.17") "ClassicTerrainYLoopMixin" else "FixedTerrainYLoopMixin")
     }
-    if (sc.current.version == "1.21.5") addAll(listOf("GpuLayerTerrainYLoopMixin", "GpuCompiledSectionAccessor"))
+    if (minecraftVersion == "1.21.5") addAll(listOf("GpuLayerTerrainYLoopMixin", "GpuCompiledSectionAccessor"))
     if (sc.current.parsed >= "1.21.6" && sc.current.parsed < "26.3") add("GpuTerrainYLoopMixin")
     if (sc.current.parsed < "1.21.9") {
         add("LegacyBlockEntityRenderYLoopMixin")
@@ -290,8 +300,13 @@ val selectedClientMixins = if (sc.current.version == "26.3") sources263.getValue
 val allClientMixins = rootProject.fileTree("src/main/java/babel/biblioteca/client/mixin")
     .matching { include("*.java") }.files.map { it.nameWithoutExtension }.toSet()
 sourceSets.named("main") {
-    if (sc.current.version != "1.16.5") java.exclude("babel/biblioteca/client/sodium/**")
-    else java.exclude("babel/biblioteca/client/sodiumcompat/**")
+    if (!infiniteSnapshot) {
+        java.exclude("babel/biblioteca/compat/InfiniteDimensionKey.java", "babel/biblioteca/client/InfiniteDimensionConfigScreen.java", "babel/biblioteca/client/InfiniteEasterEggDimensions.java")
+    } else {
+        java.exclude("babel/biblioteca/client/LegacyDimensionConfigScreen.java")
+    }
+    if (minecraftVersion != "1.16.5") java.exclude("babel/biblioteca/client/sodium/**")
+    if (minecraftVersion == "1.16.5" || infiniteSnapshot) java.exclude("babel/biblioteca/client/sodiumcompat/**")
     if (sc.current.parsed < "26.3") java.exclude("babel/biblioteca/client/LoopingConfigScreen.java")
     else java.exclude("babel/biblioteca/client/LegacyDimensionConfigScreen.java")
     java.exclude((allClientMixins - selectedClientMixins).map { "babel/biblioteca/client/mixin/$it.java" })
@@ -317,8 +332,8 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.processResources {
-    if (sc.current.version != "1.16.5") exclude("biblioteca.sodium.mixins.json")
-    else exclude("biblioteca.sodium-compat.mixins.json")
+    if (minecraftVersion != "1.16.5") exclude("biblioteca.sodium.mixins.json")
+    if (minecraftVersion == "1.16.5" || infiniteSnapshot) exclude("biblioteca.sodium-compat.mixins.json")
     val apiVersion = sc.properties["deps.fabric_api"] as String
     val apiBundle = rootProject.file(".gradle/fabric-api/$apiVersion/fabric-api.jar")
     val apiId = ZipFile(apiBundle).use { zip ->
@@ -346,19 +361,33 @@ tasks.processResources {
             @Suppress("UNCHECKED_CAST")
             val metadata = groovy.json.JsonSlurper().parse(metadataFile) as MutableMap<String, Any?>
             metadata["accessWidener"] = accessWidener
-            if (sc.current.version == "1.16.5") {
+            if (minecraftVersion == "1.16.5") {
                 metadata["mixins"] = (metadata["mixins"] as List<*>) + mapOf(
                     "config" to "biblioteca.sodium.mixins.json", "environment" to "client")
             }
             metadataFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + "\n")
         }
 
-        if (sc.current.version != "1.16.5") {
+        if (minecraftVersion != "1.16.5" && !infiniteSnapshot) {
             val metadataFile = outputDir.resolve("fabric.mod.json")
             @Suppress("UNCHECKED_CAST")
             val metadata = groovy.json.JsonSlurper().parse(metadataFile) as MutableMap<String, Any?>
             metadata["mixins"] = (metadata["mixins"] as List<*>) + mapOf(
                 "config" to "biblioteca.sodium-compat.mixins.json", "environment" to "client")
+            metadataFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + "\n")
+        }
+
+        if (infiniteSnapshot) {
+            val metadataFile = outputDir.resolve("fabric.mod.json")
+            @Suppress("UNCHECKED_CAST")
+            val metadata = groovy.json.JsonSlurper().parse(metadataFile) as MutableMap<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val dependencies = metadata["depends"] as MutableMap<String, Any?>
+            dependencies.remove(apiId)
+            metadata["jars"] = compileApiModules.map { mapOf("file" to "META-INF/jars/${it.name}") }
+            // The bundled modules have valid bounds with modern Loader; the old
+            // umbrella and unrelated registry/biome modules have obsolete snapshot bounds.
+            listOf("fabric-api-base", "fabric-commands-v0", "fabric-networking-v0", "fabric-resource-loader-v0").forEach { dependencies[it] = "*" }
             metadataFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)) + "\n")
         }
 
@@ -387,6 +416,8 @@ tasks.processResources {
 }
 
 tasks.jar {
+    if (infiniteSnapshot) from(compileApiModules) { into("META-INF/jars") }
+
     val projectName = project.name
     inputs.property("projectName", projectName)
     from(rootProject.file("LICENSE")) {
@@ -535,7 +566,7 @@ tasks.register("writeValidationConfig") {
     dependsOn(tasks.classes)
     dependsOn(tasks.matching { it.name == "configureLaunch" })
     dependsOn(tasks.matching { it.name == "extractNatives" })
-    val report = rootProject.layout.buildDirectory.file("validation/runtime/${sc.current.version}.json")
+    val report = rootProject.layout.buildDirectory.file("validation/runtime/${minecraftVersion}.json")
     outputs.file(report)
     outputs.upToDateWhen { false }
     doLast {
@@ -553,8 +584,8 @@ tasks.register("writeValidationConfig") {
                 }
             }
         val data = mapOf(
-            "fabricApiModules" to apiModules,
-            "minecraft" to sc.current.version,
+            "fabricApiModules" to if (infiniteSnapshot) apiModules.filter { it["id"] in setOf("fabric-api-base", "fabric-commands-v0", "fabric-networking-v0", "fabric-resource-loader-v0") } else apiModules,
+            "minecraft" to minecraftVersion,
             "java" to requiredJava.majorVersion,
             "classpath" to clientRun.classpath.files.map { it.absolutePath },
             "optionalSodiumClasspath" to sourceSets.main.get().compileClasspath.files
@@ -583,8 +614,8 @@ tasks.register<Sync>("exportNeoForgeSources") {
     group = "build"
     description = "Exports this node's preprocessed shared sources/resources for NeoForge."
     dependsOn(tasks.classes)
-    val output = rootProject.layout.buildDirectory.dir("neoforge-shared/${sc.current.version}")
-    val targetNamesFile = rootProject.file("platforms/neoforge-${sc.current.version}/mixin-targets.json")
+    val output = rootProject.layout.buildDirectory.dir("neoforge-shared/${minecraftVersion}")
+    val targetNamesFile = rootProject.file("platforms/neoforge-${minecraftVersion}/mixin-targets.json")
     @Suppress("UNCHECKED_CAST")
     val targetNames = if (targetNamesFile.isFile) {
         groovy.json.JsonSlurper().parse(targetNamesFile) as Map<String, Map<String, String>>
@@ -607,7 +638,7 @@ tasks.register<Sync>("exportNeoForgeSources") {
         into("resources")
         exclude("fabric.mod.json", "*.accesswidener")
     }
-    inputs.property("minecraft", sc.current.version)
+    inputs.property("minecraft", minecraftVersion)
     inputs.property("clientCoreMixins", clientCoreMixins.sorted())
     doLast {
         targetNames.forEach { (path, names) ->
@@ -620,7 +651,7 @@ tasks.register<Sync>("exportNeoForgeSources") {
         }
         val common = groovy.json.JsonSlurper().parse(output.get().file("resources/biblioteca.mixins.json").asFile) as Map<*, *>
         val selection = mapOf(
-            "minecraft" to sc.current.version,
+            "minecraft" to minecraftVersion,
             "mixins" to common["mixins"],
             "client" to selectedClientMixins.sorted(),
             "clientCore" to clientCoreMixins.sorted(),
