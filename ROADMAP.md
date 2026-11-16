@@ -10,7 +10,8 @@ completed items must include regression evidence and any remaining version-speci
 - [x] Support alphabetical display, paging, range counts and full long-name tooltips, with settings
   for unvisited worlds applied, saved and synchronized without registering those worlds.
 - [x] Verify both variants in Chinese, including a narrow window; review all 12 screenshots.
-  Current snapshot hashes and evidence are in `build/infinite-easter-eggs/report.json`.
+  Catalog evidence is in `build/infinite-easter-eggs/report.json`; current snapshot hashes are in
+  `build/camera-seam/report.json` after the legacy-position follow-up.
 
 ## 20w14infinite Fabric port (completed 2026-11-16)
 

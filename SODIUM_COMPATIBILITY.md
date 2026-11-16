@@ -8,6 +8,10 @@ adapters described below. Graphical coverage is reported separately from loading
 
 The November 4 timeout-restoration follow-up is retained at `build/falling-timeout-restore/report.json`.
 Current development artifacts and regression hashes are recorded in `build/infinite-port/report.json`.
+The later legacy-position fix updates only 20w14infinite and 1.16.5, both variants; its current
+hashes are in `build/camera-seam/report.json`. Both 1.16.5 packages passed another strict Sodium
+0.2.0 transformation audit there. Actual camera-frame tests for this follow-up use the snapshot's
+vanilla renderer; the earlier 1.16.5 graphical results retain their original hashes.
 The snapshot port was followed by ten packaged Sodium regression combinations: Fabric 1.16.5,
 1.21.11 and 26.3, plus NeoForge 1.21.11 and 26.3, with both variants for every selected target.
 The full 82-combination baseline and older graphical results below retain their original frozen

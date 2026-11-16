@@ -43,6 +43,7 @@
     "LegacyBlockReachMixin",
     "LegacyCrossbowAimYLoopMixin",
     "LegacyEndermanGazeYLoopMixin",
+    "LegacyEntityPositionYLoopMixin",
     "LegacyEntityReachMixin",
     "LegacyInlineBlockReachMixin",
     "LegacyLeashSpringYLoopMixin",

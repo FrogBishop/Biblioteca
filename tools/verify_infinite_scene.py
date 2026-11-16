@@ -1,4 +1,4 @@
-"""Run the Infinity snapshot's native client in an isolated world with optional no-render UI checks."""
+"""Run isolated Infinity client checks for screens, scene rendering, or continuous seam camera movement."""
 from pathlib import Path
 import argparse
 import hashlib
@@ -20,7 +20,8 @@ def main():
     parser.add_argument('--asset-index', default='20w14infinite')
     parser.add_argument('--variant', choices=['full', 'norender'], default='full')
     parser.add_argument('--label', default='scene')
-    parser.add_argument('--scenario', choices=['scene', 'catalog'], default='scene')
+    parser.add_argument('--scenario', choices=['scene', 'catalog', 'camera'], default='scene')
+    parser.add_argument('--render-distance', type=int, default=16)
     parser.add_argument('--language', default='en_us')
     parser.add_argument('--width', type=int, default=1280)
     parser.add_argument('--height', type=int, default=720)
@@ -28,17 +29,18 @@ def main():
     cfg = json.loads((ROOT / 'build/validation/runtime/20w14infinite.json').read_text(encoding='utf-8'))
     version = tomllib.loads((ROOT / 'stonecutter.properties.toml').read_text(encoding='utf-8'))['mod']['version']
     catalog = args.scenario == 'catalog'
-    probe_class = 'InfiniteCatalogProbe' if catalog else 'InfiniteSceneProbe'
-    marker = 'INFINITE_CATALOG' if catalog else 'INFINITE_SCENE'
+    camera = args.scenario == 'camera'
+    probe_class = 'InfiniteCameraProbe' if camera else 'InfiniteCatalogProbe' if catalog else 'InfiniteSceneProbe'
+    marker = 'INFINITE_CAMERA' if camera else 'INFINITE_CATALOG' if catalog else 'INFINITE_SCENE'
     suffix = '-norender' if args.variant == 'norender' else ''
     artifact = ROOT / 'build/distributions' / f'biblioteca-{version}+20w14infinite{suffix}.jar'
-    run = ROOT / 'build/validation/20w14infinite' / ('catalog-ui' if catalog else 'scene') / args.label / time.strftime('run-%Y%m%d-%H%M%S')
+    run = ROOT / 'build/validation/20w14infinite' / ('camera' if camera else 'catalog-ui' if catalog else 'scene') / args.label / time.strftime('run-%Y%m%d-%H%M%S')
     (run / 'mods').mkdir(parents=True)
     shutil.copy2(artifact, run / 'mods' / artifact.name)
     shutil.copytree(args.world_template, run / 'saves/infinite-world', ignore=shutil.ignore_patterns('session.lock'))
     lifecycle = next((ROOT / '.gradle/fabric-api/0.5.7+build.2-20w14infinite').glob('fabric-events-lifecycle-v0-*.jar'))
     shutil.copy2(lifecycle, run / 'mods' / lifecycle.name)
-    (run / 'options.txt').write_text('renderDistance:16\npauseOnLostFocus:false\nmaxFps:60\nfullscreen:false\nfov:0.5\nrenderClouds:true\nlang:' + args.language + '\n', encoding='utf-8')
+    (run / 'options.txt').write_text(f'renderDistance:{args.render_distance}\npauseOnLostFocus:false\nmaxFps:60\nfullscreen:false\nfov:0.5\nrenderClouds:true\nlang:' + args.language + '\n', encoding='utf-8')
     sources = run / 'probe-sources'
     sources.mkdir()
     shutil.copy2(ROOT / 'tools/validation/infinite' / (probe_class + '.java'), sources)
@@ -159,6 +161,25 @@ public abstract class CatalogTooltipObserver {
  private void observe(java.util.List<String> lines,int x,int y,CallbackInfo ci) { InfiniteCatalogProbe.tooltip(lines); }
 }'''
         }
+    if camera:
+        observers = {
+            'ClientTickObserver': observers['ClientTickObserver'].replace('InfiniteSceneProbe', probe_class),
+            'CameraObserver': '''package biblioteca.infiniteprobe.mixin;
+import biblioteca.infiniteprobe.InfiniteCameraProbe;
+import net.minecraft.client.Camera;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.BlockGetter;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+@Mixin(Camera.class)
+public abstract class CameraObserver {
+ @Inject(method="setup",at=@At("TAIL"))
+ private void observe(BlockGetter level,Entity entity,boolean detached,boolean mirror,float partial,CallbackInfo ci) {
+  InfiniteCameraProbe.camera((Camera)(Object)this,entity,partial);
+ }
+}'''
+        }
     for name, text in observers.items():
         (sources / (name + '.java')).write_text(text, encoding='utf-8')
     classes = run / 'probe-classes'
@@ -206,7 +227,7 @@ public abstract class CatalogTooltipObserver {
             code = -1
     text = (run / 'client.log').read_text(encoding='utf-8', errors='replace')
     images = sorted((run / 'screenshots').glob('*.png'))
-    result = {'passed': code == 0 and marker + '_OK' in text and marker + '_FAILED' not in text and len(images) == (6 if catalog else 8),
+    result = {'passed': code == 0 and marker + '_OK' in text and marker + '_FAILED' not in text and len(images) == (6 if catalog or camera else 8),
               'variant': args.variant, 'scenario': args.scenario, 'language': args.language, 'exitCode': code, 'artifactSha256': hashlib.sha256((run / 'mods' / artifact.name).read_bytes()).hexdigest(),
               'screenshots': [str(p.relative_to(ROOT)) for p in images],
               'samples': [line for line in text.splitlines() if marker + '_' in line]}

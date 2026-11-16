@@ -46,6 +46,9 @@ def inspect(version, no_render, mod_version, artifact_dir=None):
             assert api_id in meta['depends'], (file, 'Fabric API dependency id', api_id)
         client = json.loads(jar.read('biblioteca.client.mixins.json'))
         common = json.loads(jar.read('biblioteca.mixins.json'))
+        legacy_position = 'LegacyEntityPositionYLoopMixin'
+        assert (legacy_position in common['mixins']) == (node < (1, 17)), (file, 'legacy position hook selection')
+        assert ('babel/biblioteca/mixin/' + legacy_position + '.class' in names) == (node < (1, 17)), (file, 'legacy position class selection')
         for config, key in [(client, 'client'), (common, 'mixins')]:
             assert config['required'] and config['injectors']['defaultRequire'] == 1, (file, 'non-strict mixins')
             for mixin in config[key]:

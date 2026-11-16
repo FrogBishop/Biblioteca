@@ -91,6 +91,9 @@ public final class EntityPhysicsProbe implements ModInitializer {
                 if (compute != null) compute.invoke(e);
                 e.move(MoverType.SELF,new Vec3(0,-1.5,0));
                 e.move(MoverType.SELF,new Vec3(0,-1.25,0));
+                near(e.getBoundingBox().minY, e.getY(), "collision box follows both seam moves");
+                near(e.yo, e.getY() + 2.75, "two moves shift previous position only once");
+                near(e.yOld, e.getY() + 2.75, "two moves shift render history only once");
                 Method apply = method(Entity.class,"applyEffectsFromBlocks",0);
                 if (apply != null) apply.invoke(e);
                 near(e.getY(), min+height-2.5, "two moves in one tick");
@@ -100,6 +103,50 @@ public final class EntityPhysicsProbe implements ModInitializer {
                     Field speed = Entity.class.getDeclaredField("lastKnownSpeed");speed.setAccessible(true);
                     near(((Vec3)speed.get(e)).y,-2.75,"computed speed must exclude coordinate wrapping");
                 }
+            });
+            for (boolean noPhysics : new boolean[]{false, true}) for (int direction : new int[]{-1, 1})
+                verify("continuous_seam_movement_" + noPhysics + "_" + direction, () -> {
+                    Entity e = entity("COW", level);
+                    e.noPhysics = noPhysics;
+                    e.setPos(8.5, direction < 0 ? min + 0.25 : min + height - 0.25, 8.5);
+                    double width = e.getBoundingBox().maxX - e.getBoundingBox().minX;
+                    double sizeY = e.getBoundingBox().maxY - e.getBoundingBox().minY;
+                    for (int tick = 0; tick < 12; tick++) {
+                        old(e);
+                        double startY = e.getY();
+                        double dy = tick == 0 ? direction * (height * 2 + 0.75) : tick < 6 ? 0 : direction * 0.125;
+                        e.move(MoverType.SELF, new Vec3(0.1, dy, 0));
+                        e.move(MoverType.SELF, new Vec3(0, 0, 0.05));
+                        near(e.getY(), fold(startY + dy, min, height), "continued physical Y");
+                        near(e.getBoundingBox().minY, e.getY(), "continued box Y");
+                        near(e.getBoundingBox().maxX - e.getBoundingBox().minX, width, "box width preserved");
+                        near(e.getBoundingBox().maxY - e.getBoundingBox().minY, sizeY, "box height preserved");
+                        near(e.yo, e.getY() - dy, "continued camera history");
+                        near(e.yOld, e.getY() - dy, "continued entity render history");
+                    }
+                });
+            verify("out_of_range_position_box", () -> {
+                Entity e = entity("COW", level);
+                for (double y : new double[]{min - 0.5, min + height + 0.5, min - height * 2 - 0.5}) {
+                    e.setPos(8.5, y, 8.5);
+                    near(e.getY(), fold(y, min, height), "explicit committed position");
+                    near(e.getBoundingBox().minY, e.getY(), "explicit position box");
+                }
+                Method reset = method(Entity.class, "setPosAndOldPos", 3);
+                if (reset != null) {
+                    reset.invoke(e, 8.5, min - 0.5, 8.5);
+                    near(e.yo, e.getY(), "explicit history reset");
+                    near(e.yOld, e.getY(), "explicit render history reset");
+                }
+            });
+            verify("ordinary_position_control", () -> {
+                LoopingDimensionManager.setLooping(Compat.dimension(level), false);
+                Entity e = entity("COW", level); e.noPhysics = true;
+                e.setPos(8.5, min - 0.5, 8.5); old(e);
+                e.move(MoverType.SELF, new Vec3(0.1, -0.75, 0));
+                near(e.getY(), min - 1.25, "ordinary position stays unwrapped");
+                near(e.getBoundingBox().minY, e.getY(), "ordinary collision box");
+                near(e.yo, min - 0.5, "ordinary interpolation remains native");
             });
             verify("ordinary_lifetime_control", () -> {
                 LoopingDimensionManager.setLooping(Compat.dimension(level), false);

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fix repeated whole-world camera sweeps after moving across the seam on 20w14infinite and
+  1.16.5. Keep the legacy collision box beside the committed entity position and reset old-position
+  fields in that same frame. Applies to client/server and complete/no-render builds; later versions
+  retain their native position path.
+
 - List all 43 native 20w14infinite Easter egg dimensions in the attributes UI, after the three
   vanilla dimensions. Preserve their exact original book strings in every language, sort by name,
   provide paging and full long-name tooltips, and save settings for unvisited dimensions without

@@ -67,6 +67,12 @@ boxes, path-node methods, float sound coordinates and native light storage. Feat
 this Minecraft version, such as sculk vibration systems, are not claimed as available.
 Falling blocks retain the native 600-tick expiry and item-drop behavior.
 
+The legacy movement path keeps the collision box in the same period as the committed entity
+position, including after upward/downward crossings, repeated moves in one tick and horizontal
+movement after crossing. Position resets also use the committed Y for both history fields.
+This prevents the camera from repeatedly interpolating across 256 blocks and applies to both
+variants and both sides. The same pre-1.17 fix also covers the supported 1.16.5 target.
+
 ## Build and verification
 
 ```powershell
@@ -91,11 +97,19 @@ draws, particle vertices and ages, cloud buffers and entity copies. It also acce
 `--variant norender`. Loom's `:20w14infinite:downloadAssets` task prepares the matching asset index;
 the isolated local test assets use the equivalent index name `20w14infinite`.
 
+Use `--scenario camera --render-distance 8` for continuous local-player movement: first person
+and both third-person views, in both crossing directions, followed by horizontal motion, vertical
+motion, a return crossing and a pause. It observes actual native `Camera.setup` frames and checks
+collision-box and interpolation history throughout; the only teleports position the player before
+each sequence. Earlier scene screenshots switched layers by teleport and did not cover this path.
+
 The probes freeze the actual tested JAR in their run directory. A legacy lifecycle module is
 added only to the test instance; it is not an additional production requirement. Client graphical
 checks wait for resource loading to complete. Cloud buffer identity is checked within a native
 draw pass, allowing vanilla to rebuild the buffer between frames.
 
 Validation logs, frozen artifacts and screenshots are under `build/validation/20w14infinite/`.
-The final build report and hashes are under `build/infinite-port/`. Historical reports retain
-their original hashes and are not relabelled as tests of newly built artifacts.
+The original port report is under `build/infinite-port/`; the 43-dimension UI follow-up is under
+`build/infinite-easter-eggs/`. The current camera/legacy-position fix and its four updated artifact
+hashes (20w14infinite and 1.16.5, both variants) are under `build/camera-seam/`. Historical reports
+retain their original hashes and are not relabelled as tests of newly built artifacts.

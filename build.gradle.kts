@@ -161,6 +161,7 @@ val excludedServerMixins = if (minecraftVersion == "26.3") {
 } else buildSet {
     if (infiniteSnapshot) add("BlockCollisionsYLoopMixin")
     else addAll(listOf("InfiniteBlockCollisionsMixin", "InfinitePlayerJoinMixin"))
+    if (sc.current.parsed >= "1.17") add("LegacyEntityPositionYLoopMixin")
     if (sc.current.parsed < "1.21.2") add("EntityMovementRecordMixin")
     if (sc.current.parsed < "1.19.3") add("GameEventDispatchYLoopMixin")
     else add("LegacyGameEventDispatchYLoopMixin")
