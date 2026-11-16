@@ -75,7 +75,7 @@ public abstract class ClassicTerrainYLoopMixin {
 *///?}
 ))
     private void biblioteca$copyDraw(VertexBuffer buffer, Operation<Void> original,
-            @Local Uniform offset, @Local SectionRenderDispatcher.RenderSection section,
+            @Local Uniform offset, @Local(ordinal = 0) SectionRenderDispatcher.RenderSection section,
             @Local(argsOnly = true) RenderType layer,
             @Local(argsOnly = true, ordinal = 0) double x,
             @Local(argsOnly = true, ordinal = 1) double y,

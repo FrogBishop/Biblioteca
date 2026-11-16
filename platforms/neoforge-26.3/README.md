@@ -1,6 +1,6 @@
 # Biblioteca for NeoForge 26.3
 
-This independent target builds Biblioteca 1.0.3 for Minecraft 26.3, tested on NeoForge
+This independent target builds Biblioteca 1.0.4 for Minecraft 26.3, tested on NeoForge
 26.3.0.98 and 26.3.0.99. It shares gameplay, persistence, commands, UI and rendering with the
 Fabric target. The shared source version is 26.3; edit the repository's root sources rather
 than Stonecutter-generated copies for older Minecraft releases.
@@ -50,9 +50,9 @@ to prepare only the patched game; its `prepared` state does not mean that mod va
 
 ## Deliverables
 
-- `build/distributions/biblioteca-1.0.3+26.3-neoforge.jar`: complete gameplay and periodic visuals;
+- `build/distributions/biblioteca-1.0.4+26.3-neoforge.jar`: complete gameplay and periodic visuals;
   works on both clients and dedicated servers.
-- `build/distributions/biblioteca-1.0.3+26.3-neoforge-norender.jar`: the same gameplay,
+- `build/distributions/biblioteca-1.0.4+26.3-neoforge-norender.jar`: the same gameplay,
   networking, prediction, audio and configuration UI, with periodic visual Mixins removed.
 
 Install one variant per instance; both have the mod ID `biblioteca`. Use the complete variant
@@ -77,7 +77,7 @@ entrypoint registers the main-thread payload handler, disconnect cleanup and Neo
 directory. Common code has no Fabric API dependency. The saved world format and packet content
 are shared; cross-loader multiplayer compatibility has not been validated.
 
-`gradle/26.3-sources.json` controls the 70 common Mixins, 30 complete-client Mixins and 11
+`gradle/26.3-sources.json` controls the 73 common Mixins, 38 complete-client Mixins and 10
 no-render client Mixins for both loaders. The access transformer grants the same terrain draw
 group access as the Fabric access widener. Two injection selectors account for NeoForge's
 additional explosion and block-entity extraction overloads without relaxing required injections.
@@ -103,7 +103,7 @@ supplied world with Overworld looping and hybrid sky enabled. It requires an exi
 EULA file and leaves the supplied world template unchanged:
 
 ```powershell
-python tools/verify_neoforge_save.py --jar build/distributions/biblioteca-1.0.3+26.3-neoforge.jar --world-template path/to/test-world --eula-file path/to/eula.txt
+python tools/verify_neoforge_save.py --jar build/distributions/biblioteca-1.0.4+26.3-neoforge.jar --world-template path/to/test-world --eula-file path/to/eula.txt
 ```
 
 It loads 49 forced chunks with a 1 GB heap, saves and closes, reopens the same copy to check a

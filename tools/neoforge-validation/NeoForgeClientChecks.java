@@ -27,7 +27,14 @@ public final class NeoForgeClientChecks {
                 .filter(f -> f.getType() == Minecraft.class && Modifier.isStatic(f.getModifiers())).findFirst().orElseThrow();
         singleton.setAccessible(true);
         Object previous = singleton.get(null);
-        singleton.set(null, SeamFixture.allocate(Minecraft.class));
+        Object client = SeamFixture.allocate(Minecraft.class);
+        for (var field : Minecraft.class.getDeclaredFields()) {
+            if (field.getType().getSimpleName().equals("SearchRegistry") && !Modifier.isStatic(field.getModifiers())) {
+                var constructor = field.getType().getDeclaredConstructor(); constructor.setAccessible(true);
+                field.setAccessible(true); field.set(client, constructor.newInstance());
+            }
+        }
+        singleton.set(null, client);
         return () -> singleton.set(null, previous);
     }
 
@@ -39,10 +46,18 @@ public final class NeoForgeClientChecks {
                 .filter(f -> f.getType() == Minecraft.class && Modifier.isStatic(f.getModifiers())).findFirst().orElseThrow();
         singleton.setAccessible(true);
         Object previousClient = singleton.get(null);
-        var handlers = NetworkRegistry.class.getDeclaredField("CLIENTBOUND_HANDLERS");
-        handlers.setAccessible(true);
-        IPayloadHandler<LoopingStatePayload> handler = (IPayloadHandler) ((Map<?, ?>) ((Map<?, ?>) handlers.get(null))
-                .get(ConnectionProtocol.PLAY)).get(LoopingStatePayload.ID);
+        IPayloadHandler<LoopingStatePayload> handler;
+        try {
+            var handlers = NetworkRegistry.class.getDeclaredField("CLIENTBOUND_HANDLERS");
+            handlers.setAccessible(true);
+            handler = (IPayloadHandler) ((Map<?, ?>) ((Map<?, ?>) handlers.get(null))
+                    .get(ConnectionProtocol.PLAY)).get(LoopingStatePayload.ID);
+        } catch (NoSuchFieldException beforeSeparateClientRegistration) {
+            var registrations = NetworkRegistry.class.getDeclaredField("PAYLOAD_REGISTRATIONS");
+            registrations.setAccessible(true);
+            Object registration = ((Map<?, ?>) ((Map<?, ?>) registrations.get(null)).get(ConnectionProtocol.PLAY)).get(LoopingStatePayload.ID);
+            handler = (IPayloadHandler) registration.getClass().getMethod("handler").invoke(registration);
+        }
         if (handler == null) throw new AssertionError("Client payload handler not registered");
         int[] enqueued = {0};
         IPayloadContext context = (IPayloadContext) Proxy.newProxyInstance(IPayloadContext.class.getClassLoader(),

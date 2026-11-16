@@ -37,7 +37,7 @@ public abstract class LivingEntitySightYLoopMixin {
         for (int i = 0; i < heights.length; i++) {
             double y = SeamPositions.foldForDistance(level, heights[i], observer.getEyeY());
             if (y != heights[i]) {
-                if (result == heights) result = heights.clone();
+                if (result == heights) result = java.util.Arrays.copyOf(heights, heights.length);
                 result[i] = y;
             }
         }

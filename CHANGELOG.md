@@ -1,7 +1,18 @@
 # Changelog
 
-## Unreleased
+## 1.0.4 — 2026-11-16
 
+Stable release with **118 exact-version JARs**: 36 Fabric targets and 23 NeoForge targets,
+each with complete and no-render editions. Fabric covers every supported release from
+Minecraft 1.16.5 through 26.3 plus **20w14infinite**. NeoForge now covers every supported
+release from **1.20.1 through 26.3**.
+
+### New targets and installation
+
+- Extend NeoForge to all configured Minecraft releases down to 1.20.1: 23 NeoForge targets with
+  complete/no-render pairs. Adapt early channel
+  and payload APIs, original NeoForge SRG packaging, extended reach, old interface limitations,
+  renderer access and native method overloads. Keep exact Minecraft metadata on every artifact.
 - Fix repeated whole-world camera sweeps after moving across the seam on 20w14infinite and
   1.16.5. Keep the legacy collision box beside the committed entity position and reset old-position
   fields in that same frame. Applies to client/server and complete/no-render builds; later versions
@@ -19,9 +30,13 @@
 - Keep the snapshot's native falling-block timeout. NeoForge has no loader for 20w14infinite;
   existing NeoForge targets continue to use the shared code. See `INFINITE_COMPATIBILITY.md`.
 
-Development work is tracked in [ROADMAP.md](ROADMAP.md). Shader interfaces are deferred;
-the active scope includes particle continuity, periodic game events, diagnostics, entity-query
-evaluation, network coverage, complete entity copies and multiple cloud layers.
+Install one variant matching the exact Minecraft version and loader on both server and clients.
+A no-render server can serve complete-build clients. Fabric release builds require Fabric API;
+**20w14infinite bundles its four required API modules and needs no separate Fabric API download**.
+NeoForge builds do not use Fabric API. Java requirements are **17** for the snapshot and
+1.16.5–1.20.4, **21** for 1.20.5–1.21.11, and **25** for 26.1 and later.
+
+### Cross-boundary fixes and rendering
 
 - Preserve living campfire, portal and other billboard particles across camera crossings, including
   older vibration particles, without resetting their age or simulation state.
@@ -53,6 +68,24 @@ evaluation, network coverage, complete entity copies and multiple cloud layers.
   entity metadata. Add independent-observer packet serialization and effect-recipient regressions.
 - Omit the seam preload, entity-copy and cloud-layer controls from Video Settings in no-render
   builds. The complete builds retain all three rendering controls.
+
+### Upgrade and compatibility notes
+
+Existing terrain, saved dimension settings and sky-light modes are preserved. Falling blocks
+still follow the native 600-tick timeout, and ender-pearl drag and lifetime are unchanged.
+Entity copies are visual images of one logical entity; they do not create extra mobs or drops.
+The snapshot's 43 Easter egg names remain their original book strings in every language.
+
+Sodium is optional; use the exact tested combinations in
+[SODIUM_COMPATIBILITY.md](SODIUM_COMPATIBILITY.md). Use Java 21 for the historical NeoForge
+1.21.2/Sodium combination. Iris shader interfaces remain deferred, and Voxy/far-LOD rendering
+needs its own integration. No Forge or NeoForge 20w14infinite artifact is provided.
+
+Build helpers select the required historical Gradle toolchains and stop completed build daemons.
+The source tree includes the expanded NeoForge CI matrix and native regression tools. See
+[NEOFORGE_COMPATIBILITY.md](NEOFORGE_COMPATIBILITY.md),
+[INFINITE_COMPATIBILITY.md](INFINITE_COMPATIBILITY.md) and
+[ROADMAP.md](ROADMAP.md) for implementation and verification details. Release tag: **`1.0.4`**.
 
 ## 1.0.3 — 2026-10-31
 

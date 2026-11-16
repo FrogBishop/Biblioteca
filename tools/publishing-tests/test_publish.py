@@ -117,6 +117,20 @@ class PublisherTests(PublisherFixture):
         self.assertNotIn(token, output.getvalue())
         self.assertIn('[REDACTED]', output.getvalue())
 
+    def test_infinite_is_published_only_with_an_exact_platform_tag(self):
+        manifest, _ = self.manifest('NOREND01')
+        snapshot = dict(manifest['entries'][0], minecraft='20w14infinite', version='1.0.4+20w14infinite')
+        entries = [snapshot, manifest['entries'][1]]
+        publications = publish.make_publications(entries, list(publish.PLATFORMS),
+                                                 manifest['projects'], 'release', 'Snapshot support')
+        snapshot_publications = [p for p in publications if p['minecraft'] == '20w14infinite']
+        self.assertEqual([(p['platform'], p['variant']) for p in snapshot_publications],
+                         [('modrinth', 'full'), ('modrinth', 'norender')])
+        self.assertTrue(all(p['minecraft'] == '20w14infinite' for p in snapshot_publications))
+        self.assertEqual(len([p for p in publications if p['platform'] == 'curseforge']), 1)
+        self.assertEqual(publish.make_publications([snapshot], ['curseforge'], manifest['projects'],
+                                                  'release', 'Snapshot support'), [])
+
     def test_wrong_game_version_and_wrong_variant_are_rejected(self):
         path = self.root / 'wrong.jar'
         make_jar(path, '1.0.2+26.3', mc='26.2')

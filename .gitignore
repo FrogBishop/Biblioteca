@@ -6,6 +6,7 @@ out/
 *.class
 *.jar
 !/gradle/wrapper/gradle-wrapper.jar
+!/platforms/legacy-gradle/gradle/wrapper/gradle-wrapper.jar
 
 # Machine-specific IDE, agent and workspace state.
 .idea/

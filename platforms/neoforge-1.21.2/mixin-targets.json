@@ -1,0 +1,8 @@
+{
+  "babel/biblioteca/mixin/SnowGolemAimYLoopMixin.java": {
+    "method_63010": "lambda$performRangedAttack$1"
+  },
+  "babel/biblioteca/mixin/LivingEntitySightYLoopMixin.java": {
+    "isLookingAtMe": "isLookingAtMe(Lnet/minecraft/world/entity/LivingEntity;DZZLjava/util/function/BiPredicate;[Ljava/util/function/DoubleSupplier;)Z"
+  }
+}

@@ -6,7 +6,8 @@ Biblioteca connects a dimension's top and bottom. The server stores one period;
 the client displays the visible periodic copies. No blocks, items, dimensions or generation
 presets are added, and existing terrain (including bedrock) is retained.
 
-`multiversion` is the default and maintained branch, covering **all 35 releases from 1.16.5 through 26.3**. Development builds also include
+**Biblioteca 1.0.4** is the current release. `multiversion` is the default and maintained branch,
+covering **all 35 releases from 1.16.5 through 26.3**. Fabric also includes
 **20w14infinite (20w14∞) on Fabric**, for 36 Fabric targets; see [the snapshot guide](INFINITE_COMPATIBILITY.md).
 `main` is permanently archived as the historical Minecraft 26.3 Fabric implementation.
 Each release has an exact-version artifact; a JAR
@@ -16,18 +17,21 @@ compiled for one release is not relabelled to accept a broader API range.
 has been cancelled. NeoForge development and maintenance will continue, including support
 for additional Minecraft versions.
 
-Minecraft **1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3** also have **NeoForge** targets, sharing gameplay and renderer code
-with Fabric. Complete and no-render variants are built and validated independently; see the
-[26.1 family guide](platforms/neoforge-26.1/README.md), [26.2 build guide](platforms/neoforge-26.2/README.md)
-and [26.3 build guide](platforms/neoforge-26.3/README.md).
-The current release is **1.0.3**, with 70 Fabric and 12 NeoForge artifacts across the targets above.
-It extends live sky-light synchronization to every supported version, adds the Fabric 1.16.5
-Sodium bridge, and fixes the older world-creation button and settings-page background. Save/quit
-and bulk sky-light memory fixes from 1.0.2 are retained.
+Version 1.0.4 provides **23 NeoForge targets**, covering every configured Minecraft release
+from **1.20.1 through 26.3**, including 1.20.1–1.20.6 and 1.21–1.21.11. Complete and no-render
+variants share gameplay and renderer code with Fabric and are validated independently. See the
+[NeoForge compatibility and build guide](NEOFORGE_COMPATIBILITY.md) for every pinned loader version.
+Together with the 36 Fabric targets, the release contains **118 exact-version JARs**.
+
+Version **1.0.4** adds persistent particles through crossings, periodic game events and vibrations,
+bounded entity copies, multiple cloud layers, in-game diagnostics, broader optional Sodium support,
+and the snapshot's 43 Easter egg dimensions in the settings screen. It also fixes repeated camera
+sweeps in the snapshot/1.16.5 and preserves real movement history for fast-moving entities.
+See [CHANGELOG.md](CHANGELOG.md) for the complete changes and installation notes.
 Each target has a pinned and verified NeoForge baseline in its build guide.
 
-The new target supports **Minecraft 1.21.11 / NeoForge 21.11.48 on Java 21**; see its
-[build and validation guide](platforms/neoforge-1.21.11/README.md).
+The oldest NeoForge target uses its official **1.20.1-47.1.106** distribution and Java 17.
+Its original API namespace and SRG packaging are handled by a dedicated adapter.
 
 This README is developer documentation for GitHub. [modrinth.md](modrinth.md) describes the
 Modrinth release, while [curseforge.md](curseforge.md) is the version-independent CurseForge
@@ -41,16 +45,17 @@ the changes through 1.0.0. [PORTING.md](PORTING.md) describes the version breakp
 |---|---|
 | Minecraft nodes | 20w14infinite; 1.16.5; 1.17–1.17.1; 1.18–1.18.2; 1.19–1.19.4; 1.20–1.20.6; 1.21–1.21.11; 26.1–26.1.2; 26.2; 26.3 |
 | Gradle runtime | JDK 25; wrapper uses Gradle 9.8.0 |
+| Legacy NeoForge build tool | 1.20.2, 1.20.3 and 1.20.5 use NeoGradle 7.0.116 with the separate Gradle 8.14.5 wrapper on JDK 21; shared source export still uses JDK 25 |
 | Output Java targets | 17 for 20w14infinite and 1.16.5–1.20.4; 21 for 1.20.5–1.21.11; 25 for 26.1+ |
 | Fabric Loader | 0.19.5 |
 | Fabric API | Pinned per release in `stonecutter.properties.toml` |
 | NeoForge (26.x targets) | 26.1.0.19-beta / 26.1.1.15-beta / 26.1.2.122 / 26.2.0.93 / 26.3.0.98 (also verified with 26.3.0.99); ModDevGradle 2.0.148, Java 25 |
-| NeoForge (1.21.11 target) | 21.11.48; ModDevGradle 2.0.148, Java 21 |
+| NeoForge (1.20.1–1.21.11) | Per-target pins and API eras in [NEOFORGE_COMPATIBILITY.md](NEOFORGE_COMPATIBILITY.md) |
 | Source preprocessing | Stonecutter 0.9.8 |
 | Loom | `loom-back-compat` 0.4.2 selects remapping/plain Loom 1.18 |
 
 Shared source and Fabric adapters are under `src/main/java`; NeoForge adapters are under
-`platforms/neoforge/src/main/java`. Client packages and client Mixin configs remain client-only
+`platforms/neoforge/src/`, with explicit adapters for each loader API era. Client packages and client Mixin configs remain client-only
 at runtime. Stonecutter writes inactive nodes under `versions/<mc>/build/generated/stonecutter`.
 Edit the root sources, not the generated copies. The active source version is 26.3.
 
@@ -70,10 +75,15 @@ python tools/verify_matrix.py --checks --workers 2
 python tools/verify_artifacts.py
 
 # NeoForge: build both variants and run packaged client/server regressions per target
+.\tools\neoforge-pilot.ps1 verify -MinecraftVersion 1.20.1
+.\tools\neoforge-pilot.ps1 verify -MinecraftVersion 1.20.4
 .\tools\neoforge-pilot.ps1 verify -MinecraftVersion 1.21.11
 .\tools\neoforge-pilot.ps1 verify -MinecraftVersion 26.1.2
 .\tools\neoforge-pilot.ps1 verify -MinecraftVersion 26.2
 .\tools\neoforge-pilot.ps1 verify
+
+# Cross-platform helper selects the required Gradle wrapper and toolchains
+python tools/build_neoforge_matrix.py --versions 1.20.2,1.20.3,1.20.5 --workers 2
 ```
 
 On Linux/macOS use `./gradlew`; `SC_VERSIONS=1.21.5,26.3 ./gradlew :1.21.5:build` selects a subset.
@@ -291,8 +301,9 @@ adapters; the complete 26.3 fixture is not presented as an older-version gamepla
 Rendering checks cover weather slice coverage, centroid formats, exhaustive reference alpha ordering,
 16/32-bit indices and copy visibility. GPU draw records are inspected for buffer/uniform/address
 preservation; 26.3 also exercises direct/indirect command data, OIT selection and buffer/fence cleanup
-using in-memory devices. `tools/verify_artifacts.py` audits all 70 distributable JARs, their exact
+using in-memory devices. `tools/verify_artifacts.py` audits all 72 Fabric distributable JARs, their exact
 Minecraft requirements, class versions, access wideners, refmaps and no-render contents.
+NeoForge's packaged checks independently audit its 46 JARs across all 23 targets and both sides.
 
 Reports live in `build/validation`; CI uploads them with `build/distributions`. Gameplay, audio
 output and driver-specific rendering still need an interactive client: see the manual scenarios
@@ -368,8 +379,8 @@ also retain their position history through Sodium's optimized particle paths. So
 optional; no-render builds exclude the rendering adapters and the related video controls.
 
 The selected releases are listed in [SODIUM_COMPATIBILITY.md](SODIUM_COMPATIBILITY.md), together
-with separate loading and real graphical results. Graphical coverage samples 14 Fabric Minecraft
-versions and NeoForge 26.3; it does not cover every historical Sodium release or every modpack.
+with separate loading and real graphical results. Sodium graphical coverage samples 14 Fabric
+Minecraft versions and NeoForge 1.21.8/26.3; it does not cover every historical Sodium release or every modpack.
 On the tested NeoForge 26.3.0.98 runtime, use **Sodium 0.9.3-beta.1 or newer**. Both Biblioteca
 variants declare that minimum when Sodium is present because 0.9.2 fails independently of
 Biblioteca. Other Minecraft nodes use their own compatible Sodium release from the matrix.
@@ -385,6 +396,7 @@ intersecting faces and cyclic overlap.
 - [modrinth.md](modrinth.md): Modrinth user copy covering installation, settings and commands.
 - [curseforge.md](curseforge.md): version-independent CurseForge copy with both variants in one project.
 - [CHANGELOG.md](CHANGELOG.md): release history and manual setting migration.
+- [RELEASE_1.0.4.md](RELEASE_1.0.4.md): final release checks, earlier graphical evidence and distribution layout.
 
 Keep implementation details and verification evidence in the GitHub developer documentation.
 Keep private handoff notes, machine paths and installation records in `.local/` or the ignored

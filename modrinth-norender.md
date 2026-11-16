@@ -1,6 +1,6 @@
 # Biblioteca No Render
 
-**Version 1.0.3 · Fabric 1.16.5–26.3 · NeoForge 1.21.11 and 26.1–26.3**
+**Version 1.0.4 · Fabric: 20w14infinite and 1.16.5–26.3 · NeoForge: 1.20.1–26.3**
 
 This is the **no-render alternative** to Biblioteca. It keeps periodic vertical gameplay,
 dimension settings, saved-world data, networking, sounds and configuration controls while
@@ -18,7 +18,20 @@ Minecraft version and loader on both sides. The no-render edition still includes
 logic needed for synchronized dimension settings and periodic gameplay.
 
 Choose a download matching your exact Minecraft version and loader. Fabric builds also require
-Fabric API; NeoForge builds require the corresponding NeoForge installation.
+Fabric API on normal Minecraft releases. **20w14infinite bundles its four required API modules
+and does not need a separate Fabric API installation.** NeoForge builds require the corresponding
+NeoForge installation; there is no NeoForge build for the snapshot.
+
+Use Java **17** for the snapshot and 1.16.5–1.20.4, **21** for 1.20.5–1.21.11, and **25** for 26.1+.
+The [NeoForge guide](https://github.com/FrogBishop/Biblioteca/blob/1.0.4/NEOFORGE_COMPATIBILITY.md)
+lists the tested loader versions. NeoForge 26.3 requires Sodium 0.9.3-beta.1 or newer if Sodium is
+installed; use Java 21 for the historical NeoForge 1.21.2/Sodium combination.
+
+Version **1.0.4** includes periodic game events and vibrations, movement-history and legacy camera
+fixes, diagnostics, older NeoForge targets, and all 43 snapshot Easter egg dimensions in the settings
+screen. Falling blocks retain their vanilla timeout. **Seam preload**, **Periodic entity copies**
+and **Multiple cloud layers** are absent from this edition's Video Settings because their rendering
+features are omitted.
 
 **Fabric and NeoForge are the supported loaders.** The planned Forge port has been cancelled.
 NeoForge support will continue to be maintained and expanded to additional Minecraft versions.

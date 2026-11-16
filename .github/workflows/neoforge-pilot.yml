@@ -1,41 +1,80 @@
-name: NeoForge 26.3 pilot environment
+name: NeoForge release matrix
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'platforms/neoforge-26.3/**'
+      - 'platforms/**'
+      - 'src/main/**'
+      - 'tools/*neoforge*'
+      - 'tools/neoforge-validation/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'stonecutter.*'
+      - 'gradle/**'
+      - 'tools/validation/**'
+      - 'tools/*NeoForge*'
       - '.github/workflows/neoforge-pilot.yml'
   pull_request:
     paths:
-      - 'platforms/neoforge-26.3/**'
+      - 'platforms/**'
+      - 'src/main/**'
+      - 'tools/*neoforge*'
+      - 'tools/neoforge-validation/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'stonecutter.*'
+      - 'gradle/**'
+      - 'tools/validation/**'
+      - 'tools/*NeoForge*'
       - '.github/workflows/neoforge-pilot.yml'
 
 permissions:
   contents: read
 
 jobs:
-  prepare:
+  targets:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    outputs:
+      versions: ${{ steps.targets.outputs.versions }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: targets
+        shell: python
+        run: |
+          import json, os
+          from pathlib import Path
+          targets = sorted((p.name.removeprefix('neoforge-') for p in Path('platforms').glob('neoforge-*')
+                            if (p / 'gradle.properties').is_file()), key=lambda v: tuple(map(int, v.split('.'))))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('versions=' + json.dumps(targets) + '\n')
+  verify:
+    needs: targets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft: ${{ fromJSON(needs.targets.outputs.versions) }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
         with:
-          java-version: '25'
+          java-version: |
+            17
+            21
+            25
           distribution: 'microsoft'
-      - name: Prepare the real NeoForge environment
-        shell: bash
-        run: |
-          mkdir -p build/neoforge-pilot
-          chmod +x ./gradlew
-          ./gradlew -p platforms/neoforge-26.3 preparePilot --console=plain --max-workers=1 --no-daemon 2>&1 | tee build/neoforge-pilot/prepare.log
-      - name: Upload preparation evidence
+      - name: Build and verify both variants on both sides
+        run: python3 tools/build_neoforge_matrix.py --versions '${{ matrix.minecraft }}' --label ci
+      - name: Upload artifacts and validation evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: neoforge-26.3-pilot-environment
+          name: neoforge-${{ matrix.minecraft }}
           path: |
-            build/neoforge-pilot/prepare.log
-            platforms/neoforge-26.3/build/pilot-environment.txt
+            build/distributions/*+${{ matrix.minecraft }}-neoforge*.jar
+            build/neoforge-backport/ci/
+            build/neoforge-${{ matrix.minecraft }}/validation/
+            build/neoforge-pilot/validation/
           if-no-files-found: error

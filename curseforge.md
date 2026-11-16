@@ -24,7 +24,7 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 - Use fluids, redstone, pistons and supported plant growth across the top and bottom.
 - Decorate and spawn across the boundary: paintings and item frames hang across the seam at any
   height, and a spawn egg puts the mob on the block you clicked instead of inside it.
-- See repeated terrain, nearby entities and block entities, periodic beacon beams and clouds.
+- See repeated terrain, entity and block-entity copies, periodic beacon beams and multiple cloud layers.
 - Fight mobs and trade with villagers on the other side: they see you, path to you, hit you and
   cross the boundary without a visible jump.
 - Lead leashed mobs across the boundary and fight with arrows, snowballs, potions and other
@@ -33,6 +33,9 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
   while light still travels across the boundary.
 - See rain and snow across the boundary, with rain splashes, hot-surface smoke and impact sounds.
 - Hear positional sounds and see effects from the other side, with matching sound subtitles.
+- Keep existing campfire smoke, portal particles and other effects continuous when crossing the boundary.
+- Trigger sculk sensors and other game-event listeners across the boundary, with vibration travel
+  time and wool occlusion measured along the short route.
 - Track your crossings with **Seam crossings** in the vanilla statistics screen.
 
 ## Downloads and installation
@@ -51,7 +54,11 @@ The file's version labels and dependencies show its supported game version, load
 requirements. Some builds for older Minecraft releases require a newer Java runtime than the
 unmodified game.
 
-- **Fabric builds** require Fabric Loader and Fabric API for the selected Minecraft version.
+- **Fabric builds** require Fabric Loader and Fabric API for the selected Minecraft release.
+  The **20w14infinite** snapshot bundles its four required API modules and should not use the
+  obsolete Fabric API umbrella. CurseForge has no matching game-version label for this snapshot;
+  get that exact build from [Modrinth](https://modrinth.com/mod/biblioteca/versions)
+  or [GitHub](https://github.com/FrogBishop/Biblioteca/releases).
 - **NeoForge builds** require the corresponding NeoForge installation and do not use Fabric API.
 
 **Fabric and NeoForge are the supported loaders.** The planned Forge port has been cancelled.
@@ -74,6 +81,10 @@ the settings for each dimension, press **Done**, and create the world. The list 
 dimensions from your selected world preset and enabled data packs. After changing data packs,
 wait for validation to finish; the page uses the updated dimension list. Scroll to see more
 dimensions; older layouts also provide up/down buttons. The sky-setting tooltip includes the dimension ID.
+
+On **20w14infinite**, all **43 Easter egg dimensions** are also listed by their original book
+strings in every language. Their settings can be saved before visiting them; long names have
+tooltips and the list provides paging. The snapshot's portal passphrases are preserved.
 
 For an existing world or a server, use commands. Cheats or operator
 permission level 2 are required:
@@ -126,6 +137,7 @@ dimensions retain vanilla lighting.
 | `/biblioteca beacon <bool>` | Change Beacon ignores sky in the current dimension. |
 | `/biblioteca no_void_fog <bool>` | Change No void fog in the current dimension. |
 | `/biblioteca sky_light <disabled\|looping\|hybrid>` | Select the sky-light mode in the current dimension; Tab completes all three choices. |
+| `/biblioteca diagnostics` | Show the current dimension's bounds, loop and sky settings, and local light values. |
 
 Use `true` or `false` for `<bool>`. Run `beacon`, `no_void_fog` or `sky_light` without a value
 to see its current setting. These three commands act on the dimension you are standing in.
@@ -160,11 +172,18 @@ needed.
 more terrain across the boundary ahead of time and can reduce loading hitches, at the cost of
 extra work. The default is `0`; each step adds 16 blocks of preload slack.
 
+**Periodic entity copies** enables additional images of entities and block entities, including
+distant copies of your first-person player. **Multiple cloud layers** repeats clouds above and
+below. Both can be turned off to reduce drawing work. These controls and Seam preload appear
+only in the complete build.
+
 ## Existing worlds and upgrading
 
 You can enable or disable looping in an existing world. It uses the dimension's existing height;
-it does not generate extra vertical terrain or duplicate your blocks and entities. Ordinary
-entities and block entities are shown at the copy nearest you.
+it does not generate extra vertical terrain or create duplicate blocks, mobs or drops. With
+**Periodic entity copies** enabled, the same entity can be visible in several layers; with it
+disabled, only the nearest image is drawn. Falling blocks retain their vanilla timeout, and
+ender-pearl drag and lifetime remain unchanged.
 
 Dimension settings are saved with the world and retained when updating. Sky light can be
 **Disabled**, **Periodic**, or **Vanilla sky** (`hybrid`); choose `hybrid` to retain ordinary
@@ -175,6 +194,11 @@ For worlds using older configuration formats, see the
 The current `/biblioteca sky_light` command takes mode names rather than boolean arguments.
 
 ## Compatibility and feedback
+
+**Sodium is optional.** Supported combinations and tested loader baselines are listed in the
+[Sodium guide](https://github.com/FrogBishop/Biblioteca/blob/multiversion/SODIUM_COMPATIBILITY.md)
+and [NeoForge guide](https://github.com/FrogBishop/Biblioteca/blob/multiversion/NEOFORGE_COMPATIBILITY.md).
+Choose the exact Minecraft/loader combination; no Sodium build is selected for the snapshot.
 
 Biblioteca changes Minecraft's world and renderer internals. Mods that replace the same systems
 may need compatibility work. Voxy and other far-LOD terrain are not repeated by this vanilla-renderer integration. Shader packs have not been comprehensively tested. The no-render

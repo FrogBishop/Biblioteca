@@ -1,6 +1,6 @@
 # 20w14infinite compatibility
 
-Development builds support the original **20w14infinite / 20w14∞ snapshot on Fabric**,
+Biblioteca 1.0.4 supports the original **20w14infinite / 20w14∞ snapshot on Fabric**,
 with a complete artifact and a no-render alternative. Use **Java 17 or newer** and
 **Fabric Loader 0.19.5 or newer**. These are snapshot-specific builds, not relabelled 1.16.5 JARs.
 
@@ -9,7 +9,7 @@ there is no NeoForge snapshot artifact to install. See the [official NeoForge gu
 
 ## Installation
 
-Install one of these development artifacts on the matching snapshot:
+Install one of these artifacts on the matching snapshot:
 
 - `biblioteca-<mod-version>+20w14infinite.jar`: gameplay and the visual loop.
 - `biblioteca-<mod-version>+20w14infinite-norender.jar`: the same gameplay, prediction,

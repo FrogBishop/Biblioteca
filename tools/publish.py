@@ -37,6 +37,10 @@ LOADERS = ('fabric', 'neoforge')
 TOKEN_KEYS = ('MODRINTH_TOKEN', 'CURSEFORGE_TOKEN')
 PROJECT_KEYS = ('MODRINTH_PROJECT_ID', 'CURSEFORGE_PROJECT_ID', 'MODRINTH_NORENDER_PROJECT_ID')
 DEFAULT_RETRY = {'attempts': 4, 'delay': 5.0, 'maxDelay': 60.0, 'interval': 2.0}
+# The CurseForge author API has no exact game-version tag for this snapshot.
+# Keep its JARs on Modrinth/GitHub instead of assigning an unrelated release tag.
+UNSUPPORTED_TARGETS = {('curseforge', '20w14infinite'):
+                       'CurseForge has no exact 20w14infinite game-version tag; use Modrinth or GitHub.'}
 _run_log = None
 
 
@@ -492,7 +496,8 @@ def inspect_artifact(path, version, loader, mc, variant):
                               if mc == '20w14infinite' else ('fabric-api' in meta['depends'] or 'fabric' in meta['depends']))
                          and 'META-INF/neoforge.mods.toml' not in jar.namelist())
             else:
-                meta = tomllib.loads(jar.read('META-INF/neoforge.mods.toml').decode('utf-8'))
+                metadata = 'META-INF/neoforge.mods.toml' if 'META-INF/neoforge.mods.toml' in jar.namelist() else 'META-INF/mods.toml'
+                meta = tomllib.loads(jar.read(metadata).decode('utf-8'))
                 valid = (meta['mods'][0]['modId'] == 'biblioteca' and meta['mods'][0]['version'] == expected
                          and any(d['modId'] == 'minecraft' and d['versionRange'] == f'[{mc}]'
                                  for d in meta['dependencies']['biblioteca'])
@@ -536,7 +541,8 @@ def build_targets(pairs, run):
         run_command([sys.executable, 'tools/verify_artifacts.py', '--versions', ','.join(fabric)], run / 'fabric-artifacts.log')
     for loader, mc in pairs:
         if loader == 'neoforge':
-            run_command([wrapper, '-p', f'platforms/neoforge-{mc}', 'build', *common], run / f'neoforge-{mc}-build.log')
+            run_command([sys.executable, 'tools/build_neoforge_matrix.py', '--versions', mc, '--tasks', 'build',
+                         '--label', 'publish-build-' + mc.replace('.', '-')], run / f'neoforge-{mc}-build.log')
 
 
 def publication_fingerprint(entry, release_type, notes):
@@ -550,6 +556,8 @@ def make_publications(entries, platforms, projects, release_type, notes):
     publications = []
     for entry in entries:
         for platform in platforms:
+            if (platform, entry['minecraft']) in UNSUPPORTED_TARGETS:
+                continue
             variants = ['full', 'norender'] if platform == 'modrinth' and projects.get('modrinthNorender') else ['full']
             for variant in variants:
                 item = dict(entry, platform=platform, variant=variant, projectId=projects[platform])
@@ -598,12 +606,20 @@ def prepare_manifest(args, pairs, credentials, run):
     if projects['modrinthNorender'] and projects['modrinthNorender'] == projects.get('modrinth'):
         raise PublishError('Modrinth no-render must use a separate project.')
     publications = make_publications(entries, args.platforms, projects, args.release_type, notes)
+    excluded = [{'platform': platform, 'minecraft': entry['minecraft'], 'loader': entry['loader'],
+                 'reason': UNSUPPORTED_TARGETS[(platform, entry['minecraft'])]}
+                for entry in entries for platform in args.platforms
+                if (platform, entry['minecraft']) in UNSUPPORTED_TARGETS]
+    if not publications:
+        raise PublishError('No selected platform supports these exact targets. ' +
+                           ' '.join(dict.fromkeys(item['reason'] for item in excluded)))
     description_hash = prepare_descriptions(run, credentials, args.platforms)
     (run / 'changelog.md').write_text(notes + '\n', encoding='utf-8')
     manifest = {'schemaVersion': 2, 'dryRun': not args.publish, 'runDirectory': str(run),
                 'modVersion': args.mod_version, 'releaseType': args.release_type, 'changelog': notes,
                 'platforms': args.platforms, 'projects': projects,
                 'descriptionSha256': description_hash, 'entries': entries, 'publications': publications,
+                'excludedPublications': excluded,
                 'modrinthNoRender': 'separate-project' if projects['modrinthNorender'] else 'not-configured',
                 'validation': 'build-and-regression-checks' if args.build else 'artifact-metadata-and-hashes',
                 'retry': {'attempts': args.attempts, 'delay': args.retry_delay,
@@ -691,6 +707,8 @@ def run_release(args, credentials, run):
         build_targets(pairs, run)
     manifest = prepare_manifest(args, pairs, credentials, run)
     progress(f'PLAN {len(manifest["entries"])} artifact pairs, {len(manifest["publications"])} platform releases, platforms={",".join(args.platforms)}')
+    for excluded in manifest.get('excludedPublications', []):
+        progress('UNSUPPORTED_TARGET ' + json.dumps(excluded, ensure_ascii=False))
     if 'modrinth' in args.platforms and not credentials.get('MODRINTH_NORENDER_PROJECT_ID'):
         progress('NOTE: Modrinth no-render is not selected; configure a separate MODRINTH_NORENDER_PROJECT_ID to publish it.')
     if args.publish:
@@ -755,6 +773,7 @@ def run_release(args, credentials, run):
         failure = failure or str(error)
     write_json(run / 'result.json', {'passed': failure is None, 'dryRun': not args.publish,
                 'releases': len(manifest['entries']), 'platformReleases': len(manifest['publications']),
+                'excludedPublications': manifest.get('excludedPublications', []),
                 'modrinthNoRender': manifest['modrinthNoRender'], 'description': status, 'uploads': summary,
                 'error': failure, 'manifest': str((run / 'manifest.json').relative_to(ROOT))})
     if failure:

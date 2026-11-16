@@ -42,19 +42,26 @@ def run_server(args, runtime, run_dir, probe_jar, stage):
                 options.append('-D' + key + '=' + value)
         main_class = 'net.fabricmc.loader.impl.launch.knot.KnotServer'
     else:
-        folders = os.pathsep.join(['biblioteca%%' + str(args.jar), 'biblioteca_save_check%%' + str(probe_jar)])
+        variant = 'norender' if '-norender' in args.jar.name else 'full'
+        loaded_jar = Path(runtime.get('validationArtifacts', {}).get(variant, str(args.jar)))
+        folders = os.pathsep.join(['biblioteca%%' + str(loaded_jar), 'biblioteca_save_check%%' + str(probe_jar)])
         options.append('-Dfml.modFolders=' + folders)
         main_class = 'net.neoforged.fml.startup.Server'
     argfile = run_dir / (stage + '.args')
-    argfile.write_text('\n'.join(map(quote, options)) + '\n--class-path\n' + quote(os.pathsep.join(cp))
-                       + '\n' + main_class + '\n--nogui\n', encoding='utf-8')
+    environment = dict(os.environ)
+    if args.loader == 'neoforge':
+        from verify_neoforge_legacy import game_command
+        command, environment = game_command(runtime, 'server', run_dir, folders, options, ['--nogui'])
+    else:
+        command = options + ['--class-path', os.pathsep.join(cp), main_class, '--nogui']
+    argfile.write_text('\n'.join(map(quote, command)) + '\n', encoding='utf-8')
     log = run_dir / (stage + '.log')
     stopped = False
     started = time.monotonic()
     deadline = started + 180
     with log.open('w', encoding='utf-8') as output:
         proc = subprocess.Popen([args.java, '@' + str(argfile)], cwd=run_dir, stdin=subprocess.PIPE,
-                                stdout=output, stderr=subprocess.STDOUT, text=True)
+                                stdout=output, stderr=subprocess.STDOUT, text=True, env=environment)
         while proc.poll() is None:
             text = log.read_text(encoding='utf-8', errors='replace')
             if 'SAVE_TEST_FAILURE' in text or 'HYBRID_DIG_FAILURE' in text:
@@ -113,12 +120,58 @@ def main():
     default_output = ROOT / 'build/validation' / runtime['minecraft'] / 'save-reload' if args.loader == 'fabric' else ROOT / 'build/neoforge-pilot/save-hang'
     output = Path(runtime.get('saveReports', default_output)) / args.label
     output.mkdir(parents=True, exist_ok=True)
+    artifacts = output / 'artifacts' / digest
+    artifacts.mkdir(parents=True, exist_ok=True)
+    frozen = artifacts / args.jar.name
+    if args.jar != frozen:
+        shutil.copy2(args.jar, frozen)
+    args.jar = frozen
+    variant = 'norender' if '-norender' in args.jar.name else 'full'
+    if runtime.get('validationArtifacts', {}).get(variant):
+        mapped = Path(runtime['validationArtifacts'][variant])
+        copied = artifacts / mapped.name
+        shutil.copy2(mapped, copied)
+        runtime['validationArtifacts'] = dict(runtime['validationArtifacts'], **{variant: str(copied)})
     sources = sorted((ROOT / 'tools/validation/server-lifecycle').glob('*.java'))
     if args.loader == 'fabric':
         sources += sorted((ROOT / 'tools/fabric-save-validation').glob('*.java'))
         sources.append(ROOT / 'tools/neoforge-save-validation/SaveLifecycleMixin.java')
     else:
         sources += sorted((ROOT / 'tools/neoforge-save-validation').glob('*.java'))
+    legacy = args.loader == 'neoforge' and runtime.get('launcher') == 'modlauncher'
+    if legacy:
+        from verify_neoforge_legacy import loader_aliases
+        generated = output / 'probe-source'
+        generated.mkdir(parents=True, exist_ok=True)
+        adapted = []
+        for source in sources:
+            text = source.read_text(encoding='utf-8')
+            if source.name == 'SaveLifecycleProbe.java':
+                text = text.replace('NeoForge.EVENT_BUS.addListener((ServerStartedEvent event)',
+                        'NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStoppedEvent event) -> SaveLifecycleChecks.stopped(event.getServer()));\n        NeoForge.EVENT_BUS.addListener((ServerStartedEvent event)')
+                if tuple(map(int, runtime['minecraft'].split('.'))) < (1, 20, 5):
+                    text = text.replace('import net.neoforged.neoforge.event.tick.ServerTickEvent;', 'import net.neoforged.neoforge.event.TickEvent;')
+                    text = text.replace('(ServerTickEvent.Post event) -> SaveLifecycleChecks.tick(event.getServer())',
+                            '(TickEvent.ServerTickEvent event) -> { if (event.phase == TickEvent.Phase.END) SaveLifecycleChecks.tick(event.getServer()); }')
+            if source.name == 'SaveLifecycleMixin.java':
+                text = '''package babel.biblioteca.validation.save.mixin;
+import babel.biblioteca.validation.save.SaveLifecycleChecks;
+import net.minecraft.server.MinecraftServer;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+@Mixin(MinecraftServer.class)
+public abstract class SaveLifecycleMixin {
+ @Inject(method="stopServer",at=@At(value="INVOKE",target="Lnet/minecraft/server/MinecraftServer;saveAllChunks(ZZZ)Z"))
+ private void before(CallbackInfo ci) { SaveLifecycleChecks.beforeShutdown(); }
+ @Inject(method="stopServer",at=@At(value="INVOKE",target="Lnet/minecraft/server/MinecraftServer;saveAllChunks(ZZZ)Z",shift=At.Shift.AFTER))
+ private void after(CallbackInfo ci) { SaveLifecycleChecks.afterChunkFlush(); }
+}
+'''
+            target = generated / source.name
+            target.write_text(loader_aliases(text, runtime), encoding='utf-8')
+            adapted.append(target)
+        sources = adapted
     compile_java(args.javac, runtime['classpath'], output / 'probe-classes', sources, output / 'probe-compile.log', runtime.get('java', 25))
     probe_jar = output / 'save-probe.jar'
     with zipfile.ZipFile(probe_jar, 'w', zipfile.ZIP_DEFLATED) as z:
@@ -129,7 +182,11 @@ def main():
                         'environment': 'server', 'entrypoints': {'main': ['babel.biblioteca.validation.save.fabric.FabricSaveProbe']},
                         'mixins': ['biblioteca.save-check.mixins.json']}))
         else:
-            z.writestr('META-INF/neoforge.mods.toml', 'license="GPLv3"\n[[mods]]\nmodId="biblioteca_save_check"\nversion="1"\ndisplayName="Biblioteca save regression probe"\n[[mixins]]\nconfig="biblioteca.save-check.mixins.json"\n')
+            header = ('modLoader="javafml"\nloaderVersion="[1,)"\n' if legacy else '')
+            z.writestr(runtime.get('metadata', 'META-INF/neoforge.mods.toml'), header + 'license="GPLv3"\n[[mods]]\nmodId="biblioteca_save_check"\nversion="1"\ndisplayName="Biblioteca save regression probe"\n[[mixins]]\nconfig="biblioteca.save-check.mixins.json"\n')
+            if runtime['minecraft'] == '1.20.1':
+                z.writestr('META-INF/MANIFEST.MF', 'Manifest-Version: 1.0\nMixinConfigs: biblioteca.save-check.mixins.json\n\n')
+                z.writestr('pack.mcmeta', json.dumps({'pack': {'description': 'Disposable save probe resources', 'pack_format': 15}}))
         z.writestr('biblioteca.save-check.mixins.json', json.dumps({'required': True, 'package': 'babel.biblioteca.validation.save.mixin',
                     'compatibilityLevel': 'JAVA_' + str(runtime.get('java', 25)), 'mixins': ['SaveLifecycleMixin'], 'injectors': {'defaultRequire': 1}}))
     run_dir = output / ('run-' + time.strftime('%Y%m%d-%H%M%S'))

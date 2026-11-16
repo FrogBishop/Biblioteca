@@ -99,7 +99,7 @@ public abstract class ServerExplosionYLoopMixin {
 //?} else {
 /*    @ModifyExpressionValue(
             //? if >=1.21.2 {
-            method = "hurtEntities",
+            method = "hurtEntities*",
             //?} else {
             method = "explode",
             //?}
@@ -109,7 +109,7 @@ public abstract class ServerExplosionYLoopMixin {
     //? if >=1.16 {
     @ModifyExpressionValue(
             //? if >=1.21.2 {
-            method = "hurtEntities",
+            method = "hurtEntities*",
             //?} else {
             method = "explode",
             //?}

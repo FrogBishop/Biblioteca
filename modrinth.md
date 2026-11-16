@@ -2,7 +2,7 @@
 
 **Turn a dimension's vertical space into a loop.**
 
-**Version 1.0.3 · Minecraft 1.16.5–26.3 on Fabric · Minecraft 1.21.11 and 26.1–26.3 on NeoForge**
+**Version 1.0.4 · Fabric: 20w14infinite and 1.16.5–26.3 · NeoForge: 1.20.1–26.3**
 
 > *"La biblioteca es ilimitada y periódica."* — Jorge Luis Borges, *Ficciones* (1944)
 
@@ -24,7 +24,7 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
 - Use fluids, redstone, pistons and supported plant growth across the top and bottom.
 - Decorate and spawn across the boundary: paintings and item frames hang across the seam at any
   height, and a spawn egg puts the mob on the block you clicked instead of inside it.
-- See repeated terrain, nearby entities and block entities, periodic beacon beams and clouds.
+- See repeated terrain, entity and block-entity copies, periodic beacon beams and multiple cloud layers.
 - Fight mobs and trade with villagers on the other side: they see you, path to you, hit you and
   cross the boundary without a visible jump.
 - Lead leashed mobs across the boundary and fight with arrows, snowballs, potions and other
@@ -33,6 +33,9 @@ stays in place, so solid blocks can still obstruct a passage through the boundar
   while light still travels across the boundary.
 - See rain and snow across the boundary, with rain splashes, hot-surface smoke and impact sounds.
 - Hear positional sounds and see effects from the other side, with matching sound subtitles.
+- Keep existing campfire smoke, portal particles and other effects continuous when crossing the boundary.
+- Trigger sculk sensors and other game-event listeners across the boundary, with vibration travel
+  time and wool occlusion measured along the short route.
 - Track your crossings with **Seam crossings** in the vanilla statistics screen.
 
 ## Requirements and installation
@@ -42,9 +45,16 @@ NeoForge support will continue to be maintained and expanded to additional Minec
 
 - **Fabric:** Fabric Loader 0.19.5 or newer and Fabric API for your Minecraft version.
   Supported releases: **1.16.5**, **1.17–1.17.1**, **1.18–1.18.2**, **1.19–1.19.4**, **1.20–1.20.6**, **1.21–1.21.11**, **26.1–26.1.2**, **26.2**, **26.3**.
-- **NeoForge:** separate builds for **1.21.11**, **26.1**, **26.1.1**, **26.1.2**, **26.2** and **26.3**.
+- **Fabric snapshot:** **20w14infinite (20w14∞)** is also supported. Its required API modules are
+  already bundled: **do not install the obsolete Fabric API umbrella for this snapshot**.
+- **NeoForge:** separate builds for **1.20.1–1.20.6**, **1.21–1.21.11**, **26.1–26.1.2**, **26.2** and **26.3**.
   These builds require NeoForge for that exact Minecraft version and do not use Fabric API.
-- Java **17 or newer** for 1.16.5–1.20.4, **21 or newer** for 1.20.5–1.21.11, or **25 or newer** for 26.1 and later. The 1.16.5/1.17 builds also require Java 17.
+- Java **17 or newer** for 20w14infinite and 1.16.5–1.20.4, **21 or newer** for 1.20.5–1.21.11,
+  or **25 or newer** for 26.1 and later. Use Java **21** for NeoForge 1.21.2 with Sodium.
+
+The [NeoForge compatibility guide](https://github.com/FrogBishop/Biblioteca/blob/1.0.4/NEOFORGE_COMPATIBILITY.md)
+lists the tested loader versions. Some short-lived Minecraft releases use a beta NeoForge build.
+20w14infinite is Fabric-only.
 
 Choose the file matching both your Minecraft version and mod loader, and place it in the
 instance's `mods` folder. Every supported target has its own full and no-render build:
@@ -55,15 +65,16 @@ instance's `mods` folder. Every supported target has its own full and no-render 
 | `biblioteca-<version>+<minecraft>-neoforge.jar` | NeoForge clients and servers; includes the looping world view. |
 | Either filename with `-norender` before `.jar` | Optional alternative without periodic visuals; useful for dedicated servers. |
 
-For example, the 1.0.3 builds for Minecraft 26.3 are `biblioteca-1.0.3+26.3.jar` for Fabric
-and `biblioteca-1.0.3+26.3-neoforge.jar` for NeoForge. The complete JAR is the primary download.
+For example, the 1.0.4 builds for Minecraft 26.3 are `biblioteca-1.0.4+26.3.jar` for Fabric
+and `biblioteca-1.0.4+26.3-neoforge.jar` for NeoForge. The complete JAR is the primary download.
 On CurseForge, the no-render alternative is an Additional File. Modrinth versions in the main
 project contain the complete build; the no-render edition has its own
 [Modrinth project](https://modrinth.com/mod/biblioteca-norender).
 Install one Biblioteca variant per instance. **Multiplayer requires Biblioteca on both the
 server and clients.** The server may use no-render while clients use the complete build.
 Match the base Biblioteca release, Minecraft version and loader on both sides; Fabric
-installations also need Fabric API. In singleplayer, one installation also covers the integrated server.
+release builds also need Fabric API; the snapshot bundles its required modules.
+In singleplayer, one installation also covers the integrated server.
 
 ## Enable looping
 
@@ -73,6 +84,10 @@ the settings for each dimension, press **Done**, and create the world. The list 
 dimensions from your selected world preset and enabled data packs. After changing data packs,
 wait for validation to finish; the page uses the updated dimension list. Scroll to see more
 dimensions; older layouts also provide up/down buttons. The sky-setting tooltip includes the dimension ID.
+
+On **20w14infinite**, the list also contains all **43 Easter egg dimensions**, using their original
+book strings in every language. You can save their settings before visiting them. Long names have
+tooltips, and the list provides paging. This does not change the snapshot's portal passphrases.
 
 For an existing world or a server, use commands. Cheats or operator
 permission level 2 are required:
@@ -125,6 +140,7 @@ dimensions retain vanilla lighting.
 | `/biblioteca beacon <bool>` | Change Beacon ignores sky in the current dimension. |
 | `/biblioteca no_void_fog <bool>` | Change No void fog in the current dimension. |
 | `/biblioteca sky_light <disabled\|looping\|hybrid>` | Select the sky-light mode in the current dimension; Tab completes all three choices. |
+| `/biblioteca diagnostics` | Show the current dimension's bounds, loop and sky settings, and local light values. |
 
 Use `true` or `false` for `<bool>`. Run `beacon`, `no_void_fog` or `sky_light` without a value
 to see its current setting. These three commands act on the dimension you are standing in.
@@ -162,16 +178,23 @@ needed.
 more terrain across the boundary ahead of time and can reduce loading hitches, at the cost of
 extra work. The default is `0`; each step adds 16 blocks of preload slack.
 
+**Periodic entity copies** enables additional visible images of entities and block entities,
+including distant copies of your first-person player. **Multiple cloud layers** repeats clouds
+above and below. Turn either off to reduce drawing work. These are visual copies of the same
+world objects. The three rendering controls appear only in the complete build.
+
 ## Existing worlds and upgrading
 
 You can enable or disable looping in an existing world. It uses the dimension's existing height;
-it does not generate extra vertical terrain or duplicate your blocks and entities. Ordinary
-entities and block entities are shown at the copy nearest you.
+it does not generate extra vertical terrain or create duplicate blocks, mobs or drops. With
+**Periodic entity copies** enabled, the same entity may be visible in several vertical layers;
+with it disabled, only its nearest image is drawn.
 
-Version **1.0.3** fixes stale sky light on older Minecraft versions, adds NeoForge 1.21.11
-support and Fabric 1.16.5 Sodium compatibility, and fixes the older world-creation controls
-and settings-page background. It retains the save/quit and bulk sky-light fixes from 1.0.2.
-Existing dimension settings are retained when updating.
+Version **1.0.4** fixes particles and game events across the boundary, repeated camera sweeps
+on 20w14infinite/1.16.5, and movement history for fast entities. It adds entity copies, multiple
+cloud layers, diagnostics, broader Sodium integration, the Fabric snapshot and older NeoForge
+targets. Existing dimension settings are retained. Falling blocks keep their vanilla timeout;
+ender-pearl drag and lifetime are unchanged.
 
 When upgrading from versions before **1.0.0**, dimensions that had sky light disabled keep **Disabled**. Other
 dimensions use **Periodic**; select **Vanilla sky** (`hybrid`) if you want ordinary daylight above
@@ -187,9 +210,11 @@ for the older boolean command table.
 
 ## Compatibility and feedback
 
-Fabric **1.16.5** supports **Sodium 0.2.0+build.4**, including terrain across the vertical
-boundary. Sodium is optional. This compatibility is specific to that version; it does not
-imply support for Sodium on other Minecraft versions.
+**Sodium is optional.** Integration covers selected releases across supported Fabric and NeoForge
+targets, including the Fabric 1.16.5 startup fix. See the
+[exact compatibility matrix](https://github.com/FrogBishop/Biblioteca/blob/1.0.4/SODIUM_COMPATIBILITY.md)
+for tested versions and the scope of graphical checks. On **NeoForge 26.3**, install
+**Sodium 0.9.3-beta.1 or newer** if you use Sodium. No Sodium build is selected for 20w14infinite.
 
 Biblioteca changes Minecraft's world and renderer internals. Mods that replace the same systems
 may need compatibility work. Voxy and other far-LOD terrain are not repeated by this vanilla-renderer integration. Shader packs have not been comprehensively tested. The no-render

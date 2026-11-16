@@ -5,7 +5,7 @@ param(
     [string]$NeoForgeVersion = '',
     [ValidatePattern('^[0-9A-Za-z][0-9A-Za-z._+-]*$')]
     [string]$ModVersion = '',
-    [ValidateSet('1.21.11', '26.1', '26.1.1', '26.1.2', '26.2', '26.3')]
+    [ValidatePattern('^\d+(?:\.\d+)+$')]
     [string]$MinecraftVersion = '26.3'
 )
 
@@ -14,6 +14,9 @@ $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $reportRelative = if ($MinecraftVersion -eq '26.3') { 'build/neoforge-pilot' } else { "build/neoforge-$MinecraftVersion" }
 $reportDir = Join-Path $repoRoot $reportRelative
 $targetProject = Join-Path $repoRoot "platforms/neoforge-$MinecraftVersion"
+if (-not (Test-Path -LiteralPath (Join-Path $targetProject 'build.gradle'))) {
+    throw "No configured NeoForge target for Minecraft $MinecraftVersion."
+}
 $statePath = Join-Path $reportDir 'state.json'
 $logName = if ($Offline) { "$Action-offline.log" } else { "$Action.log" }
 $logPath = Join-Path $reportDir $logName
@@ -37,7 +40,7 @@ $state = [ordered]@{
     minecraft = $MinecraftVersion
     neoforge = $targetNeoVersion
     modVersionOverride = $ModVersion
-    moddevgradle = '2.0.148'
+    buildPlugin = $(if ($MinecraftVersion -in @('1.20.2', '1.20.3', '1.20.5')) { 'NeoGradle 7.0.116' } else { 'ModDevGradle 2.0.148' })
     startedUtc = [DateTime]::UtcNow.ToString('o')
     log = "$reportRelative/$logName"
     exitCode = $null
@@ -55,12 +58,15 @@ $resultCode = 1
 Push-Location $repoRoot
 try {
     $pilotTask = if ($Action -eq 'prepare') { 'preparePilot' } else { 'build' }
-    $pilotArguments = @('-p', $targetProject, $pilotTask, '--console=plain', '--max-workers=1')
-    $pilotArguments += "-Pneo_version=$targetNeoVersion"
-    if ($ModVersion) { $pilotArguments += "-PbibliotecaVersion=$ModVersion" }
+    $matrixLabel = "pilot-$Action-$($MinecraftVersion.Replace('.', '-'))"
+    $pilotArguments = @('-X', 'utf8', (Join-Path $repoRoot 'tools/build_neoforge_matrix.py'), '--versions', $MinecraftVersion,
+        '--tasks', $pilotTask, '--label', $matrixLabel, '--property', "neo_version=$targetNeoVersion")
+    if ($ModVersion) { $pilotArguments += @('--property', "bibliotecaVersion=$ModVersion") }
     if ($Offline) { $pilotArguments += '--offline' }
-    & (Join-Path $repoRoot 'gradlew.bat') @pilotArguments *> $logPath
+    & python @pilotArguments *> $logPath
     $resultCode = $LASTEXITCODE
+    $matrixLog = Join-Path $repoRoot "build/neoforge-backport/$matrixLabel/$MinecraftVersion.log"
+    if (Test-Path -LiteralPath $matrixLog) { Copy-Item -LiteralPath $matrixLog -Destination $logPath -Force }
     $marker = Join-Path $targetProject 'build/pilot-environment.txt'
     if ($resultCode -eq 0 -and (Test-Path -LiteralPath $marker)) {
         if ($Action -eq 'prepare') {

@@ -4,6 +4,14 @@ import groovy.json.JsonSlurper
 group = 'babel.biblioteca'
 def minecraftVersion = project.minecraft_version.toString()
 def targetJava = providers.gradleProperty('java_version').orElse('25').get().toInteger()
+def neoGradleTarget = plugins.hasPlugin('net.neoforged.gradle.userdev')
+def legacyForgeTarget = minecraftVersion == '1.20.1'
+def channelNetwork = minecraftVersion in ['1.20.1', '1.20.2', '1.20.3']
+def payloadNetwork = minecraftVersion == '1.20.4'
+def codecNetwork = minecraftVersion in ['1.20.5', '1.20.6', '1.21', '1.21.1', '1.21.2', '1.21.3', '1.21.4', '1.21.5', '1.21.6']
+def legacyEntrypoint = channelNetwork || payloadNetwork || codecNetwork
+def legacyLauncher = legacyEntrypoint || minecraftVersion in ['1.21.6', '1.21.7', '1.21.8']
+def metadataName = channelNetwork || payloadNetwork ? 'META-INF/mods.toml' : 'META-INF/neoforge.mods.toml'
 base.archivesName = 'biblioteca'
 
 def repositoryRoot = file('../..')
@@ -16,7 +24,19 @@ def exportRoot = new File(repositoryRoot, "build/neoforge-shared/${minecraftVers
 def activeSourceVersion = minecraftVersion == '26.3'
 def selectionFile = activeSourceVersion
         ? new File(repositoryRoot, 'gradle/26.3-sources.json') : new File(exportRoot, 'selection.json')
-def selection = providers.provider { new JsonSlurper().parse(selectionFile) }
+def nativeReachMixins = ['LegacyReachMixin', 'LegacyEntityReachMixin', 'LegacyInlineBlockReachMixin']
+def unsupportedInterfaceMixins = ['EntityGetterYLoopMixin', 'LegacyCrossbowAimYLoopMixin', 'NeighborUpdaterYLoopMixin']
+def selection = providers.provider {
+    def value = new JsonSlurper().parse(selectionFile)
+    if (channelNetwork || payloadNetwork) {
+        value.mixins = value.mixins.findAll { !nativeReachMixins.contains(it) } + [legacyForgeTarget ? 'NeoForge1201ReachMixin' : 'NeoForgeReachMixin']
+    }
+    if (legacyForgeTarget) {
+        value.mixins = value.mixins.findAll { !unsupportedInterfaceMixins.contains(it) } +
+                ['NeoForge1201EntityCollisionsMixin', 'NeoForge1201NeighborMixin', 'NeoForge1201CrossbowMixin']
+    }
+    value
+}
 def reportRoot = new File(repositoryRoot, minecraftVersion == '26.3'
         ? 'build/neoforge-pilot' : "build/neoforge-${minecraftVersion}")
 
@@ -26,25 +46,62 @@ def prepareSharedSources = activeSourceVersion ? null : tasks.register('prepareS
     workingDir repositoryRoot
     environment 'SC_VERSIONS', minecraftVersion
     environment 'SERVER_ONLY', '0'
+    // The shared Fabric preprocessing build uses the current Loom toolchain even when this
+    // independent NeoForge project itself runs under an older Gradle/JDK combination.
+    doFirst {
+        environment 'JAVA_HOME', javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(25)
+        }.get().metadata.installationPath.asFile.absolutePath
+    }
     inputs.dir new File(repositoryRoot, 'src/main')
     inputs.files(fileTree(projectDir) { include 'mixin-targets.json' })
     inputs.files(['build.gradle.kts', 'settings.gradle.kts', 'stonecutter.gradle.kts',
                   'stonecutter.properties.toml', 'gradle/26.3-sources.json'].collect { new File(repositoryRoot, it) })
     outputs.dir exportRoot
     commandLine isWindows ? ['cmd', '/c', new File(repositoryRoot, 'gradlew.bat').absolutePath,
-            ":${minecraftVersion}:exportNeoForgeSources", '--console=plain', '--max-workers=1']
+            ":${minecraftVersion}:exportNeoForgeSources", '--console=plain', '--max-workers=1', '--no-daemon']
             : ['bash', new File(repositoryRoot, 'gradlew').absolutePath,
-               ":${minecraftVersion}:exportNeoForgeSources", '--console=plain', '--max-workers=1']
+               ":${minecraftVersion}:exportNeoForgeSources", '--console=plain', '--max-workers=1', '--no-daemon']
     if (gradle.startParameter.offline) args '--offline'
 }
 
+// The first NeoForge release still uses the Forge package namespace and constructor API.
+// Keep one channel implementation and apply only these explicit loader API aliases at build time.
+def prepareLegacyLoader = legacyForgeTarget ? tasks.register('prepareLegacyLoaderSources', Sync) {
+    from new File(repositoryRoot, 'platforms/neoforge/src/legacy/java')
+    from new File(repositoryRoot, 'platforms/neoforge/src/channel/java')
+    into layout.buildDirectory.dir('generated/legacyLoader')
+    filter { String line ->
+        line.replace('net.neoforged.neoforge.common.NeoForge', 'net.minecraftforge.common.MinecraftForge')
+            .replace('net.neoforged.neoforge.common.extensions.IPlayerExtension', 'net.minecraftforge.common.extensions.IForgePlayer')
+            .replace('IPlayerExtension.class', 'IForgePlayer.class')
+            .replace('NeoForge.EVENT_BUS', 'MinecraftForge.EVENT_BUS')
+            .replace('net.neoforged.neoforge.', 'net.minecraftforge.')
+            .replace('net.neoforged.fml.', 'net.minecraftforge.fml.')
+            .replace('net.neoforged.bus.api.', 'net.minecraftforge.eventbus.api.')
+            .replace('net.neoforged.api.distmarker.', 'net.minecraftforge.api.distmarker.')
+            .replace('PlayNetworkDirection', 'NetworkDirection')
+            .replace('public NeoForgeBiblioteca(IEventBus modBus) {',
+                    'public NeoForgeBiblioteca() { IEventBus modBus = net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext.get().getModEventBus();')
+    }
+} : null
+
 sourceSets {
     main {
-        java.srcDir new File(repositoryRoot, 'platforms/neoforge/src/main/java')
+        if (legacyForgeTarget) java.srcDir prepareLegacyLoader
+        else if (legacyEntrypoint) {
+            java.srcDir new File(repositoryRoot, 'platforms/neoforge/src/legacy/java')
+            java.srcDir new File(repositoryRoot, 'platforms/neoforge/src/'
+                    + (channelNetwork ? 'channel' : payloadNetwork ? 'payload' : 'codec') + '/java')
+        } else java.srcDir new File(repositoryRoot, 'platforms/neoforge/src/main/java')
+        if (!legacyForgeTarget && (channelNetwork || payloadNetwork)) java.srcDir new File(repositoryRoot, 'platforms/neoforge/src/reach/java')
+        if (legacyForgeTarget) java.srcDir new File(repositoryRoot, 'platforms/neoforge/src/forge1201/java')
         java.srcDir activeSourceVersion ? new File(repositoryRoot, 'src/main/java') : new File(exportRoot, 'java')
         java.exclude 'babel/biblioteca/fabric/**', 'babel/biblioteca/client/fabric/**'
         java.exclude 'babel/biblioteca/compat/InfiniteDimensionKey.java'
         java.exclude 'babel/biblioteca/client/sodium/**'
+        if (channelNetwork || payloadNetwork) java.exclude(nativeReachMixins.collect { 'babel/biblioteca/mixin/' + it + '.java' })
+        if (legacyForgeTarget) java.exclude(unsupportedInterfaceMixins.collect { 'babel/biblioteca/mixin/' + it + '.java' })
         if (activeSourceVersion) {
             java.exclude { entry ->
                 def name = entry.file.name.replaceFirst(/\.java$/, '')
@@ -64,14 +121,67 @@ if (prepareSharedSources != null) {
 }
 
 java { toolchain.languageVersion = JavaLanguageVersion.of(targetJava) }
-neoForge {
-    version = project.neo_version
-    validateAccessTransformers = true
+if (neoGradleTarget) {
+    dependencies { implementation "net.neoforged:neoforge:${project.neo_version}" }
     runs {
-        client { client() }
-        server { server() }
+        configureEach { modSource sourceSets.main }
+        client {}
+        server { programArgument '--nogui' }
     }
-    mods { biblioteca { sourceSet sourceSets.main } }
+    // Java 17's Windows ZipFS can report writable generated JARs as read-only in restricted
+    // environments. Run this build tool on 21; the game's and mod's Java targets stay unchanged.
+    tasks.configureEach {
+        if (name.endsWith('ApplyForgesAccessTransformer')) {
+            javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) })
+        }
+        if (name.endsWith('DownloadAssets')) {
+            assetsDirectory.set(new File(gradle.gradleUserHomeDir, 'caches/neoformruntime/assets'))
+            assetIndex.set(['1.20.2': '8', '1.20.3': '12', '1.20.5': '16'][minecraftVersion])
+        }
+    }
+    afterEvaluate {
+        runs.configureEach { model ->
+            // The upgraded library is supplied by the JAR's native JIJ metadata. Keep its
+            // development classpath copy out of BootstrapLauncher's separate module layer.
+            def ignored = model.systemProperties.get().getOrDefault('ignoreList', '')
+            model.systemProperty('ignoreList', ignored + ',mixinextras-neoforge-')
+        }
+    }
+} else {
+    def loaderExtension = legacyForgeTarget ? legacyForge : neoForge
+    loaderExtension.with {
+        if (legacyForgeTarget) enable { neoForgeVersion = project.neo_version }
+        else version = project.neo_version
+        validateAccessTransformers = true
+        runs {
+            client { client() }
+            server { server() }
+        }
+        mods { biblioteca { sourceSet sourceSets.main } }
+    }
+}
+if (legacyLauncher) {
+    if (neoGradleTarget) {
+        configurations { bibliotecaEmbedded { transitive = false } }
+        dependencies {
+            implementation 'io.github.llamalad7:mixinextras-neoforge:0.5.3'
+            bibliotecaEmbedded 'io.github.llamalad7:mixinextras-neoforge:0.5.3'
+        }
+    } else dependencies {
+        // The early loaders bundle older MixinExtras versions without WrapMethod support.
+        jarJar(implementation("io.github.llamalad7:mixinextras-${legacyForgeTarget ? 'forge' : 'neoforge'}:0.5.3")) {
+            version { strictly '[0.5.3,)'; prefer '0.5.3' }
+        }
+    }
+}
+if (legacyForgeTarget) {
+    // The Fabric-maintained Mixin AP accepts the interface injectors used by the shared code.
+    // It is a build-time tool only; the target still uses NeoForge's native Mixin runtime.
+    dependencies { annotationProcessor 'net.fabricmc:sponge-mixin:0.16.5+mixin.0.8.7' }
+    dependencies { compileOnly 'io.github.llamalad7:mixinextras-common:0.5.3' }
+    mixin {
+        add sourceSets.main, 'biblioteca.refmap.json'
+    }
 }
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -79,6 +189,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.named('processResources') {
+    if (neoGradleTarget) from(configurations.bibliotecaEmbedded) { into 'META-INF/jarjar' }
     inputs.file selectionFile
     def metadata = [version: project.version, minecraft_version: minecraftVersion,
                     neo_min_version: project.neo_min_version, neo_upper_version: project.neo_upper_version,
@@ -94,19 +205,40 @@ side="CLIENT"
     filesMatching('META-INF/neoforge.mods.toml') { expand metadata }
     filesMatching('*.mixins.json') { expand java: "JAVA_${targetJava}" }
     doLast {
-        def output = destinationDirectory.get().asFile
+        def output = neoGradleTarget ? destinationDir : destinationDirectory.get().asFile
+        if (neoGradleTarget) {
+            def nested = configurations.bibliotecaEmbedded.singleFile
+            new File(output, 'META-INF/jarjar/metadata.json').text = JsonOutput.prettyPrint(JsonOutput.toJson([jars: [[
+                    identifier: [group: 'io.github.llamalad7', artifact: 'mixinextras-neoforge'],
+                    version: [range: '[0.5.3,)', artifactVersion: '0.5.3'],
+                    path: 'META-INF/jarjar/' + nested.name, isObfuscated: false
+            ]]])) + '\n'
+        }
+        def metadataFile = new File(output, 'META-INF/neoforge.mods.toml')
+        if (legacyLauncher) {
+            def text = 'modLoader="javafml"\nloaderVersion="[' + (legacyForgeTarget ? '47' : '1') + ',)"\n' + metadataFile.text
+            if (channelNetwork) text = text.replace('type="required"', 'mandatory=true')
+            if (legacyForgeTarget) {
+                text = text.replace('modId="neoforge"', 'modId="forge"')
+                        .replaceAll(/(?m)^\[\[mixins\]\]\r?\nconfig="[^"]+"\r?\n?/, '')
+            }
+            if (metadataName != 'META-INF/neoforge.mods.toml') metadataFile.delete()
+            new File(output, metadataName).text = text
+        }
         ['biblioteca.mixins.json': 'mixins', 'biblioteca.client.mixins.json': 'client'].each { name, key ->
             def target = new File(output, name)
             def config = new JsonSlurper().parse(target)
             config[key] = selection.get()[key].sort()
             config.injectors = [defaultRequire: 1]
             config.compatibilityLevel = "JAVA_${targetJava}"
+            if (legacyForgeTarget) config.refmap = 'biblioteca.refmap.json'
             target.text = JsonOutput.prettyPrint(JsonOutput.toJson(config)) + '\n'
         }
     }
 }
 tasks.named('jar') {
     from(new File(repositoryRoot, 'LICENSE')) { rename { 'LICENSE-biblioteca' } }
+    if (legacyForgeTarget) manifest.attributes('MixinConfigs': 'biblioteca.mixins.json,biblioteca.client.mixins.json,biblioteca.sodium-compat.mixins.json')
 }
 
 def noRenderResources = tasks.register('prepareNoRenderResources') {
@@ -122,8 +254,8 @@ def noRenderResources = tasks.register('prepareNoRenderResources') {
         def config = new JsonSlurper().parse(new File(resources.get().asFile, 'biblioteca.client.mixins.json'))
         config.client = selection.get().clientCore.sort()
         new File(target, 'biblioteca.client.mixins.json').text = JsonOutput.prettyPrint(JsonOutput.toJson(config)) + '\n'
-        new File(target, 'META-INF/neoforge.mods.toml').text =
-                new File(resources.get().asFile, 'META-INF/neoforge.mods.toml').text
+        new File(target, metadataName).text =
+                new File(resources.get().asFile, metadataName).text
                         .replace("version=\"${project.version}\"", "version=\"${project.version}-norender\"")
                         .replace('displayName="Biblioteca"', 'displayName="Biblioteca (No Render)"')
                         .replaceAll(/(?m)^\[\[mixins\]\]\r?\nconfig="biblioteca\.sodium-compat\.mixins\.json"\r?\n?/, '')
@@ -133,7 +265,7 @@ def noRenderJar = tasks.register('noRenderJar', Jar) {
     dependsOn tasks.named('classes'), noRenderResources
     archiveClassifier = 'norender'
     from(sourceSets.main.output) {
-        exclude 'biblioteca.client.mixins.json', 'META-INF/neoforge.mods.toml'
+        exclude 'biblioteca.client.mixins.json', 'META-INF/neoforge.mods.toml', 'META-INF/mods.toml'
         exclude 'biblioteca.sodium-compat.mixins.json', 'babel/biblioteca/client/sodiumcompat/**'
         exclude { entry ->
             if (!entry.path.startsWith('babel/biblioteca/client/mixin/')) return false
@@ -142,31 +274,84 @@ def noRenderJar = tasks.register('noRenderJar', Jar) {
         }
     }
     from layout.buildDirectory.dir('generated/noRender')
+    if (legacyLauncher && !neoGradleTarget) from tasks.named('jarJar').flatMap { it.outputDirectory }
     from(new File(repositoryRoot, 'LICENSE')) { rename { 'LICENSE-biblioteca' } }
+    if (legacyForgeTarget) manifest.attributes('MixinConfigs': 'biblioteca.mixins.json,biblioteca.client.mixins.json')
 }
-tasks.named('assemble') { dependsOn noRenderJar }
+def fullOutputJar = legacyForgeTarget ? tasks.named('reobfJar') : tasks.named('jar')
+def noRenderOutputJar = legacyForgeTarget ? obfuscation.reobfuscate(noRenderJar, sourceSets.main) : noRenderJar
+def validationJars = [:]
+if (legacyForgeTarget) {
+    def remapJarType = obfuscation.class.classLoader.loadClass('net.neoforged.moddevgradle.legacyforge.tasks.RemapJar')
+    [full: fullOutputJar, norender: noRenderOutputJar].each { variant, packaged ->
+        validationJars[variant] = tasks.register("prepare${variant.capitalize()}ValidationJar", remapJarType) {
+            input = packaged.flatMap { it.archiveFile }
+            libraries.from(sourceSets.main.compileClasspath)
+            destinationDirectory = layout.buildDirectory.dir('validation/named')
+            archiveClassifier = variant + '-validation'
+            obfuscation.configureSrgToNamedOperation(remapOperation)
+        }
+    }
+}
+tasks.named('assemble') { dependsOn fullOutputJar, noRenderOutputJar }
 
 tasks.register('writeValidationConfig') {
-    dependsOn tasks.named('classes'), tasks.named('prepareServerRun')
+    dependsOn tasks.named('classes')
+    if (neoGradleTarget) {
+        dependsOn providers.provider {
+            ['runServer', 'runClient'].collectMany { name ->
+                def run = tasks.named(name).get()
+                run.taskDependencies.getDependencies(run)
+            }
+        }
+    } else {
+        dependsOn tasks.named('prepareServerRun')
+        if (legacyLauncher) dependsOn tasks.named('prepareClientRun')
+    }
     def report = layout.buildDirectory.file('validation/runtime.json')
     outputs.file report
     outputs.upToDateWhen { false }
     doLast {
         def run = tasks.named('runServer').get()
+        def clientRun = tasks.named('runClient').get()
+        def classpathFor = { task ->
+            if (!neoGradleTarget) return task.classpathProvider.files.collect { it.absolutePath }
+            def model = task.run.get()
+            files(model.modSources.get().collect { it.runtimeClasspath }, model.classpath,
+                    model.dependencies.get().configuration).files.collect { it.absolutePath }
+        }
+        def effectiveSelection = layout.buildDirectory.file('validation/selection.json').get().asFile
+        effectiveSelection.parentFile.mkdirs()
+        effectiveSelection.text = JsonOutput.prettyPrint(JsonOutput.toJson(selection.get())) + '\n'
         def data = [
-            classpath: run.classpathProvider.files.collect { it.absolutePath },
+            classpath: classpathFor(run),
+            clientClasspath: classpathFor(clientRun),
             jvmArgs: run.allJvmArgs + run.jvmArgumentProviders.collectMany { it.asArguments() as List },
             environment: run.environment.findAll { k, v -> k == 'MOD_CLASSES' },
             classes: sourceSets.main.output.classesDirs.singleFile.absolutePath,
             resources: sourceSets.main.output.resourcesDir.absolutePath,
             minecraft: minecraftVersion, neoforge: project.neo_version, modVersion: project.version.toString(), java: targetJava,
-            artifacts: [full: tasks.named('jar').get().archiveFile.get().asFile.absolutePath,
-                        norender: noRenderJar.get().archiveFile.get().asFile.absolutePath],
-            selection: selectionFile.absolutePath,
+            launcher: legacyLauncher ? 'modlauncher' : 'fml', metadata: metadataName,
+            network: channelNetwork ? 'channel' : payloadNetwork ? 'payload' : codecNetwork ? 'codec' : 'client-handler',
+            artifacts: [full: fullOutputJar.get().archiveFile.get().asFile.absolutePath,
+                        norender: noRenderOutputJar.get().archiveFile.get().asFile.absolutePath],
+            selection: effectiveSelection.absolutePath,
             requiresAccessTransformer: file('src/main/resources/META-INF/accesstransformer.cfg').isFile(),
             reports: new File(reportRoot, 'validation').absolutePath,
             saveReports: new File(reportRoot, minecraftVersion == '26.3' ? 'save-hang' : 'save-reload').absolutePath
         ]
+        if (legacyForgeTarget) {
+            data.validationArtifacts = validationJars.collectEntries { key, task -> [(key): task.get().archiveFile.get().asFile.absolutePath] }
+            data.srgToNamedMappings = obfuscation.srgToNamedMappings.get().asFile.absolutePath
+        }
+        if (neoGradleTarget) {
+            data.launchArguments = [server: run, client: clientRun].collectEntries { side, task ->
+                def model = task.run.get()
+                [(side): [main: model.mainClass.get(),
+                          jvm: task.allJvmArgs + model.jvmArguments.get() + model.systemProperties.get().collect { k, v -> "-D${k}=${v}".toString() },
+                          program: task.args + model.programArguments.get()]]
+            }
+        }
         def target = report.get().asFile
         target.parentFile.mkdirs()
         target.text = JsonOutput.prettyPrint(JsonOutput.toJson(data)) + '\n'
@@ -175,7 +360,8 @@ tasks.register('writeValidationConfig') {
 tasks.register('verifyNeoForge', Exec) {
     group = 'verification'
     description = 'Load both packaged variants through FML on both sides and run gameplay regressions.'
-    dependsOn tasks.named('jar'), noRenderJar, tasks.named('writeValidationConfig')
+    dependsOn fullOutputJar, noRenderOutputJar, tasks.named('writeValidationConfig')
+    if (legacyForgeTarget) dependsOn validationJars.values()
     workingDir repositoryRoot
     def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(targetJava) }
     def compiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(targetJava) }
@@ -189,18 +375,19 @@ tasks.register('verifyNeoForge', Exec) {
 }
 tasks.named('check') { dependsOn 'verifyNeoForge' }
 tasks.register('collectArtifacts', Copy) {
-    dependsOn tasks.named('jar'), noRenderJar, 'verifyNeoForge'
-    from tasks.named('jar'), noRenderJar
+    dependsOn fullOutputJar, noRenderOutputJar, 'verifyNeoForge'
+    from fullOutputJar, noRenderOutputJar
     into new File(repositoryRoot, 'build/distributions')
 }
 tasks.register('preparePilot') {
     group = 'verification'
     description = "Resolve and prepare the pinned NeoForge ${minecraftVersion} environment."
-    dependsOn 'createMinecraftArtifacts'
+    dependsOn neoGradleTarget ? 'compileJava' : 'createMinecraftArtifacts'
     doLast {
         def checkpoint = layout.buildDirectory.file('pilot-environment.txt').get().asFile
         checkpoint.parentFile.mkdirs()
-        checkpoint.text = "Minecraft=${minecraftVersion}\nNeoForge=${project.neo_version}\nModDevGradle=2.0.148\nJava=${targetJava}\n"
+        def tool = neoGradleTarget ? 'NeoGradle=7.0.116' : 'ModDevGradle=2.0.148'
+        checkpoint.text = "Minecraft=${minecraftVersion}\nNeoForge=${project.neo_version}\n${tool}\nJava=${targetJava}\n"
         logger.lifecycle('NeoForge environment prepared. Run build to package and validate Biblioteca.')
     }
 }

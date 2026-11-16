@@ -36,7 +36,9 @@ def select(refresh=False, include_prereleases=False):
     releases = json.loads(metadata.read_text(encoding='utf-8'))
     versions = re.findall(r'"([^"]+)"', (ROOT / 'settings.gradle.kts').read_text().split('val allVersions = listOf(')[1].split(')')[0])
     rows = []
-    for loader, nodes in [('fabric', versions), ('neoforge', ['1.21.11', '26.1', '26.1.1', '26.1.2', '26.2', '26.3'])]:
+    neo_versions = sorted((path.name.removeprefix('neoforge-') for path in (ROOT / 'platforms').glob('neoforge-*')
+                           if (path / 'gradle.properties').is_file()), key=lambda value: tuple(map(int, value.split('.'))))
+    for loader, nodes in [('fabric', versions), ('neoforge', neo_versions)]:
         for mc in nodes:
             matches = sorted((v for v in releases if mc in v['game_versions'] and loader in v['loaders']),
                              key=lambda v: v['date_published'], reverse=True)
@@ -76,7 +78,8 @@ def verify(row, variant, args):
         ROOT / ('platforms/neoforge-' + mc) / 'build/validation/runtime.json')
     runtime = json.loads(runtime_file.read_text(encoding='utf-8'))
     original_classes, original_resources = runtime['classes'], runtime['resources']
-    cp = [p for p in runtime['classpath'] if p not in (runtime['classes'], runtime['resources'])]
+    runtime_cp = runtime.get('clientClasspath', runtime['classpath']) if loader == 'neoforge' else runtime['classpath']
+    cp = [p for p in runtime_cp if p not in (runtime['classes'], runtime['resources'])]
     lwjgl_version = dict(value.split('=', 1) for value in args.lwjgl_override).get(mc)
     if lwjgl_version:
         replaced = []
@@ -112,20 +115,36 @@ def verify(row, variant, args):
     config.write_text(json.dumps(runtime, indent=2), encoding='utf-8')
     verifier = out / 'verifier'
     verifier.mkdir(exist_ok=True)
+    legacy = loader == 'neoforge' and runtime.get('launcher') == 'modlauncher'
+    environment = dict(os.environ)
+    if legacy:
+        from verify_neoforge import compile_java
+        from verify_neoforge_legacy import prepare_launcher, prepare_transform_bootstrap, command as legacy_command
+        legacy_launcher = prepare_launcher(ROOT, runtime, out, args.javac, compile_java)
+        bootstrap = prepare_transform_bootstrap(ROOT, runtime, out, args.javac, compile_java)
     compile_args = ['-encoding', 'UTF-8', '--release', runtime['java'], '-cp', os.pathsep.join(cp),
                     '-d', str(verifier), str(ROOT / ('tools/MatrixMixinVerifier.java' if loader == 'fabric' else 'tools/NeoForgeMixinVerifier.java'))]
     argfile = out / 'compile.args'
     argfile.write_text('\n'.join(map(quote, compile_args)), encoding='utf-8')
-    with (out / 'compile.log').open('w', encoding='utf-8') as log:
-        subprocess.run([args.javac, '@' + str(argfile)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
+    if not legacy:
+        with (out / 'compile.log').open('w', encoding='utf-8') as log:
+            subprocess.run([args.javac, '@' + str(argfile)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
     command = ['-Djava.awt.headless=true', '-Duser.language=en', '-Dfile.encoding=UTF-8', '--add-modules=jdk.zipfs']
     if loader == 'neoforge':
         command += ['--enable-native-access=ALL-UNNAMED', '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED',
                     '-Dmixin.debug.countInjections=false']
         if not args.sodium_only:
             command += ['-Dfml.modFolders=biblioteca%%' + str(frozen)]
-    command += ['--class-path', os.pathsep.join(cp + [str(verifier)]),
-                'MatrixMixinVerifier' if loader == 'fabric' else 'NeoForgeMixinVerifier', str(config)]
+    if legacy:
+        folders = ['biblioteca_validation_bootstrap%%' + str(bootstrap)]
+        if not args.sodium_only:
+            folders.insert(0, 'biblioteca%%' + str(frozen))
+        environment['MOD_CLASSES'] = os.pathsep.join(folders)
+        command += ['-Dfml.modFolders=' + environment['MOD_CLASSES']]
+        command = legacy_command(runtime, config, legacy_launcher, cp, command)
+    else:
+        command += ['--class-path', os.pathsep.join(cp + [str(verifier)]),
+                    'MatrixMixinVerifier' if loader == 'fabric' else 'NeoForgeMixinVerifier', str(config)]
     if loader == 'fabric':
         command += ['client', str(out / 'run')]
     argfile = out / 'client.args'
@@ -133,7 +152,7 @@ def verify(row, variant, args):
     logpath = out / 'client.log'
     with logpath.open('w', encoding='utf-8') as log:
         try:
-            code = subprocess.run([args.java, '@' + str(argfile)], cwd=out, stdout=log, stderr=subprocess.STDOUT, timeout=240).returncode
+            code = subprocess.run([args.java, '@' + str(argfile)], cwd=out, stdout=log, stderr=subprocess.STDOUT, timeout=240, env=environment).returncode
         except subprocess.TimeoutExpired:
             code = -1
     text = logpath.read_text(encoding='utf-8', errors='replace')

@@ -3,6 +3,29 @@
 Scope: Fabric and NeoForge. Forge support is cancelled. Tasks below are worked on in order;
 completed items must include regression evidence and any remaining version-specific limits.
 
+## 1.0.4 release
+
+The completed work below ships in 1.0.4: **36 Fabric and 23 NeoForge targets**, each with
+complete/no-render variants, for **118 JARs**. Earlier milestone counts and development hashes
+below describe those historical runs. See [CHANGELOG.md](CHANGELOG.md) for the player-facing
+release notes and [RELEASE_1.0.4.md](RELEASE_1.0.4.md) for the final build evidence.
+
+## NeoForge backport and artifact cleanup (2026-11-16)
+
+- [x] Remove stale Biblioteca 1.0.2/1.0.3 release, development and test-cache JARs, preserving
+  a path/hash inventory and historical logs.
+- [x] Add 17 exact NeoForge release targets down to 1.20.1, with complete/no-render artifacts,
+  historical networking, metadata, entrypoints, access and production mapping adaptations.
+- [x] Validate all 23 NeoForge targets on client and server in both variants, and refresh
+  the 36-target Fabric regression matrix after shared compatibility fixes.
+- [x] Test every selected official NeoForge Sodium combination, including the Java 21 baseline
+  for 1.21.2 and the existing 26.3 minimum-version control.
+- [x] Finish six representative real-client runs, review all 36 screenshots, and freeze the
+  final 118 artifacts with their hashes and exact native/Sodium/save evidence.
+
+Current backport evidence is under `build/neoforge-backport/`; see
+[NEOFORGE_COMPATIBILITY.md](NEOFORGE_COMPATIBILITY.md) for all 23 loader pins.
+
 ## Infinity Easter egg catalogue (completed 2026-11-16)
 
 - [x] Add all 43 native Easter egg dimensions after the vanilla three, using the original strings
@@ -24,7 +47,7 @@ completed items must include regression evidence and any remaining version-speci
 - [x] Verify both snapshot variants with real physics, separate book dimensions, save/restart,
   invalid saved entries, joined-player state, particles, entity copies and cloud buffers.
 - [x] Regress all 36 Fabric nodes, all six existing NeoForge nodes and representative Sodium
-  combinations. Current output is 84 development JARs; logs/hashes are in `build/infinite-port/`.
+  combinations. That milestone produced 84 development JARs; logs/hashes are in `build/infinite-port/`.
 - [x] Document the NeoForge limit: no loader exists for this snapshot, so there is no NeoForge
   snapshot artifact. See `INFINITE_COMPATIBILITY.md` for installation and validation scope.
 

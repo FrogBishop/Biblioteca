@@ -1,13 +1,25 @@
 # Sodium compatibility
 
-Verified on 2026-11-04 for Biblioteca `1.0.4-dev.1`.
+The NeoForge backport through 1.20.1 is recorded in `build/neoforge-backport/report.json`.
+Its final matrix covers all 30 selected NeoForge/Sodium variant combinations for versions with
+an official Sodium release. Minecraft 1.21.2 uses Java 21 for this check: the historical
+NeoForge/Sodium stack could not read Java 25 class metadata. NeoForge 26.3 uses the required
+Sodium 0.9.3-beta.1; both variants also correctly reject 0.9.2 as a separate minimum-version control.
+NeoForge 1.21.8 additionally passed both real-client variants with Sodium 0.7.3, including
+menus, settings synchronization and camera crossings. Graphical runs and exact hashes are listed
+separately in the backport report. The older baseline
+below retains its original tested artifacts and dates.
+
+The baseline below was verified on 2026-11-04 for Biblioteca `1.0.4-dev.1`.
+Final 1.0.4 packaging and release checks are recorded in [RELEASE_1.0.4.md](RELEASE_1.0.4.md);
+old graphical observations remain associated with their original binaries.
 
 All **82 selected loader/version/variant combinations passed** packaged class transformation in the frozen baseline.
 The full builds provide periodic terrain, particles, entity copies and cloud layers through the
 adapters described below. Graphical coverage is reported separately from loading coverage.
 
 The November 4 timeout-restoration follow-up is retained at `build/falling-timeout-restore/report.json`.
-Current development artifacts and regression hashes are recorded in `build/infinite-port/report.json`.
+The snapshot-port development artifacts and regression hashes are recorded in `build/infinite-port/report.json`.
 The later legacy-position fix updates only 20w14infinite and 1.16.5, both variants; its current
 hashes are in `build/camera-seam/report.json`. Both 1.16.5 packages passed another strict Sodium
 0.2.0 transformation audit there. Actual camera-frame tests for this follow-up use the snapshot's
@@ -17,7 +29,7 @@ The snapshot port was followed by ten packaged Sodium regression combinations: F
 The full 82-combination baseline and older graphical results below retain their original frozen
 hashes; they are historical evidence, not reruns of every new artifact.
 
-The 20w14infinite development port uses its vanilla renderer adapter. No corresponding Sodium
+The 20w14infinite port uses its vanilla renderer adapter. No corresponding Sodium
 release is selected for that snapshot; it is not included in the 35-release Sodium baseline below.
 
 ## Integration
@@ -83,8 +95,20 @@ are checked against the cached release catalog SHA-512; exact tested SHA-256 val
 
 ### NeoForge
 
+This table is the November 16 backport baseline (30 variant runs). The targets without a
+selected official Sodium build are not included. Minecraft 1.21.2 uses Java 21.
+
 | Minecraft | Sodium release | Full | No-render |
 | --- | --- | --- | --- |
+| 1.21.1 | [mc1.21.1-0.8.13-neoforge](https://modrinth.com/mod/sodium/version/uMOpc5uV) | Pass | Pass |
+| 1.21.2 | [mc1.21.3-0.6.0-beta.5-neoforge](https://modrinth.com/mod/sodium/version/frbpSbY2) | Pass | Pass |
+| 1.21.3 | [mc1.21.3-0.6.13-neoforge](https://modrinth.com/mod/sodium/version/M0CXIL7c) | Pass | Pass |
+| 1.21.4 | [mc1.21.4-0.6.13-neoforge](https://modrinth.com/mod/sodium/version/XgEfENfn) | Pass | Pass |
+| 1.21.5 | [mc1.21.5-0.6.13-neoforge](https://modrinth.com/mod/sodium/version/dfyNHRhw) | Pass | Pass |
+| 1.21.6 | [mc1.21.8-0.7.3-neoforge](https://modrinth.com/mod/sodium/version/q6wdZywr) | Pass | Pass |
+| 1.21.7 | [mc1.21.8-0.7.3-neoforge](https://modrinth.com/mod/sodium/version/q6wdZywr) | Pass | Pass |
+| 1.21.8 | [mc1.21.8-0.7.3-neoforge](https://modrinth.com/mod/sodium/version/q6wdZywr) | Pass | Pass |
+| 1.21.10 | [mc1.21.10-0.7.3-neoforge](https://modrinth.com/mod/sodium/version/PdQpfqPZ) | Pass | Pass |
 | 1.21.11 | [mc1.21.11-0.8.14-neoforge](https://modrinth.com/mod/sodium/version/sC6wj32u) | Pass | Pass |
 | 26.1 | [mc26.1.1-0.8.9-neoforge](https://modrinth.com/mod/sodium/version/Fg5Mk6Y3) | Pass | Pass |
 | 26.1.1 | [mc26.1.1-0.8.9-neoforge](https://modrinth.com/mod/sodium/version/Fg5Mk6Y3) | Pass | Pass |

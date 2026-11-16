@@ -3,7 +3,9 @@
 `tools/publish.py` prepares exact-version releases and uses **Mod Publish Plugin 2.2.1**
 in the independent `publishing/` Gradle project. It uses the repository's Gradle wrapper
 without configuring the game builds unless `--build` is requested. Requirements are Java 25
-and Python 3.11 or newer; building the NeoForge 1.21.11 target also needs a Java 21 toolchain.
+and Python 3.11 or newer. Game builds also need the Java 17/21/25 toolchains appropriate to
+their targets. NeoForge 1.20.2, 1.20.3 and 1.20.5 use the separate Gradle 8.14.5 wrapper;
+the build helper selects it automatically.
 No additional Python packages are needed.
 
 The same command handles normal uploads, automatic retries and resuming an interrupted run.
@@ -26,7 +28,9 @@ two executable mods in one version or silently mixing variants in the main proje
 Without a separate project ID, Modrinth publishes only the complete build and reports that
 no-render was not selected. The complete build also works on dedicated servers.
 Both variants retain their original filenames.
-Fabric releases require Fabric API. NeoForge releases do not declare a Fabric API dependency.
+Fabric releases require Fabric API, except **20w14infinite**, whose four required modules are
+already bundled. The publisher omits the umbrella dependency for that snapshot on both platforms.
+NeoForge releases do not declare a Fabric API dependency.
 Minecraft compatibility is one exact version per release. Both variants support clients and
 servers, although clients need the complete variant for the periodic terrain view.
 
@@ -82,7 +86,7 @@ All commands below run from the repository root. The default is a plugin **dry r
 python tools/publish.py --versions 26.3
 
 # Build and run existing regression checks before previewing selected NeoForge targets.
-python tools/publish.py --versions 1.21.11,26.1,26.1.1,26.1.2,26.2,26.3 --loaders neoforge --build
+python tools/publish.py --versions 1.20.1,1.20.4,1.21.8,26.3 --loaders neoforge --build
 
 # Build, validate and preview every configured Fabric and NeoForge target.
 python tools/publish.py --build
@@ -116,6 +120,17 @@ The default mod version comes from `stonecutter.properties.toml`, shared with bo
 `--mod-version` selects existing artifacts from another release; it cannot be combined with
 `--build` when it differs from the configured version. A missing current-version artifact is
 an error, even if older JARs happen to be present in `build/distributions`.
+
+For **1.0.4**, the complete selection is **59 Minecraft/loader pairs and 118 JARs**. With the
+separate Modrinth no-render project configured, that creates **176 platform publications**:
+59 complete Modrinth versions, 59 no-render Modrinth versions and 58 CurseForge releases,
+each CurseForge release containing a primary and an additional file. This is **234 file uploads**.
+CurseForge's author API does not list `20w14infinite` (checked November 16, 2026), so the
+publisher explicitly reports that target as unsupported there and records it in
+`excludedPublications`. It keeps the snapshot on Modrinth/GitHub with its exact tag. Selecting
+only this snapshot and CurseForge fails before uploading; other targets are unaffected.
+GitHub commits, the `1.0.4` tag and the GitHub Release are separate from this two-platform script.
+The GitHub Release can attach the same 118 frozen JARs and their `SHA256SUMS.txt`.
 
 The matching section of `CHANGELOG.md` supplies the version changelog. `--changelog FILE`
 uses a separate Markdown file, and `--release-type release|beta|alpha` selects its channel.

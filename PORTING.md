@@ -8,6 +8,22 @@ The feature and validation audit is in [PARITY.md](PARITY.md).
 
 ## Loader scope
 
+Version 1.0.4 includes all 23 configured NeoForge release targets from 1.20.1 through 26.3.
+See [NEOFORGE_COMPATIBILITY.md](NEOFORGE_COMPATIBILITY.md) for the complete pins and toolchains.
+The common code is exported from the corresponding Fabric/Stonecutter node; loader adapters remain
+under `platforms/neoforge/src/` and never enter a Fabric artifact.
+
+The transport eras are SimpleChannel through 1.20.3, native reader/writer payloads in 1.20.4,
+StreamCodec with a co-registered handler through 1.21.6, then separate client handler registration.
+The original 1.20.1 NeoForge still uses Forge-named APIs and SRG production members. Its release
+JARs are reobfuscated, and validation records their normal development remaps separately. Concrete
+world/player/block-state/mob hooks cover interface operations unsupported by its original Mixin.
+Both full and no-render JARs carry their required nested libraries and native metadata.
+
+NeoForge recompilation can change lambda names and introduce overloads. The per-project
+`mixin-targets.json` files select verified native methods; access transformers match the shared
+renderer's required access. Keep injection counts strict and exercise both physical sides.
+
 Supported loaders are **Fabric and NeoForge**. The **Forge compatibility plan has been
 cancelled**; a Forge port is outside the project's development scope. NeoForge maintenance
 and ports to additional Minecraft versions will continue. Only the configured and verified

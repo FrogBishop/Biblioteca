@@ -38,7 +38,7 @@ def inspect_jar(jar, selection, variant, runtime):
     expected_client = selection['client'] if variant == 'full' else selection['clientCore']
     with zipfile.ZipFile(jar) as z:
         names = set(z.namelist())
-        metadata = tomllib.loads(z.read('META-INF/neoforge.mods.toml').decode())
+        metadata = tomllib.loads(z.read(runtime.get('metadata', 'META-INF/neoforge.mods.toml')).decode())
         expected_version = runtime['modVersion'] + ('-norender' if variant == 'norender' else '')
         assert metadata['mods'][0]['modId'] == 'biblioteca'
         assert metadata['mods'][0]['version'] == expected_version
@@ -57,6 +57,8 @@ def inspect_jar(jar, selection, variant, runtime):
                 assert config['package'].replace('.', '/') + '/' + mixin + '.class' in names
         if runtime.get('requiresAccessTransformer', runtime['minecraft'] == '26.3'):
             assert 'META-INF/accesstransformer.cfg' in names
+        if runtime['minecraft'] == '1.20.1':
+            assert json.loads(z.read('pack.mcmeta'))['pack']['pack_format'] == 15
         for resource in ['assets/biblioteca/icon.png', 'assets/biblioteca/lang/en_us.json', 'assets/biblioteca/lang/zh_cn.json']:
             assert resource in names
         for name in names:
@@ -71,7 +73,13 @@ def inspect_jar(jar, selection, variant, runtime):
             assert not any(m['config'] == 'biblioteca.sodium-compat.mixins.json' for m in metadata.get('mixins', []))
         else:
             assert 'biblioteca.sodium-compat.mixins.json' in names
-            assert any(m['config'] == 'biblioteca.sodium-compat.mixins.json' for m in metadata.get('mixins', []))
+            if runtime['minecraft'] == '1.20.1':
+                manifest = z.read('META-INF/MANIFEST.MF').decode().replace('\r\n ', '').replace('\n ', '')
+                assert 'MixinConfigs: biblioteca.mixins.json,biblioteca.client.mixins.json,biblioteca.sodium-compat.mixins.json' in manifest
+                refmap = json.loads(z.read('biblioteca.refmap.json'))
+                assert refmap['mappings'] and re.search(r'\b[fm]_\d+_', json.dumps(refmap)), 'Missing production SRG refmap'
+            else:
+                assert any(m['config'] == 'biblioteca.sodium-compat.mixins.json' for m in metadata.get('mixins', []))
     return hashlib.sha256(jar.read_bytes()).hexdigest()
 
 
@@ -94,8 +102,14 @@ def main():
     (reports / 'results.json').write_text('[]\n', encoding='utf-8')
     compile_cp = runtime['classpath']
     release = int(runtime.get('java', 25))
-    compile_java(args.javac, compile_cp, reports / 'verifier', [ROOT / 'tools/NeoForgeMixinVerifier.java'], reports / 'verifier-compile.log', release)
-    sources = sorted((ROOT / 'tools/validation').glob('*.java')) + sorted((ROOT / 'tools/neoforge-validation').glob('*.java'))
+    legacy = runtime.get('launcher') == 'modlauncher'
+    if legacy:
+        from verify_neoforge_legacy import prepare_launcher, prepare_checks, command as legacy_command
+        legacy_launcher = prepare_launcher(ROOT, runtime, reports, args.javac, compile_java)
+    else:
+        compile_java(args.javac, compile_cp, reports / 'verifier', [ROOT / 'tools/NeoForgeMixinVerifier.java'], reports / 'verifier-compile.log', release)
+    sources = sorted((ROOT / 'tools/validation').glob('*.java')) + (prepare_checks(ROOT, runtime, reports) if legacy
+              else sorted((ROOT / 'tools/neoforge-validation').glob('*.java')))
     if runtime['minecraft'] == '1.21.11':
         sources += sorted((ROOT / 'tools/validation/neoforge12111').glob('*.java'))
     if runtime['minecraft'] == '26.3':
@@ -107,9 +121,12 @@ def main():
         suffix = '-norender' if variant == 'norender' else ''
         jar = Path(runtime['artifacts'][variant])
         digest = inspect_jar(jar, selection, variant, runtime)
+        # Legacy Forge's development game uses Mojang names. MDG deobfuscates the actual
+        # production SRG artifact back into that namespace, just as for normal mod dependencies.
+        loaded_jar = Path(runtime.get('validationArtifacts', {}).get(variant, str(jar)))
         artifact_classes = reports / 'artifacts' / digest
         artifact_classes.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(jar) as z:
+        with zipfile.ZipFile(loaded_jar) as z:
             z.extractall(artifact_classes)
         for side in args.sides.split(','):
             target = reports / variant / side
@@ -119,7 +136,8 @@ def main():
             config = dict(runtime, side=side, variant=variant, artifactClasses=str(artifact_classes), gameDir=str(game_dir))
             config_path = target / 'config.json'
             config_path.write_text(json.dumps(config, indent=2), encoding='utf-8')
-            cp = [p for p in runtime['classpath'] if p not in (runtime['classes'], runtime['resources'])]
+            side_cp = runtime.get('clientClasspath', runtime['classpath']) if side == 'client' else runtime['classpath']
+            cp = [p for p in side_cp if p not in (runtime['classes'], runtime['resources'])]
             cp += [str(reports / 'verifier')]
             # FML loads the actual packaged JAR; check classes are appended to the same test mod.
             jvm = ['--enable-native-access=ALL-UNNAMED',
@@ -128,17 +146,22 @@ def main():
                    '-Dmixin.debug.countInjections=true',
                    '-Dbiblioteca.validation.version=' + runtime['modVersion'] + suffix,
                    '-Dbiblioteca.validation.minecraft=' + runtime['minecraft'],
-                   '-Dfml.modFolders=' + os.pathsep.join(['biblioteca%%' + str(jar), 'biblioteca%%' + str(reports / 'checks')])]
+                   '-Dfml.modFolders=' + os.pathsep.join(['biblioteca%%' + str(loaded_jar), 'biblioteca%%' + str(reports / 'checks')])]
             if release >= 24:
                 jvm.append('--sun-misc-unsafe-memory-access=allow')
             argfile = target / 'java.args'
-            argfile.write_text('\n'.join(map(quote, jvm)) + '\n--class-path\n' + quote(os.pathsep.join(cp))
-                               + '\nNeoForgeMixinVerifier\n' + quote(config_path) + '\n', encoding='utf-8')
+            command = legacy_command(runtime, config_path, legacy_launcher, cp, jvm) if legacy else (
+                    jvm + ['--class-path', os.pathsep.join(cp), 'NeoForgeMixinVerifier', str(config_path)])
+            argfile.write_text('\n'.join(map(quote, command)) + '\n', encoding='utf-8')
             log = target / 'loader.log'
+            environment = dict(os.environ)
+            if legacy:
+                # FML 2 and earlier read the native MOD_CLASSES environment variable only.
+                environment['MOD_CLASSES'] = os.pathsep.join(['biblioteca%%' + str(loaded_jar), 'biblioteca%%' + str(reports / 'checks')])
             with log.open('w', encoding='utf-8') as stream:
                 try:
                     result = subprocess.run([args.java, '@' + str(argfile)], cwd=game_dir,
-                                            stdout=stream, stderr=subprocess.STDOUT, timeout=240)
+                                            stdout=stream, stderr=subprocess.STDOUT, timeout=240, env=environment)
                     exit_code = result.returncode
                 except subprocess.TimeoutExpired:
                     stream.write('\nVALIDATION_TIMEOUT after 240 seconds\n')
@@ -150,6 +173,8 @@ def main():
                       'jar': str(jar.relative_to(ROOT)), 'log': str(log.relative_to(ROOT)),
                       'targets': len(re.findall(r'^TARGET_OK ', text, re.MULTILINE)),
                       'checks': re.findall(r'(?:DATA_OK |PASS: )[^\r\n]+', text)}
+            if loaded_jar != jar:
+                record['developmentRemap'] = {'jar': str(loaded_jar.relative_to(ROOT)), 'sha256': hashlib.sha256(loaded_jar.read_bytes()).hexdigest()}
             results.append(record)
             print(marker.group(0) if record['passed'] else f'FAILED {variant} {side}: {log}', flush=True)
             (reports / 'results.json').write_text(json.dumps(results, indent=2) + '\n', encoding='utf-8')

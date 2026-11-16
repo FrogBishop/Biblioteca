@@ -39,7 +39,7 @@ public final class HybridDigChecks {
         if (phase == 0) {
             expect(base + 8, 16, base + 8, 0, "solid volume");
             // Remove the entire 8x8 column, including the physical bottom and empty upper rows.
-            for (int y = level.getMaxY(); y >= level.getMinY(); y--)
+            for (int y = babel.biblioteca.Compat.minY(level) + babel.biblioteca.Compat.height(level) - 1; y >= babel.biblioteca.Compat.minY(level); y--)
                 for (int x = base + 4; x < base + 12; x++) for (int z = base + 4; z < base + 12; z++)
                     level.setBlockAndUpdate(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState());
             System.out.println("HYBRID_DIG_EXCAVATED base=" + base + " 8x8 full-height shaft");
@@ -71,7 +71,7 @@ public final class HybridDigChecks {
             level.setBlockAndUpdate(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState());
         // Copied player worlds can contain water beside the shaft. Keep a solid wall
         // through the whole period so fluid flow cannot invalidate the all-air premise.
-        for (int y = level.getMinY(); y <= level.getMaxY(); y++) {
+        for (int y = babel.biblioteca.Compat.minY(level); y < babel.biblioteca.Compat.minY(level) + babel.biblioteca.Compat.height(level); y++) {
             for (int z = base + 3; z <= base + 12; z++) {
                 level.setBlockAndUpdate(new BlockPos(base + 3, y, z), Blocks.STONE.defaultBlockState());
                 level.setBlockAndUpdate(new BlockPos(base + 12, y, z), Blocks.STONE.defaultBlockState());
@@ -90,7 +90,7 @@ public final class HybridDigChecks {
 
     private void expectOpenShaft(int base, String phase) {
         for (int x = base + 4; x < base + 12; x++) for (int z = base + 4; z < base + 12; z++)
-            for (int y : new int[]{level.getMinY(), -32, 0, 15, 16, 31, 40, level.getMaxY()})
+            for (int y : new int[]{babel.biblioteca.Compat.minY(level), -32, 0, 15, 16, 31, 40, babel.biblioteca.Compat.minY(level) + babel.biblioteca.Compat.height(level) - 1})
                 expect(x, y, z, 15, phase);
     }
 
@@ -109,7 +109,7 @@ public final class HybridDigChecks {
     private String columnBlocks(int x, int z) {
         StringBuilder result = new StringBuilder();
         int count = 0;
-        for (int y = level.getMaxY(); y >= level.getMinY(); y--) {
+        for (int y = babel.biblioteca.Compat.minY(level) + babel.biblioteca.Compat.height(level) - 1; y >= babel.biblioteca.Compat.minY(level); y--) {
             var state = level.getBlockState(new BlockPos(x, y, z));
             if (!state.isAir() && count++ < 8) result.append(y).append(':').append(state).append(';');
         }

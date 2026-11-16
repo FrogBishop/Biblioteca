@@ -1,6 +1,6 @@
 # Biblioteca for NeoForge on Minecraft 1.21.11
 
-Biblioteca 1.0.3 supports Minecraft **1.21.11**, pinned to **NeoForge 21.11.48** from the
+Biblioteca 1.0.4 supports Minecraft **1.21.11**, pinned to **NeoForge 21.11.48** from the
 [official MDK](https://github.com/NeoForgeMDKs/MDK-1.21.11-ModDevGradle/blob/main/gradle.properties).
 It requires Java 21 and NeoForge; Fabric API is not needed. The complete and no-render JARs share
 gameplay, networking and world data. Multiplayer requires Biblioteca on both ends; a server may
@@ -8,8 +8,8 @@ use no-render while clients use the complete variant for periodic visuals.
 
 The complete and no-render release artifacts are:
 
-- `biblioteca-1.0.3+1.21.11-neoforge.jar`
-- `biblioteca-1.0.3+1.21.11-neoforge-norender.jar`
+- `biblioteca-1.0.4+1.21.11-neoforge.jar`
+- `biblioteca-1.0.4+1.21.11-neoforge-norender.jar`
 
 The Minecraft dependency is exact. The NeoForge range is `[21.11.48,21.12)`; the explicitly
 tested baseline is 21.11.48.
@@ -80,7 +80,7 @@ native renderer; shader packs and replacement renderers are outside this target'
 Reproduce the save test with an already accepted EULA file:
 
 ```powershell
-python tools/verify_neoforge_save.py --runtime-config platforms/neoforge-1.21.11/build/validation/runtime.json --jar build/distributions/biblioteca-1.0.3+1.21.11-neoforge.jar --new-world --hybrid-dig --label fresh-hybrid-world --eula-file path/to/eula.txt --java path/to/java21 --javac path/to/javac21
+python tools/verify_neoforge_save.py --runtime-config platforms/neoforge-1.21.11/build/validation/runtime.json --jar build/distributions/biblioteca-1.0.4+1.21.11-neoforge.jar --new-world --hybrid-dig --label fresh-hybrid-world --eula-file path/to/eula.txt --java path/to/java21 --javac path/to/javac21
 ```
 
 `tools/verify_neoforge_client.py` accepts that runtime configuration and JAR, the saved test
@@ -96,4 +96,5 @@ Evidence stays under the ignored `build/neoforge-1.21.11/` directory:
 - `client-validation/ui/results.json`: the two native UI screenshots.
 
 The existing NeoForge 26.3 Java 25 target also passed all four packaged regressions after the
-shared tooling changes. Each configured target is rebuilt and checked for the 1.0.3 release.
+shared tooling changes. Those live runs are historical evidence; all 23 configured targets
+are rebuilt and checked for 1.0.4. See [the final release evidence](../../RELEASE_1.0.4.md).
