@@ -95,6 +95,9 @@ The existing PowerShell entrypoint also accepts every configured target:
 runs on JDK 25. Their access-transformer build tool uses JDK 21 to avoid a Windows Java 17 ZipFS
 writability-detection issue; the game and mod bytecode targets stay unchanged. Other projects use
 the main Gradle 9.8 wrapper. Vanilla asset caches are shared between the historical build backends.
+The legacy asset task creates the shared cache directory before NeoGradle validates its inputs,
+so a clean checkout does not depend on a previous ModDevGradle run. The CI matrix limits parallel
+jobs to eight to reduce simultaneous requests to dependency repositories.
 
 `build` produces both variants, loads each on both physical sides through actual FML, runs the
 version-specific regression suite, and collects successful artifacts into `build/distributions`.

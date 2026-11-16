@@ -123,6 +123,16 @@ if (prepareSharedSources != null) {
 java { toolchain.languageVersion = JavaLanguageVersion.of(targetJava) }
 if (neoGradleTarget) {
     dependencies { implementation "net.neoforged:neoforge:${project.neo_version}" }
+    def sharedAssetsDirectory = new File(gradle.gradleUserHomeDir, 'caches/neoformruntime/assets')
+    // NeoGradle declares this as an input directory, so it must exist before task validation.
+    // A clean runner has no ModDevGradle cache to reuse yet.
+    def prepareSharedAssetsDirectory = tasks.register('prepareSharedAssetsDirectory') {
+        doLast {
+            if (!sharedAssetsDirectory.mkdirs() && !sharedAssetsDirectory.isDirectory()) {
+                throw new GradleException("Cannot create shared assets directory: ${sharedAssetsDirectory}")
+            }
+        }
+    }
     runs {
         configureEach { modSource sourceSets.main }
         client {}
@@ -135,7 +145,8 @@ if (neoGradleTarget) {
             javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) })
         }
         if (name.endsWith('DownloadAssets')) {
-            assetsDirectory.set(new File(gradle.gradleUserHomeDir, 'caches/neoformruntime/assets'))
+            dependsOn prepareSharedAssetsDirectory
+            assetsDirectory.set(sharedAssetsDirectory)
             assetIndex.set(['1.20.2': '8', '1.20.3': '12', '1.20.5': '16'][minecraftVersion])
         }
     }

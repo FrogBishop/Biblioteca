@@ -54,6 +54,7 @@ jobs:
     timeout-minutes: 40
     strategy:
       fail-fast: false
+      max-parallel: 8
       matrix:
         minecraft: ${{ fromJSON(needs.targets.outputs.versions) }}
     steps:
