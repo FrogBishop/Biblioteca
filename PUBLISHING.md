@@ -8,6 +8,12 @@ their targets. NeoForge 1.20.2, 1.20.3 and 1.20.5 use the separate Gradle 8.14.5
 the build helper selects it automatically.
 No additional Python packages are needed.
 
+**Standing owner policy: the user manually uploads or edits the CurseForge project-page
+description.** The agent maintains `curseforge.md` and prepares the per-run
+`curseforge-description.md` copy. Do not attempt to update the page through a browser or API,
+or ask the user to reconfirm this arrangement on each release, unless the user explicitly
+requests a change. This manual handoff is normal and does not block successful file publication.
+
 The same command handles normal uploads, automatic retries and resuming an interrupted run.
 Both platforms still use the pinned plugin's HTTP clients and metadata serializers. The live
 Gradle tasks save each file's receipt themselves so that a failed CurseForge additional file
@@ -198,12 +204,20 @@ python tools/publish.py --description-only
 python tools/publish.py --description-only --platforms modrinth --publish
 ```
 
-**CurseForge limitation:** its documented author upload API and the plugin do not provide a
-project-description update operation. Every run therefore also writes `curseforge-description.md`,
-an exact copy of `curseforge.md`, for the author dashboard's Markdown editor. That source avoids
-release/version-number lists and explains that both complete and no-render downloads are in
-the same CurseForge project. The result explicitly
-marks this as manual; it does not report the CurseForge project page as synchronized. See the
+**CurseForge project page — user-managed:** the user uploads or pastes the prepared description
+into the author dashboard. Every run writes `curseforge-description.md`, an exact copy of
+`curseforge.md`, for that purpose. The agent's responsibility ends with preparing the copy;
+browser automation, API workarounds and repeated confirmation requests are outside this workflow
+unless the user explicitly asks for them. When the copy changes, provide its path as the handoff.
+Do not present the user's manual page update as a failed, blocked or incomplete release, or keep
+reminding the user that it has not been synchronized.
+
+This is the owner's standing division of work, regardless of browser or API availability.
+The script's `manual` description status is an expected success state. CurseForge JAR uploads
+and Modrinth project-description synchronization remain part of the authorized automated release.
+The CurseForge page copy stays version-independent and explains that complete and no-render
+downloads share one project. Its documented author upload API and the plugin also lack a
+project-description update operation. See the
 [official API](https://support.curseforge.com/support/solutions/articles/9000197321-curseforge-api)
 and [project description editor](https://support.curseforge.com/support/solutions/articles/9000197241-creating-and-submitting-a-project).
 

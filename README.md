@@ -116,6 +116,11 @@ Publishing uses the isolated Mod Publish Plugin project under `publishing/`. Run
 the selected targets first. See [PUBLISHING.md](PUBLISHING.md) for external credentials,
 batch uploads, resume behavior and synchronization of the project description.
 
+**The user manually uploads the CurseForge project-page description.** Prepare `curseforge.md`
+and the publisher's `curseforge-description.md` copy for that handoff; do not automate page edits
+or request confirmation again on each release. This is an expected manual step, not a release
+blocker. CurseForge file uploads and Modrinth description updates use the publishing script.
+
 ## Coordinate model
 
 Stored block rows occupy `[minY, minY + height)`. In the normal Overworld this is `[-64, 320)`;
