@@ -135,11 +135,42 @@ superseded by the integration report rather than rewritten as a passing historic
 - [x] Run real server sand/gravel/anvil, concrete/water, collision/placement and item/TNT/mob
   regressions across movement-storage version boundaries, with ordinary-world controls.
 
+## Long-term exploration: integrate X/Z looping (planned 2026-11-18)
+
+Explore adding optional X and Z loops to Biblioteca's existing Y loop, with a unified coordinate
+and image model. This is future work without a committed release or schedule. Use
+[Seamless World Wrap](https://github.com/Amproids/seamless-world-wrap/tree/41534c0877a10bfc9a2ebd354df1095b4e5b161f)
+as a reference for horizontal chunks and generation; evaluate selective reuse and preserve its
+MIT copyright and license notices when incorporating code.
+
+**Generation scope is X/Z only.** The Y loop remains a spatial/gameplay capability for modpacks
+with their own terrain generation. Joining the world's top and bottom terrain naturally, changing
+bedrock, or redesigning vertical generation is outside this work. Provide horizontal generation
+adaptation for standalone play while allowing modpacks to supply their own generator.
+
+- [ ] Start with a bounded 1.21.1 prototype on one loader and the vanilla renderer; assess the
+  integration before expanding the supported matrix.
+- [ ] Define per-dimension axis settings, periods and saved data. Unify canonical coordinates,
+  observer-relative images and actual movement history, preserving existing Y-only worlds.
+- [ ] Adapt horizontal chunk lookup, generation neighborhoods, loading/tracking and network
+  updates. Keep one authoritative chunk/entity and coherent state for independent observers.
+- [ ] Extend queries, collisions, ray hits, pathfinding, light and game events to combined axes.
+  Preserve oversized/displaced hitboxes, result limits, logical-object uniqueness and native
+  update behavior; avoid inflating small queries by whole periods on every axis.
+- [ ] Extend image enumeration and rendering with a total copy budget, shared geometry and
+  consistent visibility, transparency, shadows and first-person self-copy rules.
+- [ ] Integrate X/Z periodic terrain sampling, required surface sampling, cross-seam structure
+  references/placement and terrain adjustment. Keep arbitrary generator compatibility and
+  tiny-world progression guarantees as separately scoped extensions.
+- [ ] Validate face, edge and corner crossings, axis combinations, fast multi-period movement,
+  passengers, independent observers and short-period rendering costs. After the prototype is
+  stable, extend to Sodium, the other loader and additional versions, including both variants.
+
 ## Deferred research
 
 - Shader/Iris parameter interfaces: deferred at the user's request.
-- Optional periodic terrain generation: keep as a separate design study. Existing-world terrain
-  and bedrock preservation remain the current behavior; a new generator needs its own specification.
+- Additional generator integrations and special tiny-world gameplay: assess separately from the
+  initial X/Z looping exploration above.
 
 ## Reference and validation
 
